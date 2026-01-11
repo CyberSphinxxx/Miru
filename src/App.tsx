@@ -7,9 +7,23 @@ import { Anime, Episode, StreamLink } from './types';
 
 const API_BASE = 'http://localhost:3001/api';
 
+type ViewMode = 'home' | 'trending' | 'genres';
+
+interface Genre {
+    mal_id: number;
+    name: string;
+    count: number;
+}
+
 function App() {
+    // View state
+    const [viewMode, setViewMode] = useState<ViewMode>('home');
+    const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
+    const [genres, setGenres] = useState<Genre[]>([]);
+    const [genresLoading, setGenresLoading] = useState(false);
+
     // Main state
-    const [topAnime, setTopAnime] = useState<Anime[]>([]);
+    const [animeList, setAnimeList] = useState<Anime[]>([]);
     const [searchResults, setSearchResults] = useState<Anime[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
@@ -31,17 +45,33 @@ function App() {
     const [epLoading, setEpLoading] = useState(false);
     const [streamLoading, setStreamLoading] = useState(false);
 
-    // Fetch top anime
+    // Fetch anime based on view mode
     useEffect(() => {
-        const fetchTopAnime = async () => {
+        const fetchAnime = async () => {
+            if (isSearching) return;
+
             try {
                 setLoading(true);
-                const res = await fetch(`${API_BASE}/jikan/top?page=${currentPage}&limit=24`);
+                setError(null);
+
+                let url = '';
+                if (viewMode === 'home') {
+                    url = `${API_BASE}/jikan/top?page=${currentPage}&limit=24`;
+                } else if (viewMode === 'trending') {
+                    url = `${API_BASE}/jikan/trending?page=${currentPage}&limit=24`;
+                } else if (viewMode === 'genres' && selectedGenre) {
+                    url = `${API_BASE}/jikan/genres/${selectedGenre.mal_id}?page=${currentPage}&limit=24`;
+                } else {
+                    setLoading(false);
+                    return;
+                }
+
+                const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed to fetch');
                 const data = await res.json();
 
                 if (data?.data) {
-                    setTopAnime(data.data);
+                    setAnimeList(data.data);
                     if (data.pagination) {
                         setLastVisiblePage(data.pagination.last_visible_page);
                     }
@@ -54,10 +84,27 @@ function App() {
             }
         };
 
-        if (!isSearching) {
-            fetchTopAnime();
-        }
-    }, [currentPage, isSearching]);
+        fetchAnime();
+    }, [currentPage, viewMode, selectedGenre, isSearching]);
+
+    // Fetch genres
+    useEffect(() => {
+        const fetchGenres = async () => {
+            try {
+                setGenresLoading(true);
+                const res = await fetch(`${API_BASE}/jikan/genres`);
+                const data = await res.json();
+                if (data?.data) {
+                    setGenres(data.data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch genres', err);
+            } finally {
+                setGenresLoading(false);
+            }
+        };
+        fetchGenres();
+    }, []);
 
     // Handle body scroll when modal is open
     useEffect(() => {
@@ -106,6 +153,22 @@ function App() {
         setSearchResults([]);
         setSearchLoading(false);
         setCurrentPage(1);
+        setViewMode('home');
+        setSelectedGenre(null);
+    };
+
+    const handleViewChange = (view: ViewMode) => {
+        setViewMode(view);
+        setCurrentPage(1);
+        setIsSearching(false);
+        setSearchQuery('');
+        setSelectedGenre(null);
+    };
+
+    const handleGenreSelect = (genre: Genre) => {
+        setSelectedGenre(genre);
+        setViewMode('genres');
+        setCurrentPage(1);
     };
 
     const handleAnimeClick = async (anime: Anime) => {
@@ -117,18 +180,15 @@ function App() {
         setScraperSession(null);
 
         try {
-            // Fetch full details
             const detailRes = await fetch(`${API_BASE}/jikan/anime/${anime.mal_id}`);
             const detailData = await detailRes.json();
             if (detailData?.data) {
                 setSelectedAnime(detailData.data);
             }
 
-            // Search for the anime on scraper
             let searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(anime.title)}`);
             let searchData = await searchRes.json();
 
-            // Fallback search with simpler title
             if ((!searchData || searchData.length === 0) && anime.title.includes(':')) {
                 const simpleTitle = anime.title.split(':')[0].trim();
                 searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(simpleTitle)}`);
@@ -218,8 +278,22 @@ function App() {
         setStreams([]);
     };
 
-    const displayedAnime = isSearching ? searchResults : topAnime;
-    const maxPage = isSearching ? lastVisiblePage : Math.min(lastVisiblePage, 5);
+    const displayedAnime = isSearching ? searchResults : animeList;
+    const maxPage = isSearching ? lastVisiblePage : Math.min(lastVisiblePage, 10);
+
+    const getPageTitle = () => {
+        if (isSearching) return `Results for "${searchQuery}"`;
+        if (viewMode === 'trending') return 'Trending Now';
+        if (viewMode === 'genres' && selectedGenre) return selectedGenre.name;
+        return 'Top Anime';
+    };
+
+    const getPageSubtitle = () => {
+        if (isSearching) return `Found ${searchResults.length} results`;
+        if (viewMode === 'trending') return 'Currently airing & popular anime';
+        if (viewMode === 'genres' && selectedGenre) return `Browse ${selectedGenre.name} anime`;
+        return 'Discover the highest rated anime';
+    };
 
     return (
         <div className="min-h-screen bg-miru-bg text-white">
@@ -229,137 +303,179 @@ function App() {
                 onSearch={handleSearch}
                 onLogoClick={clearSearch}
                 isSearching={isSearching}
+                viewMode={viewMode}
+                onViewChange={handleViewChange}
             />
 
             {/* Main Content */}
             <main className="container mx-auto px-6 pt-24 pb-12">
-                {/* Header */}
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h2 className="text-2xl font-bold">
-                            {isSearching ? `Results for "${searchQuery}"` : 'Top Anime'}
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">
-                            {isSearching
-                                ? `Found ${searchResults.length} results`
-                                : 'Discover the highest rated anime'
-                            }
-                        </p>
-                    </div>
-                    {isSearching && (
-                        <button
-                            onClick={clearSearch}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                            Clear
-                        </button>
-                    )}
-                </div>
+                {/* Genre Selector (shown when viewMode is genres and no genre selected) */}
+                {viewMode === 'genres' && !selectedGenre && (
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold mb-2">Browse by Genre</h2>
+                        <p className="text-gray-500 text-sm mb-6">Select a genre to explore</p>
 
-                {/* Content */}
-                {searchLoading || (loading && topAnime.length === 0) ? (
-                    <div className="flex justify-center items-center h-96">
-                        <LoadingSpinner size="lg" text="Loading anime..." />
+                        {genresLoading ? (
+                            <div className="flex justify-center py-12">
+                                <LoadingSpinner size="lg" text="Loading genres..." />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                                {genres.map(genre => (
+                                    <button
+                                        key={genre.mal_id}
+                                        onClick={() => handleGenreSelect(genre)}
+                                        className="p-4 rounded-xl bg-miru-surface hover:bg-miru-surface-light border border-white/5 hover:border-miru-accent/50 transition-all text-left group"
+                                    >
+                                        <h3 className="font-semibold text-sm group-hover:text-miru-accent transition-colors">{genre.name}</h3>
+                                        <p className="text-xs text-gray-500 mt-1">{genre.count.toLocaleString()} anime</p>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                ) : error ? (
-                    <div className="text-center py-20">
-                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-red-500">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                            </svg>
-                        </div>
-                        <p className="text-red-400 mb-2">{error}</p>
-                        <p className="text-gray-500 text-sm">Make sure the backend server is running on port 3001</p>
-                    </div>
-                ) : (
+                )}
+
+                {/* Anime List View */}
+                {(viewMode !== 'genres' || selectedGenre) && (
                     <>
-                        {/* Anime Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                            {displayedAnime.slice(0, currentPage === 5 ? 4 : 24).map((anime, index) => (
-                                <AnimeCard
-                                    key={anime.mal_id}
-                                    anime={{
-                                        ...anime,
-                                        rank: isSearching ? anime.rank : ((currentPage - 1) * 24 + index + 1)
-                                    }}
-                                    onClick={handleAnimeClick}
-                                />
-                            ))}
+                        {/* Header */}
+                        <div className="flex justify-between items-center mb-8">
+                            <div>
+                                <h2 className="text-2xl font-bold">{getPageTitle()}</h2>
+                                <p className="text-gray-500 text-sm mt-1">{getPageSubtitle()}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                {selectedGenre && (
+                                    <button
+                                        onClick={() => setSelectedGenre(null)}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                                        </svg>
+                                        All Genres
+                                    </button>
+                                )}
+                                {isSearching && (
+                                    <button
+                                        onClick={clearSearch}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                        </svg>
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Pagination */}
-                        <div className="flex justify-center items-center mt-12 gap-2">
-                            {currentPage > 1 && (
-                                <>
-                                    <button
-                                        onClick={() => setCurrentPage(1)}
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
-                                    >
-                                        «
-                                    </button>
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
-                                    >
-                                        ‹
-                                    </button>
-                                </>
-                            )}
-
-                            {(() => {
-                                const pages = [];
-                                let start = Math.max(1, currentPage - 1);
-                                if (start + 3 > maxPage) start = Math.max(1, maxPage - 3);
-
-                                for (let i = start; i <= Math.min(start + 3, maxPage); i++) {
-                                    pages.push(i);
-                                }
-
-                                return pages.map(pageNum => (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${currentPage === pageNum
-                                                ? 'bg-miru-accent text-white shadow-lg shadow-miru-accent/30'
-                                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                            }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                ));
-                            })()}
-
-                            {currentPage < maxPage && (
-                                <>
-                                    <button
-                                        onClick={() => setCurrentPage(prev => Math.min(maxPage, prev + 1))}
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
-                                    >
-                                        ›
-                                    </button>
-                                    <button
-                                        onClick={() => setCurrentPage(maxPage)}
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
-                                    >
-                                        »
-                                    </button>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Empty State for Search */}
-                        {isSearching && searchResults.length === 0 && !searchLoading && (
+                        {/* Content */}
+                        {searchLoading || loading ? (
+                            <div className="flex justify-center items-center h-96">
+                                <LoadingSpinner size="lg" text="Loading anime..." />
+                            </div>
+                        ) : error ? (
                             <div className="text-center py-20">
-                                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-gray-500">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-red-500">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                                     </svg>
                                 </div>
-                                <p className="text-gray-400">No anime found matching "{searchQuery}"</p>
+                                <p className="text-red-400 mb-2">{error}</p>
+                                <p className="text-gray-500 text-sm">Make sure the backend server is running on port 3001</p>
                             </div>
+                        ) : (
+                            <>
+                                {/* Anime Grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                                    {displayedAnime.map((anime, index) => (
+                                        <AnimeCard
+                                            key={anime.mal_id}
+                                            anime={{
+                                                ...anime,
+                                                rank: viewMode === 'home' && !isSearching ? ((currentPage - 1) * 24 + index + 1) : undefined
+                                            }}
+                                            onClick={handleAnimeClick}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Pagination */}
+                                {displayedAnime.length > 0 && (
+                                    <div className="flex justify-center items-center mt-12 gap-2">
+                                        {currentPage > 1 && (
+                                            <>
+                                                <button
+                                                    onClick={() => setCurrentPage(1)}
+                                                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
+                                                >
+                                                    «
+                                                </button>
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
+                                                >
+                                                    ‹
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {(() => {
+                                            const pages = [];
+                                            let start = Math.max(1, currentPage - 1);
+                                            if (start + 3 > maxPage) start = Math.max(1, maxPage - 3);
+
+                                            for (let i = start; i <= Math.min(start + 3, maxPage); i++) {
+                                                pages.push(i);
+                                            }
+
+                                            return pages.map(pageNum => (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${currentPage === pageNum
+                                                        ? 'bg-miru-accent text-white shadow-lg shadow-miru-accent/30'
+                                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            ));
+                                        })()}
+
+                                        {currentPage < maxPage && (
+                                            <>
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.min(maxPage, prev + 1))}
+                                                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
+                                                >
+                                                    ›
+                                                </button>
+                                                <button
+                                                    onClick={() => setCurrentPage(maxPage)}
+                                                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all font-bold text-sm"
+                                                >
+                                                    »
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Empty State */}
+                                {displayedAnime.length === 0 && !loading && (
+                                    <div className="text-center py-20">
+                                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-gray-500">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-gray-400">No anime found</p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </>
                 )}
