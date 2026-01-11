@@ -21,11 +21,13 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
 router.get('/episodes', async (req: Request, res: Response): Promise<void> => {
     try {
         const session = req.query.session as string;
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+
         if (!session) {
             res.status(400).json({ error: 'Query parameter session is required' });
             return;
         }
-        const result = await scraperService.getEpisodes(session);
+        const result = await scraperService.getEpisodes(session, page);
         res.json(result);
     } catch (error: unknown) {
         console.error('Scraper episodes error:', error);
