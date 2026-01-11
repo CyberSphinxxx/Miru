@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Anime } from '../types';
 import { isInWatchlist, toggleWatchlist } from '../services/watchlistService';
+import { prefetchEpisodes } from '../services/api';
 
 interface AnimeCardProps {
     anime: Anime;
@@ -191,17 +192,30 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onWa
                             {/* Action Buttons */}
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={handlePlayClick}
-                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-miru-accent hover:bg-miru-accent/90 text-white text-xs font-medium transition-all shadow-lg"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onClick();
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium transition-all shadow-lg backdrop-blur-sm group/btn"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
+                                        <path fillRule="evenodd" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" clipRule="evenodd" />
+                                    </svg>
+                                    Details
+                                </button>
+                                <button
+                                    onClick={handlePlayClick}
+                                    onMouseEnter={() => prefetchEpisodes(anime.title)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-miru-accent hover:bg-miru-accent/90 text-white text-xs font-medium transition-all shadow-lg group/btn"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
                                         <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
                                     </svg>
-                                    Watch now
+                                    Watch
                                 </button>
                                 <button
                                     onClick={handleWatchlistClick}
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all shadow-lg ${inWatchlist
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all shadow-lg shrink-0 ${inWatchlist
                                         ? 'bg-miru-primary/30 border-miru-primary text-miru-primary'
                                         : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
                                         }`}
