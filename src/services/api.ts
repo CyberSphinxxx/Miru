@@ -52,3 +52,21 @@ export const getSimilarAnime = async (genres: { mal_id: number }[]) => {
 export const clearSearchCache = () => {
     // Placeholder if needed, or remove if truly unused
 };
+
+// Prefetch and cache scraper data (search results + episodes)
+export const prefetchEpisodes = async (title: string) => {
+    try {
+        // 1. Search (Backend will cache this)
+        const searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(title)}`);
+        const searchData = await searchRes.json();
+
+        if (searchData?.length > 0) {
+            const session = searchData[0].session || searchData[0].id;
+            // 2. Fetch Episodes (Backend will cache this)
+            // We don't wait for this to finish to avoid blocking UI, just trigger it
+            fetch(`${API_BASE}/scraper/episodes?session=${session}&page=1`).catch(e => console.error('Prefetch episodes silent fail', e));
+        }
+    } catch (e) {
+        console.error('Prefetch error:', e);
+    }
+};
