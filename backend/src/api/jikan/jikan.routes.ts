@@ -38,6 +38,66 @@ router.get('/anime/:id', async (req: Request, res: Response): Promise<void> => {
     }
 });
 
+router.get('/anime/:id/characters', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ error: 'Invalid ID' });
+            return;
+        }
+        const data = await jikanService.getAnimeCharacters(id);
+        res.json(data);
+    } catch (error) {
+        console.error('Get characters error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/anime/:id/relations', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ error: 'Invalid ID' });
+            return;
+        }
+        const data = await jikanService.getAnimeRelations(id);
+        res.json(data);
+    } catch (error) {
+        console.error('Get relations error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/anime/:id/videos', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ error: 'Invalid ID' });
+            return;
+        }
+        const data = await jikanService.getAnimeVideos(id);
+        res.json(data);
+    } catch (error) {
+        console.error('Get videos error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/anime/:id/recommendations', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ error: 'Invalid ID' });
+            return;
+        }
+        const data = await jikanService.getAnimeRecommendations(id);
+        res.json(data);
+    } catch (error) {
+        console.error('Get recommendations error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 router.get('/top', async (req: Request, res: Response): Promise<void> => {
     try {
         const page = req.query.page ? parseInt(req.query.page as string) : 1;

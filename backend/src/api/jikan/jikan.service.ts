@@ -145,6 +145,38 @@ export const getAnimeByGenre = async (genreId: number, page: number = 1, limit: 
     });
 };
 
+export const getAnimeCharacters = async (id: number) => {
+    const cacheKey = `anime:${id}:characters`;
+    return withRetry(cacheKey, async () => {
+        const response = await apiClient.get(`/anime/${id}/characters`);
+        return response.data;
+    });
+};
+
+export const getAnimeRelations = async (id: number) => {
+    const cacheKey = `anime:${id}:relations`;
+    return withRetry(cacheKey, async () => {
+        const response = await apiClient.get(`/anime/${id}/relations`);
+        return response.data;
+    });
+};
+
+export const getAnimeVideos = async (id: number) => {
+    const cacheKey = `anime:${id}:videos`;
+    return withRetry(cacheKey, async () => {
+        const response = await apiClient.get(`/anime/${id}/videos`);
+        return response.data;
+    });
+};
+
+export const getAnimeRecommendations = async (id: number) => {
+    const cacheKey = `anime:${id}:recommendations`;
+    return withRetry(cacheKey, async () => {
+        const response = await apiClient.get(`/anime/${id}/recommendations`);
+        return response.data;
+    });
+};
+
 // Pre-warm cache on startup (delayed to avoid rate limits)
 export const preWarmCache = async () => {
     console.log('Pre-warming cache...');
