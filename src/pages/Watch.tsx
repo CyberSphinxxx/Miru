@@ -55,7 +55,7 @@ function Watch() {
         initWatch();
     }, [id]);
 
-    // 2. Search Scraper & Get Episodes
+    // 2. Search Scraper & Get Episodes (with pagination support)
     const fetchScraperData = async (animeData: Anime) => {
         setEpLoading(true);
         try {
@@ -63,7 +63,7 @@ function Watch() {
             let searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(animeData.title)}`);
             let searchData = await searchRes.json();
 
-            // Fallback: Try simpler title if needed (e.g. remove "Season 2")
+            // Fallback: Try simpler title if needed
             if ((!searchData || searchData.length === 0) && animeData.title.includes(':')) {
                 const simpleTitle = animeData.title.split(':')[0].trim();
                 searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(simpleTitle)}`);
@@ -74,25 +74,38 @@ function Watch() {
                 const session = searchData[0].session || searchData[0].id;
                 setScraperSession(session);
 
-                const epRes = await fetch(`${API_BASE}/scraper/episodes?session=${session}`);
+                // Fetch Page 1
+                const epRes = await fetch(`${API_BASE}/scraper/episodes?session=${session}&page=1`);
                 const epData = await epRes.json();
 
                 if (epData?.episodes) {
-                    setEpisodes(epData.episodes);
-                    // Automatically load first episode if not set
-                    if (epData.episodes.length > 0) {
-                        // Optional: could check URL for specific episode ID in future
-                        loadStream(epData.episodes[0], session);
+                    const allEpisodes = [...epData.episodes];
+                    // Immediately show first page
+                    setEpisodes(allEpisodes);
+                    if (allEpisodes.length > 0) {
+                        loadStream(allEpisodes[0], session);
                     }
-                } else if (epData?.ep_details) {
-                    setEpisodes(epData.ep_details);
-                    if (epData.ep_details.length > 0) {
-                        loadStream(epData.ep_details[0], session);
+
+                    // Background fetch for remaining pages
+                    if (epData.lastPage > 1) {
+                        // We do this in a non-blocking way
+                        (async () => {
+                            for (let p = 2; p <= epData.lastPage; p++) {
+                                try {
+                                    const nextRes = await fetch(`${API_BASE}/scraper/episodes?session=${session}&page=${p}`);
+                                    const nextData = await nextRes.json();
+                                    if (nextData?.episodes) {
+                                        setEpisodes(prev => [...prev, ...nextData.episodes]);
+                                    }
+                                } catch (err) {
+                                    console.error(`Failed to fetch page ${p}`, err);
+                                }
+                            }
+                        })();
                     }
                 }
             } else {
                 console.warn('No scraper results found');
-                // Could retry with English title if available
             }
         } catch (e) {
             console.error('Failed to load episodes', e);
