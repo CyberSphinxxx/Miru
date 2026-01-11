@@ -33,12 +33,12 @@ class ScraperService {
         return result;
     }
 
-    async getEpisodes(session: string) {
-        const cacheKey = `episodes:${session}`;
+    async getEpisodes(session: string, page: number = 1) {
+        const cacheKey = `episodes:${session}:${page}`;
         const cached = this.getCached<any>(cacheKey);
         if (cached) return cached;
 
-        const result = await this.scraper.getEpisodes(session, 1);
+        const result = await this.scraper.getEpisodes(session, page);
         if (result.episodes.length > 0) this.setCache(cacheKey, result);
         return result;
     }
