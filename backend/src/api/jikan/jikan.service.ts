@@ -17,22 +17,66 @@ const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 const REQUEST_DELAY = 350; // 350ms between requests (Jikan allows ~3/sec)
 
-let lastRequestTime = 0;
-
 // Helper to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Rate limit queue - ensures requests are spaced out
-async function rateLimitedRequest<T>(fn: () => Promise<T>): Promise<T> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
+// Request Queue to Strictly Serialize Requests
+class RequestQueue {
+    private queue: (() => Promise<void>)[] = [];
+    private processing = false;
+    private lastRequestTime = 0;
+    private readonly minDelay: number;
 
-    if (timeSinceLastRequest < REQUEST_DELAY) {
-        await delay(REQUEST_DELAY - timeSinceLastRequest);
+    constructor(minDelay: number) {
+        this.minDelay = minDelay;
     }
 
-    lastRequestTime = Date.now();
-    return fn();
+    async add<T>(fn: () => Promise<T>): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
+            this.queue.push(async () => {
+                try {
+                    const result = await fn();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+            this.process();
+        });
+    }
+
+    private async process() {
+        if (this.processing || this.queue.length === 0) return;
+
+        this.processing = true;
+        while (this.queue.length > 0) {
+            const task = this.queue.shift();
+            if (task) {
+                const now = Date.now();
+                const timeSinceLast = now - this.lastRequestTime;
+
+                if (timeSinceLast < this.minDelay) {
+                    await delay(this.minDelay - timeSinceLast);
+                }
+
+                try {
+                    await task();
+                } catch (e) {
+                    console.error('Queue task error:', e);
+                }
+
+                this.lastRequestTime = Date.now();
+            }
+        }
+        this.processing = false;
+    }
+}
+
+const requestQueue = new RequestQueue(REQUEST_DELAY);
+
+// Rate limit queue - ensures requests are spaced out
+async function rateLimitedRequest<T>(fn: () => Promise<T>): Promise<T> {
+    return requestQueue.add(fn);
 }
 
 // Cache wrapper
