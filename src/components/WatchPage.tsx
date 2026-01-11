@@ -1,6 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, CSSProperties } from 'react';
 import { Anime, Episode, StreamLink } from '../types';
 import LoadingSpinner from './LoadingSpinner';
+import * as ReactWindow from 'react-window';
+import * as AutoSizerPkg from 'react-virtualized-auto-sizer';
+
+// @ts-ignore
+const List = ReactWindow.FixedSizeList || ReactWindow.default?.FixedSizeList || ReactWindow;
+// @ts-ignore
+const AutoSizer = AutoSizerPkg.default || AutoSizerPkg.AutoSizer || AutoSizerPkg;
+
 
 interface WatchPageProps {
     anime: Anime;
@@ -156,48 +164,61 @@ const WatchPage: React.FC<WatchPageProps> = ({
                     )}
                 </div>
 
-                {/* Right: Episodes Sidebar */}
+                {/* Right: Episodes Sidebar - Virtualized */}
                 <div className="w-[350px] bg-miru-surface border-l border-white/5 flex flex-col flex-shrink-0">
                     <div className="p-4 border-b border-white/5 bg-miru-surface z-10 shadow-md">
                         <h2 className="font-bold text-white mb-1">Episodes</h2>
                         <p className="text-xs text-gray-500">{episodes.length} episodes available</p>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-miru-primary/20 scrollbar-track-transparent">
+                    <div className="flex-1 bg-miru-surface">
                         {epLoading ? (
                             <div className="flex justify-center py-10">
                                 <LoadingSpinner size="md" />
                             </div>
                         ) : episodes.length > 0 ? (
-                            episodes.map((ep) => (
-                                <button
-                                    key={ep.id}
-                                    onClick={() => onEpisodeClick(ep)}
-                                    className={`w-full p-3 rounded-lg text-left transition-all group relative overflow-hidden ${currentEpisode?.id === ep.id
-                                        ? 'bg-miru-primary text-white shadow-lg shadow-miru-primary/20'
-                                        : 'bg-white/5 hover:bg-white/10 text-gray-300'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3 relative z-10">
-                                        <div className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold ${currentEpisode?.id === ep.id ? 'bg-white/20' : 'bg-black/20'
-                                            }`}>
-                                            {ep.episodeNumber}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-sm font-medium truncate ${currentEpisode?.id === ep.id ? 'text-white' : 'text-gray-200'}`}>
-                                                {ep.title || `Episode ${ep.episodeNumber}`}
-                                            </p>
-                                        </div>
-                                        {currentEpisode?.id === ep.id && (
-                                            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                                        )}
-                                    </div>
-                                    {/* Playing indicator bg */}
-                                    {currentEpisode?.id === ep.id && (
-                                        <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent pointer-events-none" />
-                                    )}
-                                </button>
-                            ))
+                            <AutoSizer>
+                                {({ height, width }: { height: number; width: number }) => (
+                                    <List
+                                        height={height}
+                                        itemCount={episodes.length}
+                                        itemSize={64} // Approx height of each episode item
+                                        width={width}
+                                        className="scrollbar-thin scrollbar-thumb-miru-primary/20 scrollbar-track-transparent"
+                                    >
+                                        {({ index, style }: { index: number; style: CSSProperties }) => {
+                                            const ep = episodes[index];
+                                            return (
+                                                <div style={style} className="p-1">
+                                                    <button
+                                                        onClick={() => onEpisodeClick(ep)}
+                                                        className={`w-full h-full p-2 rounded-lg text-left transition-all group relative overflow-hidden flex items-center gap-3 ${currentEpisode?.id === ep.id
+                                                            ? 'bg-miru-primary text-white shadow-lg shadow-miru-primary/20'
+                                                            : 'bg-white/5 hover:bg-white/10 text-gray-300'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-8 h-8 rounded flex-shrink-0 flex items-center justify-center text-sm font-bold ${currentEpisode?.id === ep.id ? 'bg-white/20' : 'bg-black/20'
+                                                            }`}>
+                                                            {ep.episodeNumber}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-medium truncate ${currentEpisode?.id === ep.id ? 'text-white' : 'text-gray-200'}`}>
+                                                                {ep.title || `Episode ${ep.episodeNumber}`}
+                                                            </p>
+                                                        </div>
+                                                        {currentEpisode?.id === ep.id && (
+                                                            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                                        )}
+                                                        {currentEpisode?.id === ep.id && (
+                                                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent pointer-events-none" />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            );
+                                        }}
+                                    </List>
+                                )}
+                            </AutoSizer>
                         ) : (
                             <div className="text-center py-10 text-gray-500 text-sm px-4">
                                 No episodes found for this anime.
