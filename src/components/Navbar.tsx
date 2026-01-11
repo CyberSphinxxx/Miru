@@ -1,11 +1,15 @@
 import React from 'react';
 
+type ViewMode = 'home' | 'trending' | 'genres';
+
 interface NavbarProps {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     onSearch: (e?: React.FormEvent) => void;
     onLogoClick: () => void;
     isSearching: boolean;
+    viewMode: ViewMode;
+    onViewChange: (view: ViewMode) => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -13,7 +17,9 @@ const Navbar: React.FC<NavbarProps> = ({
     setSearchQuery,
     onSearch,
     onLogoClick,
-    isSearching
+    isSearching,
+    viewMode,
+    onViewChange
 }) => {
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
@@ -32,18 +38,37 @@ const Navbar: React.FC<NavbarProps> = ({
                         {/* Navigation Links */}
                         <div className="hidden md:flex items-center gap-1">
                             <button
-                                onClick={onLogoClick}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isSearching
-                                        ? 'text-white bg-white/10'
-                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                onClick={() => onViewChange('home')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'home' && !isSearching
+                                    ? 'text-white bg-white/10'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                                     }`}
                             >
                                 Home
                             </button>
-                            <button className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+                            <button
+                                onClick={() => onViewChange('trending')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${viewMode === 'trending' && !isSearching
+                                    ? 'text-white bg-white/10'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+                                </svg>
                                 Trending
                             </button>
-                            <button className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+                            <button
+                                onClick={() => onViewChange('genres')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${viewMode === 'genres' && !isSearching
+                                    ? 'text-white bg-white/10'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
+                                </svg>
                                 Genres
                             </button>
                         </div>
