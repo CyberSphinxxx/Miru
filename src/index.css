@@ -124,6 +124,138 @@ body::before {
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(99, 102, 241, 0.5);
   }
+
+  /* Cinema Mode Overlay */
+  .cinema-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .cinema-overlay.active {
+    opacity: 1;
+  }
+
+  /* Pill Buttons */
+  .pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .pill-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+
+  .pill-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #fff;
+    box-shadow: 0 0 20px -5px rgba(99, 102, 241, 0.5);
+  }
+
+  .pill-btn.accent {
+    background: linear-gradient(135deg, #f472b6, #ec4899);
+    border-color: rgba(244, 114, 182, 0.5);
+    color: #fff;
+  }
+
+  /* Episode Active Glow */
+  .episode-active {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), transparent) !important;
+    border-left: 3px solid #6366f1;
+    box-shadow: 
+      0 0 20px -5px rgba(99, 102, 241, 0.3),
+      inset 0 0 30px -10px rgba(99, 102, 241, 0.1);
+  }
+
+  /* Episode Grid for long lists */
+  .episode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .episode-grid-item {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .episode-grid-item:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #fff;
+    transform: scale(1.05);
+  }
+
+  .episode-grid-item.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-color: rgba(99, 102, 241, 0.6);
+    color: #fff;
+    box-shadow: 0 0 15px -3px rgba(99, 102, 241, 0.5);
+  }
+
+  /* Navigation Buttons */
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #fff;
+    transform: translateX(var(--nav-hover-x, 0));
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .nav-btn.prev:hover:not(:disabled) {
+    --nav-hover-x: -3px;
+  }
+
+  .nav-btn.next:hover:not(:disabled) {
+    --nav-hover-x: 3px;
+  }
 }
 
 /* Animations */
