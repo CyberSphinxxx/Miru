@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import jikanRoutes from './api/jikan/jikan.routes';
 import scraperRoutes from './api/scraper/scraper.routes';
+import { preWarmCache } from './api/jikan/jikan.service';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,4 +26,9 @@ app.get('/', (_req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🎬 Miru Backend running on http://localhost:${PORT}`);
+
+    // Pre-warm cache after a short delay
+    setTimeout(() => {
+        preWarmCache();
+    }, 2000);
 });
