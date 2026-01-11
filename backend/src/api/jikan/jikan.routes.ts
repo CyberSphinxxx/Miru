@@ -50,4 +50,45 @@ router.get('/top', async (req: Request, res: Response): Promise<void> => {
     }
 });
 
+router.get('/trending', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
+        const data = await jikanService.getTrendingAnime(page, limit);
+        res.json(data);
+    } catch (error) {
+        console.error('Trending anime error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/genres', async (_req: Request, res: Response): Promise<void> => {
+    try {
+        const data = await jikanService.getGenres();
+        res.json(data);
+    } catch (error) {
+        console.error('Genres error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/genres/:id', async (req: Request, res: Response): Promise<void> => {
+    try {
+        const genreId = parseInt(req.params.id);
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
+
+        if (isNaN(genreId)) {
+            res.status(400).json({ error: 'Invalid genre ID' });
+            return;
+        }
+
+        const data = await jikanService.getAnimeByGenre(genreId, page, limit);
+        res.json(data);
+    } catch (error) {
+        console.error('Genre anime error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 export default router;
