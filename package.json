@@ -10,8 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@types/react-virtualized-auto-sizer": "^1.0.4",
-    "@types/react-window": "^1.8.8",
     "hls.js": "^1.6.15",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -24,6 +22,8 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.16",
     "eslint": "^9.39.1",
