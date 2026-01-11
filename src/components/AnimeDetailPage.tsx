@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../types';
 import { isInWatchlist, toggleWatchlist } from '../services/watchlistService';
+import { prefetchEpisodes } from '../services/api';
 
 interface AnimeDetailPageProps {
     anime: Anime;
@@ -27,6 +28,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
     onWatchClick,
     onWatchlistChange,
     onRelatedClick,
+    loading,
 }) => {
     const [inWatchlist, setInWatchlist] = useState(isInWatchlist(anime.mal_id));
 
@@ -80,6 +82,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                         <div className="space-y-3">
                             <button
                                 onClick={onWatchClick}
+                                onMouseEnter={() => prefetchEpisodes(anime.title)}
                                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-miru-primary to-miru-accent text-white font-bold shadow-lg shadow-miru-primary/25 hover:shadow-miru-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -152,6 +155,14 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                         <p className="text-gray-400 leading-relaxed text-lg">{anime.synopsis}</p>
                     </div>
 
+                    {/* Loading Indicator for Extra Details */}
+                    {loading && (
+                        <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
+                            <div className="w-8 h-8 border-4 border-miru-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                            <p className="text-gray-400 text-sm font-medium">Loading more details...</p>
+                        </div>
+                    )}
+
                     {/* Characters */}
                     {characters.length > 0 && (
                         <div className="mb-10 animate-fade-in-up">
@@ -184,27 +195,35 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                         <div className="mb-10 animate-fade-in-up delay-100">
                             <h3 className="text-xl font-bold text-white mb-4">Trailers & PVs</h3>
                             <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
-                                {videos.map((pv, idx) => (
-                                    <a
-                                        key={idx}
-                                        href={pv.trailer.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-shrink-0 w-64 group relative snap-start"
-                                    >
-                                        <div className="aspect-video rounded-xl overflow-hidden bg-black relative">
-                                            <img src={pv.trailer.images.medium_image_url} alt={pv.title} className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center group-hover:bg-miru-primary transition-colors">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
-                                                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                                                    </svg>
+                                {videos.map((pv, idx) => {
+                                    const trailerUrl = pv.trailer.url ||
+                                        (pv.trailer.youtube_id ? `https://www.youtube.com/watch?v=${pv.trailer.youtube_id}` : null) ||
+                                        pv.trailer.embed_url;
+
+                                    if (!trailerUrl) return null;
+
+                                    return (
+                                        <a
+                                            key={idx}
+                                            href={trailerUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-shrink-0 w-64 group relative snap-start"
+                                        >
+                                            <div className="aspect-video rounded-xl overflow-hidden bg-black relative">
+                                                <img src={pv.trailer.images.medium_image_url} alt={pv.title} className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center group-hover:bg-miru-primary transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
+                                                            <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <p className="mt-2 text-sm font-medium line-clamp-1 group-hover:text-miru-primary transition-colors">{pv.title}</p>
-                                    </a>
-                                ))}
+                                            <p className="mt-2 text-sm font-medium line-clamp-1 group-hover:text-miru-primary transition-colors">{pv.title}</p>
+                                        </a>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
