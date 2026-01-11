@@ -13,7 +13,12 @@ export interface Anime {
     type: string;
     episodes: number | null;
     year?: number;
+    season?: string;
     synopsis?: string;
+    title_japanese?: string;
+    duration?: string;
+    rating?: string;
+    scored_by?: number;
     genres?: { mal_id: number; name: string }[];
     studios?: { mal_id: number; name: string }[];
 }
