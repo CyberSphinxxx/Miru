@@ -42,6 +42,8 @@ export interface StreamLink {
 
 export class AnimePaheScraper {
     private browser: Browser | null = null;
+    private page: Page | null = null;
+    private isInitialized: boolean = false;
 
     private async getBrowser(): Promise<Browser> {
         if (!this.browser) {
@@ -49,37 +51,78 @@ export class AnimePaheScraper {
                 headless: true,
                 args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
             }) as unknown as Browser;
+
+            // Handle browser disconnect
+            this.browser.on('disconnected', () => {
+                this.browser = null;
+                this.page = null;
+                this.isInitialized = false;
+            });
         }
         return this.browser;
+    }
+
+    private async ensureInitialized(): Promise<Page> {
+        const browser = await this.getBrowser();
+
+        if (this.page && this.isInitialized) {
+            return this.page;
+        }
+
+        if (!this.page) {
+            this.page = await browser.newPage();
+            await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        }
+
+        if (!this.isInitialized) {
+            try {
+                console.log('Initializing Access: Bypassing Cloudflare...');
+                await this.page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                // Smart wait: wait for a key element that indicates the site is loaded
+                // Fallback to minimal wait if already ready
+                await Promise.race([
+                    this.page.waitForSelector('.main-content', { timeout: 15000 }),
+                    this.page.waitForSelector('.content-wrapper', { timeout: 15000 }),
+                    new Promise(r => setTimeout(r, 5000)) // Use a 5s fallback just in case
+                ]);
+                this.isInitialized = true;
+                console.log('Access Initialized.');
+            } catch (e) {
+                console.error('Initialization warning:', e);
+                // Try to continue anyway, maybe we are already through
+            }
+        }
+
+        return this.page;
     }
 
     async close(): Promise<void> {
         if (this.browser) {
             await this.browser.close();
             this.browser = null;
+            this.page = null;
+            this.isInitialized = false;
         }
     }
 
     async search(query: string): Promise<AnimeSearchResult[]> {
-        const browser = await this.getBrowser();
-        const page: Page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        const page = await this.ensureInitialized();
 
         try {
-            await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await new Promise(r => setTimeout(r, DDOS_WAIT));
-
             const searchUrl = `${API_URL}?m=search&q=${encodeURIComponent(query)}`;
             console.log(`Searching: ${searchUrl}`);
 
             await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+
+            // Check if we got JSON text directly
             const responseText = await page.evaluate(() => document.body.innerText);
 
             let response: { data?: Array<Record<string, unknown>> } | null = null;
             try {
                 response = JSON.parse(responseText);
             } catch {
-                console.error('Failed to parse search JSON');
+                console.error('Failed to parse search JSON - re-initializing...');
+                this.isInitialized = false; // Force re-init next time
                 return [];
             }
 
@@ -100,21 +143,15 @@ export class AnimePaheScraper {
             return [];
         } catch (error) {
             console.error('Error during search:', error);
+            this.isInitialized = false;
             return [];
-        } finally {
-            await page.close();
         }
     }
 
     async getEpisodes(animeSessionId: string, pageNum: number = 1): Promise<{ episodes: Episode[], lastPage: number }> {
-        const browser = await this.getBrowser();
-        const page: Page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        const page = await this.ensureInitialized();
 
         try {
-            await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-            await new Promise(r => setTimeout(r, DDOS_WAIT));
-
             const apiUrl = `${API_URL}?m=release&id=${animeSessionId}&sort=episode_asc&page=${pageNum}`;
             console.log(`Fetching episodes: ${apiUrl}`);
 
@@ -125,7 +162,8 @@ export class AnimePaheScraper {
             try {
                 response = JSON.parse(responseText);
             } catch {
-                console.error('Failed to parse episodes JSON');
+                console.error('Failed to parse episodes JSON - re-initializing...');
+                this.isInitialized = false;
                 return { episodes: [], lastPage: 1 };
             }
 
@@ -146,22 +184,30 @@ export class AnimePaheScraper {
             return { episodes: [], lastPage: 1 };
         } catch (error) {
             console.error('Error getting episodes:', error);
+            this.isInitialized = false;
             return { episodes: [], lastPage: 1 };
-        } finally {
-            await page.close();
         }
     }
 
     async getLinks(animeSession: string, episodeSession: string): Promise<StreamLink[]> {
+        // For getting links, we need to visit the actual page page, so we might need a fresh tab
+        // effectively reusing the browser context but not necessarily the same page object if we want parallel requests
+        // But for simplicity, let's use a new page component within the same authorized browser context
+
         const browser = await this.getBrowser();
-        const page: Page = await browser.newPage();
+        const page = await browser.newPage(); // New page for playback to avoid interfering with API page
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
         const fullUrl = `${BASE_URL}/play/${animeSession}/${episodeSession}`;
 
         try {
             await page.goto(fullUrl, { waitUntil: 'domcontentloaded' });
-            await page.waitForSelector('#resolutionMenu button', { timeout: 10000 });
+            // Only wait if necessary
+            try {
+                await page.waitForSelector('#resolutionMenu button', { timeout: 8000 });
+            } catch (e) {
+                console.log('Timeout waiting for buttons, trying to parse anyway');
+            }
 
             const buttons = await page.$$('#resolutionMenu button');
             const links: { kwik: string, quality: string, audio: string }[] = [];
@@ -201,7 +247,7 @@ export class AnimePaheScraper {
 
     private async resolveKwik(url: string): Promise<string | null> {
         const browser = await this.getBrowser();
-        const page: Page = await browser.newPage();
+        const page = await browser.newPage();
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         await page.setExtraHTTPHeaders({
             'referer': 'https://kwik.cx/',
