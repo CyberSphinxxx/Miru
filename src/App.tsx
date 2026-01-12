@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Detail from './pages/Detail';
 import Watch from './pages/Watch';
+import Profile from './pages/Profile';
 
 // Wrapper to provide navigation props to Navbar
 function AppContent() {
@@ -21,6 +22,7 @@ function AppContent() {
         if (mode === 'home') navigate('/');
         if (mode === 'trending') navigate('/trending');
         if (mode === 'genres') navigate('/genres');
+        if (mode === 'profile') navigate('/profile');
     };
 
     // Determine current view mode for Navbar highlighting
@@ -30,6 +32,7 @@ function AppContent() {
         if (path.startsWith('/genres')) return 'genres';
         if (path.startsWith('/anime')) return 'detail';
         if (path.startsWith('/watch')) return 'watch';
+        if (path === '/profile') return 'profile';
         return 'home';
     };
 
@@ -42,6 +45,7 @@ function AppContent() {
             />
             <Routes>
                 <Route path="/" element={<Home viewMode="home" />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="/trending" element={<Home viewMode="trending" />} />
                 <Route path="/genres" element={<Home viewMode="genres" />} />
                 <Route path="/genres/:genreId" element={<WrapperGenreHome />} />
