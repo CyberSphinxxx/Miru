@@ -3,9 +3,9 @@ import cors from 'cors';
 import jikanRoutes from './api/jikan/jikan.routes';
 import scraperRoutes from './api/scraper/scraper.routes';
 import { preWarmCache } from './api/jikan/jikan.service';
+import http from 'http';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -24,11 +24,29 @@ app.get('/', (_req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`🎬 Miru Backend running on http://localhost:${PORT}`);
+/**
+ * Creates and starts the server on the specified port.
+ * Used for embedding in Electron.
+ */
+export function createServer(port: number): http.Server {
+    const server = app.listen(port, () => {
+        console.log(`🎬 Miru Backend running on http://localhost:${port}`);
 
-    // Pre-warm cache after a short delay
-    setTimeout(() => {
-        preWarmCache();
-    }, 2000);
-});
+        // Pre-warm cache after a short delay
+        setTimeout(() => {
+            preWarmCache();
+        }, 2000);
+    });
+
+    return server;
+}
+
+// Standalone mode: run directly with node/ts-node
+const isMainModule = require.main === module;
+if (isMainModule) {
+    const PORT = process.env.PORT || 3001;
+    createServer(Number(PORT));
+}
+
+export default app;
+
