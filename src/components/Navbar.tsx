@@ -47,7 +47,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
             <div className="max-w-7xl mx-auto">
-                <div className="glass rounded-2xl px-6 py-3 flex items-center justify-between gap-8">
+                <div className="bg-miru-bg/60 backdrop-blur-xl rounded-2xl px-6 py-3 flex items-center justify-between gap-8 border border-white/5">
                     {/* Logo */}
                     <button
                         onClick={() => onViewChange('home')}
@@ -68,7 +68,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                                 key={item.id}
                                 onClick={() => onViewChange(item.id)}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${viewMode === item.id
-                                    ? 'bg-gradient-to-r from-miru-primary to-miru-accent text-white shadow-lg'
+                                    ? 'nav-active-glow text-white'
                                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                                     }`}
                             >
