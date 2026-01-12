@@ -17,6 +17,7 @@ interface WatchPageProps {
     onQualityChange: (index: number) => void;
     onModeChange: (mode: 'hls' | 'embed') => void;
     onAutoQuality: () => void;
+    externalUrl?: string | null;
 }
 
 const WatchPage: React.FC<WatchPageProps> = ({
@@ -34,6 +35,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
     onQualityChange,
     onModeChange,
     onAutoQuality,
+    externalUrl,
 }) => {
     const currentStream = streams[selectedStreamIndex];
     const [cinemaMode, setCinemaMode] = useState(false);
@@ -135,6 +137,22 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                             allow="autoplay; encrypted-media"
                                         />
                                     )}
+                                </div>
+                            ) : externalUrl ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900">
+                                    <p className="mb-4 text-lg">Stream not directly available.</p>
+                                    <a
+                                        href={externalUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-6 py-3 bg-miru-primary text-white rounded-lg hover:bg-miru-primary/80 transition-colors flex items-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                        </svg>
+                                        Watch on Info Source
+                                    </a>
+                                    <p className="mt-4 text-xs text-gray-600">Clicking will open the source in a new tab.</p>
                                 </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-gray-500">
