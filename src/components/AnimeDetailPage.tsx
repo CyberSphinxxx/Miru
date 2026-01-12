@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import VideoModal from './VideoModal';
+import StatusButton from './StatusButton';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../types';
-import { isInWatchlist, toggleWatchlist } from '../services/watchlistService';
 import { prefetchEpisodes } from '../services/api';
 
 interface AnimeDetailPageProps {
@@ -13,7 +14,6 @@ interface AnimeDetailPageProps {
     loading?: boolean;
     onBack: () => void;
     onWatchClick: () => void;
-    onWatchlistChange: () => void;
     onRelatedClick: (anime: Anime) => void;
 }
 
@@ -26,17 +26,10 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
     similar,
     onBack,
     onWatchClick,
-    onWatchlistChange,
     onRelatedClick,
     loading,
 }) => {
-    const [inWatchlist, setInWatchlist] = useState(isInWatchlist(anime.mal_id));
-
-    const handleWatchlistToggle = () => {
-        toggleWatchlist(anime);
-        setInWatchlist(isInWatchlist(anime.mal_id));
-        onWatchlistChange();
-    };
+    const [trailerId, setTrailerId] = useState<string | null>(null);
 
     const handleCardClick = (id: number) => {
         const minimalAnime = {
@@ -91,29 +84,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                 Watch Now
                             </button>
 
-                            <button
-                                onClick={handleWatchlistToggle}
-                                className={`w-full py-3.5 rounded-xl font-bold border-2 transition-all flex items-center justify-center gap-2 ${inWatchlist
-                                    ? 'bg-white/10 border-transparent text-white hover:bg-white/20'
-                                    : 'border-white/10 text-gray-300 hover:border-white/30 hover:text-white'
-                                    }`}
-                            >
-                                {inWatchlist ? (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-miru-primary">
-                                            <path fillRule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clipRule="evenodd" />
-                                        </svg>
-                                        In Watchlist
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0111.186 0z" />
-                                        </svg>
-                                        Add to Watchlist
-                                    </>
-                                )}
-                            </button>
+                            <StatusButton anime={anime} />
                         </div>
                     </div>
                 </div>
@@ -202,13 +173,21 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
 
                                     if (!trailerUrl) return null;
 
+                                    const handleTrailerClick = (e: React.MouseEvent) => {
+                                        if (pv.trailer.youtube_id) {
+                                            e.preventDefault();
+                                            setTrailerId(pv.trailer.youtube_id);
+                                        }
+                                    };
+
                                     return (
                                         <a
                                             key={idx}
                                             href={trailerUrl}
+                                            onClick={handleTrailerClick}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex-shrink-0 w-64 group relative snap-start"
+                                            className="flex-shrink-0 w-64 group relative snap-start cursor-pointer"
                                         >
                                             <div className="aspect-video rounded-xl overflow-hidden bg-black relative">
                                                 <img src={pv.trailer.images.medium_image_url} alt={pv.title} className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
@@ -226,6 +205,15 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                 })}
                             </div>
                         </div>
+                    )}
+
+                    {/* Video Modal */}
+                    {trailerId && (
+                        <VideoModal
+                            isOpen={!!trailerId}
+                            onClose={() => setTrailerId(null)}
+                            videoId={trailerId}
+                        />
                     )}
 
                     {/* Related Anime */}
