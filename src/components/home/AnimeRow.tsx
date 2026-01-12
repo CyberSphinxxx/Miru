@@ -32,8 +32,6 @@ export interface AnimeRowProps {
     onViewAllClick?: () => void;
     /** Callback when retry is clicked (for error state) */
     onRetry?: () => void;
-    /** Callback when watchlist changes */
-    onWatchlistChange?: () => void;
     /** Maximum number of items to show */
     maxItems?: number;
 }
@@ -52,7 +50,6 @@ function AnimeRow({
     onPlayClick,
     onViewAllClick,
     onRetry,
-    onWatchlistChange,
     maxItems = 10,
 }: AnimeRowProps): React.ReactElement {
     // Error State
@@ -139,7 +136,6 @@ function AnimeRow({
                             anime={item}
                             onClick={() => onAnimeClick(item)}
                             onPlayClick={onPlayClick ? () => onPlayClick(item) : undefined}
-                            onWatchlistChange={onWatchlistChange}
                         />
                     </div>
                 ))}
