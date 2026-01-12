@@ -4,8 +4,8 @@ import WatchPage from '../components/WatchPage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
-
-import { API_BASE } from '../services/api';
+import { getAnimeInfo, getEpisodeStreams } from '../services/api';
+import { searchLocalAnime, getLocalEpisodes, getLocalStreams } from '../services/localApi';
 
 function Watch() {
     const { id } = useParams<{ id: string }>();
@@ -14,9 +14,9 @@ function Watch() {
     // State
     const [anime, setAnime] = useState<Anime | null>(null);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
-    const [scraperSession, setScraperSession] = useState<string | null>(null);
     const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
     const [streams, setStreams] = useState<StreamLink[]>([]);
+    const [externalUrl, setExternalUrl] = useState<string | null>(null);
 
     // UI State
     const [loading, setLoading] = useState(true); // Initial page load
@@ -27,146 +27,155 @@ function Watch() {
     // Player State
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
     const [isAutoQuality, setIsAutoQuality] = useState(true);
-    const [playerMode, setPlayerMode] = useState<'hls' | 'embed'>('embed');
+    const [playerMode, setPlayerMode] = useState<'hls' | 'embed'>('hls');
 
-    // 1. Fetch Anime Info (to get title -> search scraper)
+    // 1. Fetch Anime Info and Episodes (both come from Consumet in one call)
     useEffect(() => {
         const initWatch = async () => {
             if (!id) return;
             try {
                 setLoading(true);
-                // Fetch basic anime info first
-                const res = await fetch(`${API_BASE}/jikan/anime/${id}`);
-                const data = await res.json();
+                setEpLoading(true);
 
-                if (data?.data) {
-                    setAnime(data.data);
-                    // Start scraping process
-                    fetchScraperData(data.data);
+                // Consumet returns anime info + episodes in one call
+                const result = await getAnimeInfo(id);
+
+                if (result) {
+                    setAnime(result.anime);
+                    setEpisodes(result.episodes);
+
+                    // Auto-load first episode streams
+                    if (result.episodes.length > 0) {
+                        loadStream(result.episodes[0], result.anime);
+                    }
                 } else {
                     setError('Anime not found');
-                    setLoading(false);
                 }
             } catch (err) {
                 console.error(err);
                 setError('Failed to load anime');
+            } finally {
                 setLoading(false);
+                setEpLoading(false);
             }
         };
         initWatch();
     }, [id]);
 
-    // 2. Search Scraper & Get Episodes (with pagination support)
-    const fetchScraperData = async (animeData: Anime) => {
-        setEpLoading(true);
-        try {
-            // Try searching with full title
-            let searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(animeData.title)}`);
-            let searchData = await searchRes.json();
-
-            // Fallback: Try simpler title if needed
-            if ((!searchData || searchData.length === 0) && animeData.title.includes(':')) {
-                const simpleTitle = animeData.title.split(':')[0].trim();
-                searchRes = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(simpleTitle)}`);
-                searchData = await searchRes.json();
-            }
-
-            if (searchData?.length > 0) {
-                const session = searchData[0].session || searchData[0].id;
-                setScraperSession(session);
-
-                // Fetch Page 1
-                const epRes = await fetch(`${API_BASE}/scraper/episodes?session=${session}&page=1`);
-                const epData = await epRes.json();
-
-                if (epData?.episodes) {
-                    const allEpisodes = [...epData.episodes];
-                    // Immediately show first page
-                    setEpisodes(allEpisodes);
-                    if (allEpisodes.length > 0) {
-                        loadStream(allEpisodes[0], session);
-                    }
-
-                    // Background fetch for remaining pages
-                    if (epData.lastPage > 1) {
-                        // We do this in a non-blocking way
-                        (async () => {
-                            for (let p = 2; p <= epData.lastPage; p++) {
-                                try {
-                                    const nextRes = await fetch(`${API_BASE}/scraper/episodes?session=${session}&page=${p}`);
-                                    const nextData = await nextRes.json();
-                                    if (nextData?.episodes) {
-                                        setEpisodes(prev => [...prev, ...nextData.episodes]);
-                                    }
-                                } catch (err) {
-                                    console.error(`Failed to fetch page ${p}`, err);
-                                }
-                            }
-                        })();
-                    }
-                }
-            } else {
-                console.warn('No scraper results found');
-            }
-        } catch (e) {
-            console.error('Failed to load episodes', e);
-        } finally {
-            setEpLoading(false);
-            setLoading(false);
-        }
-    };
-
     const getMappedQuality = (q: string): string => {
-        const res = parseInt(q);
-        if (res >= 1000) return '1080P';
-        if (res >= 600) return '720P';
-        return '360P';
+        // Consumet returns quality like "1080p", "720p", "480p", "360p", "default", "backup"
+        if (q.includes('1080')) return '1080P';
+        if (q.includes('720')) return '720P';
+        if (q.includes('480')) return '480P';
+        if (q.includes('360')) return '360P';
+        if (q === 'auto') return 'Auto';
+        return q.toUpperCase();
     };
 
-    const loadStream = async (episode: Episode, sessionOverride?: string) => {
-        const session = sessionOverride || scraperSession;
-        if (!session) return;
-
+    const loadStream = async (episode: Episode, animeOverride?: Anime) => {
+        const activeAnime = animeOverride || anime;
         setCurrentEpisode(episode);
         setStreamLoading(true);
         setStreams([]);
+        setExternalUrl(null);
         setSelectedStreamIndex(0);
         setIsAutoQuality(true);
 
         // Save to watch history
-        if (anime) {
+        if (activeAnime) {
             const epNum = typeof episode.episodeNumber === 'string'
                 ? parseInt(episode.episodeNumber)
                 : episode.episodeNumber;
-            saveWatchProgress(anime, epNum, 0);
+            saveWatchProgress(activeAnime, epNum, 0);
         }
 
         try {
-            const res = await fetch(`${API_BASE}/scraper/streams?anime_session=${session}&ep_session=${episode.session}`);
-            const data = await res.json();
+            // Attempt 1: Try Local Backend (Embed) first as requested for performance/default
+            console.log('Attempting to load from Local Backend (Embed)...');
+            const localSuccess = activeAnime ? await fetchLocalStream(episode, activeAnime) : false;
 
-            if (data?.length > 0) {
+            if (localSuccess) {
+                return;
+            }
+
+            // Attempt 2: Primary Consumet API
+            console.log('Local backend failed, trying Primary API...');
+            const streamData = await getEpisodeStreams(episode.id);
+
+            if (streamData.length > 0) {
+                // Deduplicate by quality
                 const qualityMap = new Map<string, StreamLink>();
-                const sortedData = [...data].sort((a: StreamLink, b: StreamLink) =>
-                    (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0)
-                );
 
-                sortedData.forEach((s: StreamLink) => {
+                streamData.forEach((s: StreamLink) => {
                     const mapped = getMappedQuality(s.quality);
                     if (!qualityMap.has(mapped)) {
-                        qualityMap.set(mapped, s);
+                        qualityMap.set(mapped, { ...s, quality: mapped });
                     }
                 });
 
                 const standardizedStreams = Array.from(qualityMap.values());
                 setStreams(standardizedStreams);
 
-                if (!standardizedStreams[0].directUrl) setPlayerMode('embed');
+                if (standardizedStreams[0]?.isHls) {
+                    setPlayerMode('hls');
+                } else {
+                    setPlayerMode('embed');
+                }
+            } else {
+                // Final fallback to external URL
+                if (episode.url) {
+                    setExternalUrl(episode.url);
+                }
             }
         } catch (e) {
-            console.error('Failed to load stream', e);
+            console.error('All stream fetch attempts failed', e);
+            if (episode.url) {
+                setExternalUrl(episode.url);
+            }
         } finally {
             setStreamLoading(false);
+        }
+    };
+
+    const fetchLocalStream = async (episode: Episode, activeAnime: Anime): Promise<boolean> => {
+        try {
+            // 1. Search for the anime locally
+            const searchResults = await searchLocalAnime(activeAnime.title);
+            if (searchResults.length === 0) return false;
+
+            // Simple matching: take the first one or try to match title
+            const localAnime = searchResults[0];
+
+            // 2. Get episodes for the local anime
+            const { episodes: localEpisodes } = await getLocalEpisodes(localAnime.session);
+
+            // 3. Find the matching episode
+            const targetEp = localEpisodes.find(ep => ep.episodeNumber === Number(episode.episodeNumber));
+            if (!targetEp) return false;
+
+            // 4. Get streams
+            const localStreams = await getLocalStreams(localAnime.session, targetEp.session);
+
+            if (localStreams.length > 0) {
+                // Deduplicate local streams
+                const qualityMap = new Map<string, StreamLink>();
+                localStreams.forEach((s: StreamLink) => {
+                    const mapped = getMappedQuality(s.quality);
+                    if (!qualityMap.has(mapped)) {
+                        qualityMap.set(mapped, { ...s, quality: mapped });
+                    }
+                });
+                const uniqueStreams = Array.from(qualityMap.values());
+
+                setStreams(uniqueStreams);
+                // Force embed for local streams (usually Kwik)
+                setPlayerMode('embed');
+                return true;
+            }
+            return false;
+        } catch (localError) {
+            console.error('Local backend attempt failed:', localError);
+            return false;
         }
     };
 
@@ -215,6 +224,7 @@ function Watch() {
             onQualityChange={(idx) => { setSelectedStreamIndex(idx); setIsAutoQuality(false); }}
             onModeChange={setPlayerMode}
             onAutoQuality={() => { setIsAutoQuality(true); setSelectedStreamIndex(0); }}
+            externalUrl={externalUrl}
         />
     );
 }
