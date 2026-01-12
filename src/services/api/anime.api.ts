@@ -246,7 +246,9 @@ const QUALITY_ORDER: Record<string, number> = {
  */
 export async function getEpisodeStreams(episodeId: string): Promise<StreamLink[]> {
     try {
-        const endpoint = `meta/anilist/watch/${encodeURIComponent(episodeId)}`;
+        // Don't encode the episodeId - it's already properly formatted
+        // and the failover fetch will handle the full URL construction
+        const endpoint = `meta/anilist/watch/${episodeId}`;
         const res = await fetchWithRetry(endpoint);
         const data: ConsumetStreamResponse = await res.json();
 
