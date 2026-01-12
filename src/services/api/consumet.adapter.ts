@@ -65,6 +65,8 @@ export function adaptConsumetToAnime(item: ConsumetAnimeResult): Anime {
                 image_url: item.image || '',
                 // Prioritize image (poster) over cover (banner) for vertical cards
                 large_image_url: item.image || item.cover || '',
+                // Banner/cover image for landscape/hero sections
+                banner_image: item.cover || undefined,
             },
         },
         score: item.rating ? item.rating / 10 : 0, // Consumet uses 0-100, Miru uses 0-10
