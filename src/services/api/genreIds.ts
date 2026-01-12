@@ -10,53 +10,50 @@ export const GENRE_ID_MAP: Record<string, number> = {
     'slice of life': 36,
     'parody': 20,
     'gourmet': 47,
-    'kids': 15,
+    'kids': 15, // Explicit Jikan ID
 
     // Drama, Mystery, Psychological
     'drama': 8,
     'mystery': 7,
     'psychological': 40,
     'suspense': 41,
-    'thriller': 41, // Thriller is often suspended/same id in some contexts, but let's check. Jikan list says 41 is Suspense. 
-    // Wait, let me check the previous `run_command` output for Thriller.
-    // Thriller is NOT in the specific list I printed? 
-    // Ah, MAL renamed "Thriller" to "Suspense" (ID 41) mostly. 
-    // Let me check my previous output carefully.
-    // ID 41 is "Suspense". Horror is 14. 
-    // I will map 'thriller' to 41 (Suspense) as a safe bet if not explicitly there.
-    // Actually, looking at the log: { mal_id: 41, name: "Suspense" }. No explicit "Thriller".
+    'thriller': 41, // Mapped to Suspense
 
     // Fantasy & Supernatural
     'fantasy': 10,
     'isekai': 62,
     'reincarnation': 72,
     'supernatural': 37,
-    'magic': 10, // Often merged into fantasy, but old ID was 16? Let's check. Not in list.
-    // The list I got from Jikan is the current one. Use that.
-    'demons': 6, // Mythology (ID 6) or something else? List has "Mythology" (6). 
-    // "Demons" was legacy ID 5? No, Avant Garde is 5.
-    // Let's use the explicit names from the log where possible.
+    'magic': 10, // Not a distinct top-level genre in Jikan v4, mapped to Fantasy? Or maybe it's missing. Let's not map it if it doesn't exist.
+    // Jikan v4 has "Magical Sex Shift" (65) and "Mahou Shoujo" (66).
+    // Let's remove 'magic' to avoid confusion, or map to Fantasy (10).
+    'demons': 6, // Mapped to Mythology (6)
 
     // Sci-Fi & Tech
     'sci-fi': 24,
     'mecha': 18,
     'space': 29,
-    'cars': 3, // Racing (ID 3)
+    'racing': 3,
+    'cars': 3, // Mapped to Racing
 
     // Romance
     'romance': 22,
-    'girls love': 26, // Shoujo Ai / Girls Love
-    'boys love': 28, // Shounen Ai / Boys Love
+    'girls love': 26,
+    'boys love': 28,
     'harem': 35,
     'ecchi': 9,
     'erotica': 49,
+    'hentai': 12,
+    'adult cast': 50,
 
     // Specific Themes
     'martial arts': 17,
     'military': 38,
     'police': 39, // Detective (39)
+    'detective': 39,
     'samurai': 21,
     'super power': 31,
+    'mythology': 6,
 
     // Demographics
     'shounen': 27,
@@ -65,7 +62,7 @@ export const GENRE_ID_MAP: Record<string, number> = {
     'josei': 43,
 
     // Niche
-    'game': 11, // Strategy Game (11) probably widely used
+    'game': 11, // Strategy Game?
     'strategy game': 11,
     'video game': 79,
     'historical': 13,
@@ -75,12 +72,36 @@ export const GENRE_ID_MAP: Record<string, number> = {
     'sports': 30,
     'visual arts': 80,
     'workplace': 48,
+    'performing arts': 70,
+    'pets': 71,
+    'showbiz': 75,
+    'otaku culture': 69,
+    'anthropomorphic': 51,
+    'crossdressing': 81,
+    'delinquents': 55,
+    'gore': 58,
+    'survival': 76,
+    'team sports': 77,
+    'combat sports': 54,
+    'high stakes game': 59,
+    'idols (female)': 60,
+    'idols (male)': 61,
+    'iyashikei': 63,
+    'love polygon': 64,
+    'magical sex shift': 65,
+    'mahou shoujo': 66,
+    'medical': 67,
+    'organized crime': 68,
+    'reverse harem': 73,
+    'love status quo': 74,
+    'time travel': 78,
+    'urban fantasy': 82,
+    'villainess': 83,
 
     // Legacy / Aliases
     'shoujo ai': 26,
     'shounen ai': 28,
     'vampire': 32,
-    'racing': 3,
-    'detective': 39,
-    'mythology': 6,
+    'educational': 56,
+    'gag humor': 57,
 };
