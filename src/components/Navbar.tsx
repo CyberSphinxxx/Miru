@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export type ViewMode = 'home' | 'trending' | 'genres' | 'detail' | 'watch';
 
@@ -18,6 +18,21 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
             onSearch(searchQuery.trim());
         }
     };
+
+    // Keyboard shortcut handler for search (Ctrl/Cmd + K)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                const searchInput = document.querySelector('input[placeholder="Search anime..."]') as HTMLInputElement;
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const navItems = [
         {
@@ -47,11 +62,19 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
             <div className="max-w-7xl mx-auto">
-                <div className="bg-miru-bg/60 backdrop-blur-xl rounded-2xl px-6 py-3 flex items-center justify-between gap-8 border border-white/5">
+                {/* Floating Glass Header */}
+                <div
+                    className="rounded-2xl px-6 py-3 flex items-center justify-between gap-6 border border-white/10"
+                    style={{
+                        background: 'rgba(10, 10, 10, 0.7)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                    }}
+                >
                     {/* Logo */}
                     <button
                         onClick={() => onViewChange('home')}
-                        className="flex items-center gap-3 group"
+                        className="flex items-center gap-3 group flex-shrink-0"
                     >
                         <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-miru-primary to-miru-accent flex items-center justify-center shadow-lg group-hover:shadow-miru-primary/30 transition-shadow duration-300">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
@@ -61,15 +84,15 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                         <span className="text-2xl font-black tracking-tight text-gradient">MIRU</span>
                     </button>
 
-                    {/* Navigation */}
-                    <div className="hidden md:flex items-center gap-1 bg-white/5 rounded-xl p-1">
+                    {/* Navigation - No background container, increased spacing */}
+                    <div className="hidden md:flex items-center gap-8">
                         {navItems.map(item => (
                             <button
                                 key={item.id}
                                 onClick={() => onViewChange(item.id)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${viewMode === item.id
+                                className={`flex items-center gap-2 px-2 py-2 text-sm font-medium transition-all duration-300 ${viewMode === item.id
                                     ? 'nav-active-glow text-white'
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    : 'text-gray-400 hover:text-white'
                                     }`}
                             >
                                 {item.icon}
@@ -78,34 +101,63 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                         ))}
                     </div>
 
-                    {/* Search */}
-                    <form onSubmit={handleSubmit} className="flex-1 max-w-md">
-                        <div className={`relative transition-all duration-300 ${isSearchFocused ? 'scale-105' : ''}`}>
-                            <input
-                                type="text"
-                                placeholder="Search anime..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onFocus={() => setIsSearchFocused(true)}
-                                onBlur={() => setIsSearchFocused(false)}
-                                className={`w-full bg-white/5 border rounded-xl px-4 py-2.5 pl-11 text-sm text-white placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
-                                    ? 'border-miru-primary/50 bg-white/10 shadow-lg shadow-miru-primary/10'
-                                    : 'border-white/10 hover:border-white/20'
-                                    }`}
-                            />
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={2}
-                                stroke="currentColor"
-                                className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-300 ${isSearchFocused ? 'text-miru-primary' : 'text-gray-500'
-                                    }`}
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                            </svg>
+                    {/* Search + User Actions */}
+                    <div className="flex items-center gap-4">
+                        {/* Search */}
+                        <form onSubmit={handleSubmit} className="flex-1 max-w-sm">
+                            <div className={`relative transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
+                                <input
+                                    type="text"
+                                    placeholder="Search anime..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onFocus={() => setIsSearchFocused(true)}
+                                    onBlur={() => setIsSearchFocused(false)}
+                                    className={`w-full rounded-xl px-4 py-2.5 pl-11 pr-16 text-sm text-white placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
+                                        ? 'bg-white/15 border-2 border-purple-500 shadow-lg shadow-purple-500/20'
+                                        : 'bg-white/10 border border-white/10 hover:border-white/20'
+                                        }`}
+                                />
+                                {/* Search Icon */}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={2}
+                                    stroke="currentColor"
+                                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-300 ${isSearchFocused ? 'text-purple-400' : 'text-gray-500'
+                                        }`}
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                </svg>
+                                {/* Keyboard Shortcut Hint */}
+                                <div className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity duration-300 ${isSearchFocused ? 'opacity-0' : 'opacity-100'}`}>
+                                    <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-white/10 rounded border border-white/10">
+                                        ⌘K
+                                    </kbd>
+                                </div>
+                            </div>
+                        </form>
+
+                        {/* User Actions */}
+                        <div className="flex items-center gap-3">
+                            {/* Notification Bell */}
+                            <button className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all duration-300 group">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                                </svg>
+                                {/* Notification Dot */}
+                                <span className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+                            </button>
+
+                            {/* Avatar */}
+                            <button className="relative w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center border-2 border-white/10 hover:border-purple-500/50 transition-all duration-300 group">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-white/80 group-hover:text-white transition-colors">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                </svg>
+                            </button>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </nav>
