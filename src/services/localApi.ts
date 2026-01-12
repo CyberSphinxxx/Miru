@@ -27,11 +27,18 @@ export interface LocalEpisode {
 
 export const searchLocalAnime = async (query: string): Promise<LocalAnimeResult[]> => {
     try {
-        const response = await fetch(`${LOCAL_API_BASE}/search?q=${encodeURIComponent(query)}`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000); // 2s timeout
+
+        const response = await fetch(`${LOCAL_API_BASE}/search?q=${encodeURIComponent(query)}`, {
+            signal: controller.signal
+        });
+        clearTimeout(timeout);
+
         if (!response.ok) throw new Error('Local search failed');
         return await response.json();
-    } catch (error) {
-        console.error('Error searching local anime:', error);
+    } catch {
+        // Expected to fail on Vercel/production (no local backend)
         return [];
     }
 };
@@ -41,8 +48,8 @@ export const getLocalEpisodes = async (session: string, page: number = 1): Promi
         const response = await fetch(`${LOCAL_API_BASE}/episodes?session=${session}&page=${page}`);
         if (!response.ok) throw new Error('Local episodes fetch failed');
         return await response.json();
-    } catch (error) {
-        console.error('Error fetching local episodes:', error);
+    } catch {
+        // Expected to fail on Vercel/production (no local backend)
         return { episodes: [], lastPage: 1 };
     }
 };
@@ -52,8 +59,8 @@ export const getLocalStreams = async (animeSession: string, epSession: string): 
         const response = await fetch(`${LOCAL_API_BASE}/streams?anime_session=${animeSession}&ep_session=${epSession}`);
         if (!response.ok) throw new Error('Local streams fetch failed');
         return await response.json();
-    } catch (error) {
-        console.error('Error fetching local streams:', error);
+    } catch {
+        // Expected to fail on Vercel/production (no local backend)
         return [];
     }
 };
