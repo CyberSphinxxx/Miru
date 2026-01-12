@@ -4,7 +4,7 @@ import WatchPage from '../components/WatchPage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
-import { getAnimeInfo } from '../services/api';
+import { getAnimeInfo, getEpisodeStreams } from '../services/api';
 import { searchLocalAnime, getLocalEpisodes, getLocalStreams } from '../services/localApi';
 
 function Watch() {
@@ -89,15 +89,34 @@ function Watch() {
         }
 
         try {
-            // Attempt 1: Try Local Backend (Embed) first as requested for performance/default
-            console.log('Attempting to load from Local Backend (Embed)...');
+            // Attempt 1: Try Local Backend first (for users with local backend)
+            console.log('Attempting to load from Local Backend...');
             const localSuccess = activeAnime ? await fetchLocalStream(episode, activeAnime) : false;
 
             if (localSuccess) {
                 return;
             }
 
-            // Attempt 2: Fallback to external URL if local backend fails
+            // Attempt 2: Try Consumet API streams (for Vercel deployment)
+            console.log('Local backend unavailable, trying Consumet API...');
+            const consumetStreams = await getEpisodeStreams(episode.id);
+
+            if (consumetStreams.length > 0) {
+                // Deduplicate and map qualities
+                const qualityMap = new Map<string, StreamLink>();
+                consumetStreams.forEach((s: StreamLink) => {
+                    const mapped = getMappedQuality(s.quality);
+                    if (!qualityMap.has(mapped)) {
+                        qualityMap.set(mapped, { ...s, quality: mapped });
+                    }
+                });
+                const uniqueStreams = Array.from(qualityMap.values());
+                setStreams(uniqueStreams);
+                console.log('Loaded streams from Consumet API');
+                return;
+            }
+
+            // Attempt 3: Fallback to external URL as last resort
             if (episode.url) {
                 setExternalUrl(episode.url);
             }
