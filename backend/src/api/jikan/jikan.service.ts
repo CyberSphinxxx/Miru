@@ -1,131 +1,100 @@
+/**
+ * Jikan API Service
+ * 
+ * Provides rate-limited, cached access to the Jikan (MyAnimeList) API.
+ * Uses shared utilities for request queuing and caching.
+ */
+
 import axios, { AxiosError } from 'axios';
+import { RequestQueue, MemoryCache, delay, RateLimitError } from '../../utils';
+
+// ============================================================================
+// Configuration
+// ============================================================================
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const REQUEST_DELAY = 350; // 350ms between requests (Jikan allows ~3/sec)
+const MAX_RETRIES = 3;
+
+// ============================================================================
+// API Client Setup
+// ============================================================================
 
 const apiClient = axios.create({
     baseURL: JIKAN_BASE_URL,
-    timeout: 15000
+    timeout: 15000,
 });
 
-// In-memory cache
-interface CacheEntry {
-    data: unknown;
-    timestamp: number;
-}
-
-const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
-const REQUEST_DELAY = 350; // 350ms between requests (Jikan allows ~3/sec)
-
-// Helper to delay execution
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Request Queue to Strictly Serialize Requests
-class RequestQueue {
-    private queue: (() => Promise<void>)[] = [];
-    private processing = false;
-    private lastRequestTime = 0;
-    private readonly minDelay: number;
-
-    constructor(minDelay: number) {
-        this.minDelay = minDelay;
-    }
-
-    async add<T>(fn: () => Promise<T>): Promise<T> {
-        return new Promise<T>((resolve, reject) => {
-            this.queue.push(async () => {
-                try {
-                    const result = await fn();
-                    resolve(result);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-            this.process();
-        });
-    }
-
-    private async process() {
-        if (this.processing || this.queue.length === 0) return;
-
-        this.processing = true;
-        while (this.queue.length > 0) {
-            const task = this.queue.shift();
-            if (task) {
-                const now = Date.now();
-                const timeSinceLast = now - this.lastRequestTime;
-
-                if (timeSinceLast < this.minDelay) {
-                    await delay(this.minDelay - timeSinceLast);
-                }
-
-                try {
-                    await task();
-                } catch (e) {
-                    console.error('Queue task error:', e);
-                }
-
-                this.lastRequestTime = Date.now();
-            }
-        }
-        this.processing = false;
-    }
-}
-
+const cache = new MemoryCache<unknown>(CACHE_TTL);
 const requestQueue = new RequestQueue(REQUEST_DELAY);
 
-// Rate limit queue - ensures requests are spaced out
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Execute a request through the rate-limited queue
+ */
 async function rateLimitedRequest<T>(fn: () => Promise<T>): Promise<T> {
     return requestQueue.add(fn);
 }
 
-// Cache wrapper
-function getCached<T>(key: string): T | null {
-    const entry = cache.get(key);
-    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
-        console.log(`Cache hit: ${key}`);
-        return entry.data as T;
-    }
-    if (entry) {
-        cache.delete(key); // Remove stale entry
-    }
-    return null;
-}
-
-function setCache(key: string, data: unknown): void {
-    cache.set(key, { data, timestamp: Date.now() });
-}
-
-// Retry wrapper with exponential backoff for rate limits
-async function withRetry<T>(cacheKey: string, fn: () => Promise<T>, retries: number = 3): Promise<T> {
+/**
+ * Execute a request with caching and exponential backoff retry
+ */
+async function withRetry<T>(
+    cacheKey: string,
+    fn: () => Promise<T>,
+    retries: number = MAX_RETRIES
+): Promise<T> {
     // Check cache first
-    const cached = getCached<T>(cacheKey);
-    if (cached) return cached;
+    const cached = cache.get(cacheKey);
+    if (cached !== null) {
+        console.log(`[Jikan] Cache hit: ${cacheKey}`);
+        return cached as T;
+    }
 
-    for (let i = 0; i < retries; i++) {
+    for (let attempt = 0; attempt < retries; attempt++) {
         try {
             const result = await rateLimitedRequest(fn);
-            setCache(cacheKey, result);
+            cache.set(cacheKey, result);
             return result;
         } catch (error) {
             const axiosError = error as AxiosError;
-            if (axiosError.response?.status === 429 && i < retries - 1) {
-                const waitTime = 2000 * (i + 1);
-                console.log(`Rate limited, retrying in ${waitTime / 1000}s... (attempt ${i + 2}/${retries})`);
+
+            // Handle rate limiting with exponential backoff
+            if (axiosError.response?.status === 429 && attempt < retries - 1) {
+                const waitTime = 2000 * (attempt + 1);
+                console.log(
+                    `[Jikan] Rate limited, retrying in ${waitTime / 1000}s... ` +
+                    `(attempt ${attempt + 2}/${retries})`
+                );
                 await delay(waitTime);
                 continue;
             }
+
+            // Re-throw other errors
             throw error;
         }
     }
-    throw new Error('Max retries exceeded');
+
+    throw new RateLimitError();
 }
 
-export const searchAnime = async (query: string, page: number = 1, limit: number = 24) => {
+// ============================================================================
+// API Functions
+// ============================================================================
+
+export const searchAnime = async (
+    query: string,
+    page: number = 1,
+    limit: number = 24
+) => {
     const cacheKey = `search:${query}:${page}:${limit}`;
     return withRetry(cacheKey, async () => {
         const response = await apiClient.get('/anime', {
-            params: { q: query, page, limit }
+            params: { q: query, page, limit },
         });
         return response.data;
     });
@@ -143,7 +112,7 @@ export const getTopAnime = async (page: number = 1, limit: number = 24) => {
     const cacheKey = `top:${page}:${limit}`;
     return withRetry(cacheKey, async () => {
         const response = await apiClient.get('/top/anime', {
-            params: { page, limit }
+            params: { page, limit },
         });
         return response.data;
     });
@@ -158,8 +127,8 @@ export const getTrendingAnime = async (page: number = 1, limit: number = 24) => 
                 order_by: 'popularity',
                 sort: 'asc',
                 page,
-                limit
-            }
+                limit,
+            },
         });
         return response.data;
     });
@@ -173,7 +142,11 @@ export const getGenres = async () => {
     });
 };
 
-export const getAnimeByGenre = async (genreId: number, page: number = 1, limit: number = 24) => {
+export const getAnimeByGenre = async (
+    genreId: number,
+    page: number = 1,
+    limit: number = 24
+) => {
     const cacheKey = `genre:${genreId}:${page}:${limit}`;
     return withRetry(cacheKey, async () => {
         const response = await apiClient.get('/anime', {
@@ -182,8 +155,8 @@ export const getAnimeByGenre = async (genreId: number, page: number = 1, limit: 
                 order_by: 'score',
                 sort: 'desc',
                 page,
-                limit
-            }
+                limit,
+            },
         });
         return response.data;
     });
@@ -221,18 +194,33 @@ export const getAnimeRecommendations = async (id: number) => {
     });
 };
 
-// Pre-warm cache on startup (delayed to avoid rate limits)
-export const preWarmCache = async () => {
-    console.log('Pre-warming cache...');
+// ============================================================================
+// Cache Management
+// ============================================================================
+
+/**
+ * Pre-warm cache on startup (delayed to respect rate limits)
+ */
+export const preWarmCache = async (): Promise<void> => {
+    console.log('[Jikan] Pre-warming cache...');
     try {
         await delay(1000);
         await getTopAnime(1, 24);
-        console.log('Cache pre-warmed: top anime');
+        console.log('[Jikan] Cache pre-warmed: top anime');
 
         await delay(500);
         await getGenres();
-        console.log('Cache pre-warmed: genres');
+        console.log('[Jikan] Cache pre-warmed: genres');
     } catch (e) {
-        console.log('Pre-warm failed (will load on demand):', (e as Error).message);
+        console.log('[Jikan] Pre-warm failed (will load on demand):', (e as Error).message);
     }
 };
+
+/**
+ * Get cache statistics
+ */
+export const getCacheStats = () => ({
+    size: cache.size,
+    queueLength: requestQueue.length,
+    isProcessing: requestQueue.isProcessing,
+});
