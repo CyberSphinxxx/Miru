@@ -244,28 +244,53 @@ const QUALITY_ORDER: Record<string, number> = {
 /**
  * Get streaming sources for an episode
  */
+// Streaming providers to try in order
+const STREAM_PROVIDERS = [
+    undefined, // Default (usually GogoAnime)
+    'zoro',
+    'animepahe',
+    'gogoanime', // Explicit retry
+    'marin'
+];
+
+/**
+ * Get streaming sources for an episode
+ */
 export async function getEpisodeStreams(episodeId: string): Promise<StreamLink[]> {
-    try {
-        // Don't encode the episodeId - it's already properly formatted
-        // and the failover fetch will handle the full URL construction
-        const endpoint = `meta/anilist/watch/${episodeId}`;
-        const res = await fetchWithRetry(endpoint);
-        const data: ConsumetStreamResponse = await res.json();
+    // Try each provider in order until one works
+    for (const provider of STREAM_PROVIDERS) {
+        try {
+            // Construct endpoint with provider param if specified
+            const endpoint = `meta/anilist/watch/${episodeId}${provider ? `?provider=${provider}` : ''}`;
 
-        if (!data || !data.sources) {
-            return [];
+            console.log(`[API] Fetching streams from provider: ${provider || 'default'}`);
+            const res = await fetchWithRetry(endpoint);
+
+            // Check for non-OK response locally before parsing (fetchWithRetry handles domain failover)
+            if (!res.ok) {
+                throw new Error(`Status ${res.status}`);
+            }
+
+            const data: ConsumetStreamResponse = await res.json();
+
+            if (data && data.sources && data.sources.length > 0) {
+                console.log(`[API] Successfully loaded streams from: ${provider || 'default'}`);
+
+                // Sort by quality (highest first)
+                const sorted = [...data.sources].sort((a, b) => {
+                    return (QUALITY_ORDER[b.quality] || 0) - (QUALITY_ORDER[a.quality] || 0);
+                });
+
+                return sorted.map(adaptConsumetStream);
+            }
+        } catch (error) {
+            console.warn(`[API] Provider ${provider || 'default'} failed:`, error);
+            // Continue to next provider
         }
-
-        // Sort by quality (highest first)
-        const sorted = [...data.sources].sort((a, b) => {
-            return (QUALITY_ORDER[b.quality] || 0) - (QUALITY_ORDER[a.quality] || 0);
-        });
-
-        return sorted.map(adaptConsumetStream);
-    } catch (error) {
-        console.error('[API] Get streams error:', error);
-        return [];
     }
+
+    console.error('[API] All stream providers failed');
+    return [];
 }
 
 // ============================================================================
