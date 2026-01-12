@@ -8,14 +8,12 @@ interface WatchPageProps {
     currentEpisode: Episode | null;
     streams: StreamLink[];
     selectedStreamIndex: number;
-    playerMode: 'hls' | 'embed';
     isAutoQuality: boolean;
     epLoading: boolean;
     streamLoading: boolean;
     onBack: () => void;
     onEpisodeClick: (episode: Episode) => void;
     onQualityChange: (index: number) => void;
-    onModeChange: (mode: 'hls' | 'embed') => void;
     onAutoQuality: () => void;
     externalUrl?: string | null;
 }
@@ -26,14 +24,12 @@ const WatchPage: React.FC<WatchPageProps> = ({
     currentEpisode,
     streams,
     selectedStreamIndex,
-    playerMode,
     isAutoQuality,
     epLoading,
     streamLoading,
     onBack,
     onEpisodeClick,
     onQualityChange,
-    onModeChange,
     onAutoQuality,
     externalUrl,
 }) => {
@@ -114,29 +110,12 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                 </div>
                             ) : streams.length > 0 && currentStream ? (
                                 <div className="absolute inset-0">
-                                    {playerMode === 'embed' ? (
-                                        <iframe
-                                            src={currentStream.url}
-                                            className="w-full h-full"
-                                            allowFullScreen
-                                            allow="autoplay; encrypted-media"
-                                        />
-                                    ) : currentStream.directUrl ? (
-                                        <video
-                                            key={currentStream.directUrl}
-                                            src={currentStream.directUrl}
-                                            controls
-                                            autoPlay
-                                            className="w-full h-full"
-                                        />
-                                    ) : (
-                                        <iframe
-                                            src={currentStream.url}
-                                            className="w-full h-full"
-                                            allowFullScreen
-                                            allow="autoplay; encrypted-media"
-                                        />
-                                    )}
+                                    <iframe
+                                        src={currentStream.url}
+                                        className="w-full h-full"
+                                        allowFullScreen
+                                        allow="autoplay; encrypted-media"
+                                    />
                                 </div>
                             ) : externalUrl ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900">
@@ -164,28 +143,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
                         {/* Unified Control Bar */}
                         <div className="bg-miru-surface/95 backdrop-blur-md border-t border-white/5 px-4 py-3 flex-shrink-0">
                             <div className="flex items-center justify-between gap-4 flex-wrap">
-                                {/* Server Toggle */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider mr-1">Server</span>
-                                    <button
-                                        onClick={() => onModeChange('embed')}
-                                        className={`pill-btn ${playerMode === 'embed' ? 'active' : ''}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z" />
-                                        </svg>
-                                        Embed
-                                    </button>
-                                    <button
-                                        onClick={() => onModeChange('hls')}
-                                        className={`pill-btn ${playerMode === 'hls' ? 'active' : ''}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                                        </svg>
-                                        Player
-                                    </button>
-                                </div>
+                                {/* Server Toggle Removed */}
 
                                 {/* Quality Pills */}
                                 {streams.length > 0 && (
