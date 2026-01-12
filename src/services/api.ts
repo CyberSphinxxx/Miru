@@ -7,8 +7,71 @@
 
 import { Anime, Episode, StreamLink, Character, Recommendation, Genre } from '../types';
 
-// Base URL for Consumet API - configure via environment variable
+// Base URL for Consumet API (kept for backward compatibility if needed externally)
 export const CONSUMET_BASE = import.meta.env.VITE_API_URL || 'https://miru-consumet.vercel.app';
+
+// List of API providers to try in order
+const API_PROVIDERS = [
+    CONSUMET_BASE,                                       // Primary (User's)
+    'https://consumet-api.herokuapp.com',                // Fallback 1 (Public)
+    'https://api.consumet.org',                          // Fallback 2 (Official)
+];
+
+// Keep track of the currently working provider index to avoid retrying dead ones
+let currentProviderIndex = 0;
+
+// Retry configuration
+const MAX_RETRIES_PER_PROVIDER = 1; // Don't retry too much on a single provider if we have backups
+const RETRY_DELAY_MS = 1000;
+
+/**
+ * Helper function to fetch with failover capability
+ * Tries the current provider first, then falls back to others if needed.
+ */
+async function fetchWithRetry(endpoint: string): Promise<Response> {
+    const totalProviders = API_PROVIDERS.length;
+    let lastError: Error | null = null;
+
+    // We try up to totalProviders * (retries + 1) times effectively, 
+    // but the logic here is to loop through providers starting from the current one.
+
+    for (let i = 0; i < totalProviders; i++) {
+        // Calculate which provider to try (round-robin starting from current)
+        const providerIndex = (currentProviderIndex + i) % totalProviders;
+        const providerUrl = API_PROVIDERS[providerIndex];
+
+        // Remove leading slash from endpoint if present to avoid double slashes
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+        const url = `${providerUrl}/${cleanEndpoint}`;
+
+        try {
+            // Try fetching from this provider
+            const res = await fetch(url);
+
+            // If successful or client error (4xx), return immediately
+            // We consider 5xx errors as "provider failure"
+            if (res.ok || (res.status >= 400 && res.status < 500)) {
+
+                // If we successfully switched to a new provider, update the pointer
+                if (providerIndex !== currentProviderIndex) {
+                    console.log(`Switched API provider to: ${providerUrl}`);
+                    currentProviderIndex = providerIndex;
+                }
+                return res;
+            }
+
+            throw new Error(`Provider ${providerUrl} returned ${res.status}`);
+
+        } catch (error) {
+            console.warn(`Provider failed: ${providerUrl}`, error);
+            lastError = error instanceof Error ? error : new Error('Network error');
+
+            // If this was the last provider to try, don't wait, just loop and fail
+        }
+    }
+
+    throw lastError || new Error('All API providers failed');
+}
 
 // ============================================================================
 // Consumet Response Types (raw API responses)
@@ -255,58 +318,49 @@ function adaptConsumetRecommendation(rec: ConsumetRecommendation): Recommendatio
  * Search for anime by query
  */
 export async function searchAnime(query: string, page = 1, perPage = 24): Promise<{ data: Anime[]; pagination: { last_visible_page: number } }> {
-    try {
-        const res = await fetch(`${CONSUMET_BASE}/meta/anilist/${encodeURIComponent(query)}?page=${page}&perPage=${perPage}`);
+    // Note: providing endpoint path relative to base
+    const res = await fetchWithRetry(`meta/anilist/${encodeURIComponent(query)}?page=${page}&perPage=${perPage}`);
 
-        if (!res.ok) {
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
-        }
+    if (!res.ok) {
+        throw new Error(`API Error: ${res.status}`);
+    }
 
-        const data: ConsumetSearchResponse = await res.json();
+    const data: ConsumetSearchResponse = await res.json();
 
-        if (!data.results) {
-            return { data: [], pagination: { last_visible_page: 1 } };
-        }
-
-        return {
-            data: data.results.map(adaptConsumetToAnime),
-            pagination: {
-                last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
-            },
-        };
-    } catch (error) {
-        console.error('Search error:', error);
+    if (!data.results) {
         return { data: [], pagination: { last_visible_page: 1 } };
     }
+
+    return {
+        data: data.results.map(adaptConsumetToAnime),
+        pagination: {
+            last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
+        },
+    };
 }
 
 /**
  * Get trending anime
  */
 export async function getTrendingAnime(page = 1, perPage = 24): Promise<{ data: Anime[]; pagination: { last_visible_page: number } }> {
-    try {
-        const res = await fetch(`${CONSUMET_BASE}/meta/anilist/trending?page=${page}&perPage=${perPage}`);
+    const res = await fetchWithRetry(`meta/anilist/trending?page=${page}&perPage=${perPage}`);
 
-        if (!res.ok) {
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
-        }
+    if (!res.ok) {
+        throw new Error(`API Error: ${res.status}`);
+    }
 
-        const data: ConsumetSearchResponse = await res.json();
+    const data: ConsumetSearchResponse = await res.json();
 
-        if (!data.results) {
-            return { data: [], pagination: { last_visible_page: 1 } };
-        }
-
-        return {
-            data: data.results.map(adaptConsumetToAnime),
-            pagination: {
-                last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
-            },
-        };
-    } catch (error) {
-        console.error('Trending error:', error);
+    if (!data.results) {
         return { data: [], pagination: { last_visible_page: 1 } };
     }
+
+    return {
+        data: data.results.map(adaptConsumetToAnime),
+        pagination: {
+            last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
+        },
+    };
 }
 
 /**
@@ -314,31 +368,26 @@ export async function getTrendingAnime(page = 1, perPage = 24): Promise<{ data: 
  * Fetches anime sorted by Score Descending
  */
 export async function getPopularAnime(page = 1, perPage = 24): Promise<{ data: Anime[]; pagination: { last_visible_page: number } }> {
-    try {
-        // Switch to advanced-search with SCORE_DESC sorting to get "Top Rated"
-        // equivalent to "Top Anime" on MAL/Anilist
-        const res = await fetch(`${CONSUMET_BASE}/meta/anilist/advanced-search?sort=["SCORE_DESC"]&page=${page}&perPage=${perPage}`);
+    // Switch to advanced-search with SCORE_DESC sorting to get "Top Rated"
+    // equivalent to "Top Anime" on MAL/Anilist
+    const res = await fetchWithRetry(`meta/anilist/advanced-search?sort=["SCORE_DESC"]&page=${page}&perPage=${perPage}`);
 
-        if (!res.ok) {
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
-        }
+    if (!res.ok) {
+        throw new Error(`API Error: ${res.status}`);
+    }
 
-        const data: ConsumetSearchResponse = await res.json();
+    const data: ConsumetSearchResponse = await res.json();
 
-        if (!data.results) {
-            return { data: [], pagination: { last_visible_page: 1 } };
-        }
-
-        return {
-            data: data.results.map(adaptConsumetToAnime),
-            pagination: {
-                last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
-            },
-        };
-    } catch (error) {
-        console.error('Popular (Top Rated) error:', error);
+    if (!data.results) {
         return { data: [], pagination: { last_visible_page: 1 } };
     }
+
+    return {
+        data: data.results.map(adaptConsumetToAnime),
+        pagination: {
+            last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
+        },
+    };
 }
 
 
@@ -353,7 +402,7 @@ export async function getAnimeInfo(id: string | number): Promise<{
     recommendations: Recommendation[];
 } | null> {
     try {
-        const res = await fetch(`${CONSUMET_BASE}/meta/anilist/info/${id}?provider=gogoanime`);
+        const res = await fetchWithRetry(`meta/anilist/info/${id}?provider=gogoanime`);
         const data: ConsumetAnimeResult = await res.json();
 
         if (!data || !data.id) {
@@ -377,7 +426,7 @@ export async function getAnimeInfo(id: string | number): Promise<{
  */
 export async function getEpisodeStreams(episodeId: string): Promise<StreamLink[]> {
     try {
-        const res = await fetch(`${CONSUMET_BASE}/meta/anilist/watch/${encodeURIComponent(episodeId)}`);
+        const res = await fetchWithRetry(`meta/anilist/watch/${encodeURIComponent(episodeId)}`);
         const data: ConsumetStreamResponse = await res.json();
 
         if (!data || !data.sources) {
@@ -402,7 +451,7 @@ export async function getEpisodeStreams(episodeId: string): Promise<StreamLink[]
  */
 export async function getAnimeByGenre(genreName: string, page = 1, perPage = 24): Promise<{ data: Anime[]; pagination: { last_visible_page: number } }> {
     try {
-        const res = await fetch(`${CONSUMET_BASE}/meta/anilist/advanced-search?genres=["${encodeURIComponent(genreName)}"]&page=${page}&perPage=${perPage}`);
+        const res = await fetchWithRetry(`meta/anilist/advanced-search?genres=["${encodeURIComponent(genreName)}"]&page=${page}&perPage=${perPage}`);
         const data: ConsumetSearchResponse = await res.json();
 
         return {
@@ -449,7 +498,7 @@ export function getGenres(): Genre[] {
 // ============================================================================
 
 // Keep old API_BASE export for any remaining usages
-export const API_BASE = CONSUMET_BASE;
+export const API_BASE = API_PROVIDERS[0];
 
 // Re-export adapter for use in components if needed
 export { adaptConsumetToAnime, adaptConsumetEpisode };
@@ -505,4 +554,3 @@ export const getSimilarAnime = async (genres: { mal_id: number; name?: string }[
 export const clearSearchCache = (): void => {
     // No-op: Consumet handles caching on the server
 };
-

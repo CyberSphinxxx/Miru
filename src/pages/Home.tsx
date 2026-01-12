@@ -37,6 +37,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
     // New state for homepage redesign
     const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]);
+    const [trendingError, setTrendingError] = useState(false);
     const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
 
     // Reset page when view/search changes
@@ -71,11 +72,13 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     useEffect(() => {
         const fetchTrending = async () => {
             if (viewMode !== 'home' || searchQuery) return;
+            setTrendingError(false);
             try {
                 const result = await getTrendingAnime(1, 10);
                 setTrendingAnime(result.data);
             } catch (err) {
                 console.error('Failed to fetch trending', err);
+                setTrendingError(true);
             }
         };
         fetchTrending();
@@ -309,7 +312,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 )}
 
                 {/* Trending Row - Only show on home */}
-                {viewMode === 'home' && !searchQuery && trendingAnime.length > 0 && (
+                {viewMode === 'home' && !searchQuery && (trendingAnime.length > 0 || trendingError) && (
                     <section className="mb-12 animate-fade-in">
                         <div className="content-row-header">
                             <h2 className="content-row-title flex items-center gap-2">
@@ -328,18 +331,42 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 </svg>
                             </button>
                         </div>
-                        <div className="horizontal-scroll gap-4 py-4">
-                            {trendingAnime.slice(0, 10).map(anime => (
-                                <div key={anime.mal_id} className="flex-shrink-0 w-56 md:w-64">
-                                    <AnimeCard
-                                        anime={anime}
-                                        onClick={() => handleAnimeClick(anime)}
-                                        onPlayClick={() => navigate(`/watch/${anime.mal_id}`)}
-                                        onWatchlistChange={handleWatchlistChange}
-                                    />
+                        {trendingError ? (
+                            <div className="flex items-center gap-4 py-8 px-4 rounded-xl bg-white/5 border border-white/10">
+                                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-orange-500">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                                    </svg>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="flex-1">
+                                    <p className="text-sm text-gray-400">Failed to load trending anime. The API might be temporarily unavailable.</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setTrendingError(false);
+                                        getTrendingAnime(1, 10)
+                                            .then(result => setTrendingAnime(result.data))
+                                            .catch(() => setTrendingError(true));
+                                    }}
+                                    className="px-4 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors text-sm font-medium"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="horizontal-scroll gap-4 py-4">
+                                {trendingAnime.slice(0, 10).map(anime => (
+                                    <div key={anime.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                                        <AnimeCard
+                                            anime={anime}
+                                            onClick={() => handleAnimeClick(anime)}
+                                            onPlayClick={() => navigate(`/watch/${anime.mal_id}`)}
+                                            onWatchlistChange={handleWatchlistChange}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </section>
                 )}
 
