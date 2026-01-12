@@ -27,7 +27,6 @@ function Watch() {
     // Player State
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
     const [isAutoQuality, setIsAutoQuality] = useState(true);
-    const [playerMode, setPlayerMode] = useState<'hls' | 'embed'>('hls');
 
     // 1. Fetch Anime Info and Episodes (both come from Consumet in one call)
     useEffect(() => {
@@ -115,12 +114,6 @@ function Watch() {
 
                 const standardizedStreams = Array.from(qualityMap.values());
                 setStreams(standardizedStreams);
-
-                if (standardizedStreams[0]?.isHls) {
-                    setPlayerMode('hls');
-                } else {
-                    setPlayerMode('embed');
-                }
             } else {
                 // Final fallback to external URL
                 if (episode.url) {
@@ -168,8 +161,6 @@ function Watch() {
                 const uniqueStreams = Array.from(qualityMap.values());
 
                 setStreams(uniqueStreams);
-                // Force embed for local streams (usually Kwik)
-                setPlayerMode('embed');
                 return true;
             }
             return false;
@@ -215,14 +206,12 @@ function Watch() {
             currentEpisode={currentEpisode}
             streams={streams}
             selectedStreamIndex={selectedStreamIndex}
-            playerMode={playerMode}
             isAutoQuality={isAutoQuality}
             epLoading={epLoading}
             streamLoading={streamLoading}
             onBack={handleBack}
             onEpisodeClick={handleEpisodeClick}
             onQualityChange={(idx) => { setSelectedStreamIndex(idx); setIsAutoQuality(false); }}
-            onModeChange={setPlayerMode}
             onAutoQuality={() => { setIsAutoQuality(true); setSelectedStreamIndex(0); }}
             externalUrl={externalUrl}
         />
