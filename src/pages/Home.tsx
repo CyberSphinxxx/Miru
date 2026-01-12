@@ -33,6 +33,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     const [genres, setGenres] = useState<Genre[]>([]);
     const [genresLoading, setGenresLoading] = useState(false);
     const [genreFilter, setGenreFilter] = useState('');
+    const [showAllGenres, setShowAllGenres] = useState(false);
 
     // UI state
     const [loading, setLoading] = useState(true);
@@ -91,11 +92,13 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
     // Fetch Anime Data
     useEffect(() => {
+        let isMounted = true;
         const fetchAnime = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                setAnimeList([]);
+                // Don't clear list immediately to prevent flashing white if we can avoid it, 
+                // but for genre switching we probably should. Let's keep existing behavior but safe.
 
                 let result: { data: Anime[]; pagination: { last_visible_page: number } };
 
@@ -107,8 +110,14 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     if (selectedGenreId) {
                         // Find genre name from ID
                         const genre = genres.find(g => g.mal_id.toString() === selectedGenreId);
+                        // If genres aren't loaded yet, we can't resolve the ID. 
+                        // Wait for genres to load instead of defaulting to Action.
+                        if (!genre && genres.length === 0) {
+                            return; // Wait for genres to load
+                        }
+
                         const genreName = genre?.name || 'Action';
-                        result = await getAnimeByGenre(genreName, currentPage, 24, genre ? genre.mal_id : undefined);
+                        result = await getAnimeByGenre(genreName, currentPage, 24, genre?.mal_id);
                     } else {
                         // Just show genres list, no anime fetch needed yet
                         setLoading(false);
@@ -119,8 +128,12 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     result = await getPopularAnime(currentPage, 24);
                 }
 
+                if (!isMounted) return;
+
                 setAnimeList(result.data);
-                setLastVisiblePage(result.pagination.last_visible_page);
+                if (result.pagination?.last_visible_page) {
+                    setLastVisiblePage(result.pagination.last_visible_page);
+                }
 
                 // Set spotlight from top results if on home and not searching
                 if (viewMode === 'home' && !searchQuery && currentPage === 1 && result.data.length > 0) {
@@ -128,14 +141,21 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     setSpotlightAnime(result.data.slice(0, 5));
                 }
             } catch (err) {
+                if (!isMounted) return;
                 console.error(err);
                 setError('Failed to load anime. Please make sure the API is accessible.');
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchAnime();
+
+        return () => {
+            isMounted = false;
+        };
     }, [viewMode, selectedGenreId, searchQuery, currentPage, genres]);
 
     // Auto-slide effect
@@ -476,11 +496,6 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
                         {/* Genre Search Filter */}
                         <div className="relative max-w-md mx-auto mb-8">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-500">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                                </svg>
-                            </div>
                             <input
                                 type="text"
                                 value={genreFilter}
@@ -488,6 +503,11 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 placeholder="Filter genres... (e.g., 'Horror', 'Slice of Life')"
                                 className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-miru-accent focus:ring-2 focus:ring-miru-accent/20 transition-all"
                             />
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-500">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                                </svg>
+                            </div>
                             {genreFilter && (
                                 <button
                                     onClick={() => setGenreFilter('')}
@@ -528,17 +548,38 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 );
                             }
 
+                            // Limit to 20 initially unless showAll is true
+                            // const [showAllGenres, setShowAllGenres] = useState(false); <- Removed, using top-level state
+                            const displayedGenres = showAllGenres ? filteredGenres : filteredGenres.slice(0, 20);
+                            const hasMore = filteredGenres.length > 20;
+
                             return (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                    {filteredGenres.map((genre, index) => (
-                                        <GenreCard
-                                            key={genre.mal_id}
-                                            genre={genre}
-                                            onClick={() => handleGenreClick(genre.mal_id)}
-                                            index={index}
-                                        />
-                                    ))}
-                                </div>
+                                <>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                        {displayedGenres.map((genre, index) => (
+                                            <GenreCard
+                                                key={genre.mal_id}
+                                                genre={genre}
+                                                onClick={() => handleGenreClick(genre.mal_id)}
+                                                index={index}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    {!showAllGenres && hasMore && (
+                                        <div className="flex justify-center mt-8">
+                                            <button
+                                                onClick={() => setShowAllGenres(true)}
+                                                className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium transition-all flex items-center gap-2"
+                                            >
+                                                <span>Show All Genres ({filteredGenres.length})</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             );
                         })()}
                     </div>
