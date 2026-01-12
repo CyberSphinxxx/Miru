@@ -82,12 +82,9 @@ function Detail() {
     }, [id]);
 
     const handleBack = () => {
-        // Go back in history if possible, else go home
-        if (window.history.length > 1) {
-            navigate(-1);
-        } else {
-            navigate('/');
-        }
+        // Explicitly go to Home/Browse page instead of history back
+        // to avoid loops if the user came from the Watch page
+        navigate('/');
     };
 
     const handleWatchClick = () => {
