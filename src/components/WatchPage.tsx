@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import Hls from 'hls.js';
 import { Anime, Episode, StreamLink } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -37,11 +38,60 @@ const WatchPage: React.FC<WatchPageProps> = ({
     const [cinemaMode, setCinemaMode] = useState(false);
     const [episodeSearch, setEpisodeSearch] = useState('');
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const hlsRef = useRef<Hls | null>(null);
 
     // Scroll to top on mount
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
+
+    // Initialize HLS player when stream changes
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !currentStream) return;
+
+        // Check if this is an HLS stream
+        const isHlsStream = currentStream.isHls || currentStream.url.includes('.m3u8');
+
+        if (isHlsStream && Hls.isSupported()) {
+            // Destroy previous HLS instance
+            if (hlsRef.current) {
+                hlsRef.current.destroy();
+            }
+
+            const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+            });
+
+            hls.loadSource(currentStream.url);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                video.play().catch(() => {
+                    // Autoplay blocked, user needs to click
+                });
+            });
+
+            hlsRef.current = hls;
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari native HLS support
+            video.src = currentStream.url;
+            video.addEventListener('loadedmetadata', () => {
+                video.play().catch(() => { });
+            });
+        } else if (!isHlsStream) {
+            // Regular video URL
+            video.src = currentStream.url;
+        }
+
+        return () => {
+            if (hlsRef.current) {
+                hlsRef.current.destroy();
+                hlsRef.current = null;
+            }
+        };
+    }, [currentStream]);
 
     // Filter episodes based on search
     const filteredEpisodes = useMemo(() => {
@@ -110,11 +160,12 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                 </div>
                             ) : streams.length > 0 && currentStream ? (
                                 <div className="absolute inset-0">
-                                    <iframe
-                                        src={currentStream.url}
+                                    <video
+                                        ref={videoRef}
                                         className="w-full h-full"
-                                        allowFullScreen
-                                        allow="autoplay; encrypted-media"
+                                        controls
+                                        autoPlay
+                                        playsInline
                                     />
                                 </div>
                             ) : externalUrl ? (
