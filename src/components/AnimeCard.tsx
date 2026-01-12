@@ -1,26 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Anime } from '../types';
-import { isInWatchlist, toggleWatchlist } from '../services/watchlistService';
 import { prefetchEpisodes } from '../services/api';
+import QuickAddDropdown from './QuickAddDropdown';
 
 interface AnimeCardProps {
     anime: Anime;
     onClick: () => void;
     onPlayClick?: () => void;
-    onWatchlistChange?: () => void;
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onWatchlistChange }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick }) => {
 
     const [isHovered, setIsHovered] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
-    const [inWatchlist, setInWatchlist] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    useEffect(() => {
-        setInWatchlist(isInWatchlist(anime.mal_id));
-    }, [anime.mal_id]);
 
     const handleMouseEnter = () => {
         setIsHovered(true);
@@ -36,13 +30,6 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onWa
             clearTimeout(hoverTimeoutRef.current);
         }
         setShowDetails(false);
-    };
-
-    const handleWatchlistClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const nowInList = toggleWatchlist(anime);
-        setInWatchlist(nowInList);
-        onWatchlistChange?.();
     };
 
     const handlePlayClick = (e: React.MouseEvent) => {
@@ -213,24 +200,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onWa
                                     </svg>
                                     Watch
                                 </button>
-                                <button
-                                    onClick={handleWatchlistClick}
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all shadow-lg shrink-0 ${inWatchlist
-                                        ? 'bg-miru-primary/30 border-miru-primary text-miru-primary'
-                                        : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
-                                        }`}
-                                    title={inWatchlist ? 'Remove from list' : 'Add to list'}
-                                >
-                                    {inWatchlist ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                            <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 0 1 1.04-.208Z" clipRule="evenodd" />
-                                        </svg>
-                                    ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                        </svg>
-                                    )}
-                                </button>
+                                <QuickAddDropdown anime={anime} />
                             </div>
                         </div>
                     </div>
