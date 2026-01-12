@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/AnimeCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Genre } from '../types';
+import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -29,6 +30,10 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     const [lastVisiblePage, setLastVisiblePage] = useState(1);
     const [watchlistRefresh, setWatchlistRefresh] = useState(0);
 
+    // New state for homepage redesign
+    const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]);
+    const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
+
     // Reset page when view/search changes
     useEffect(() => {
         setCurrentPage(1);
@@ -53,6 +58,29 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         };
         fetchGenres();
     }, []);
+
+    // Load watch history for Continue Watching row
+    useEffect(() => {
+        const history = getWatchHistory();
+        setWatchHistory(history);
+    }, [watchlistRefresh]);
+
+    // Fetch trending anime for the Trending row (home view only)
+    useEffect(() => {
+        const fetchTrending = async () => {
+            if (viewMode !== 'home' || searchQuery) return;
+            try {
+                const res = await fetch(`${API_BASE}/jikan/trending?page=1&limit=10`);
+                const data = await res.json();
+                if (data?.data) {
+                    setTrendingAnime(data.data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch trending', err);
+            }
+        };
+        fetchTrending();
+    }, [viewMode, searchQuery]);
 
     // Fetch Anime Data
     useEffect(() => {
@@ -156,8 +184,10 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                         backgroundPosition: 'center 20%'
                     }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-miru-bg via-miru-bg/80 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-miru-bg via-miru-bg/30 to-transparent" />
+                {/* Improved gradient overlays for seamless fade */}
+                <div className="absolute inset-0 bg-gradient-to-r from-miru-bg via-miru-bg/90 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-miru-bg via-miru-bg/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-miru-bg to-transparent" />
                 <div className="absolute inset-0 bg-black/20" />
 
                 <div className="relative z-10 h-full flex items-end pb-16">
@@ -171,6 +201,8 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                             <h1 className="text-5xl md:text-6xl font-black leading-tight mb-4 drop-shadow-2xl">
                                 {featuredAnime.title}
                             </h1>
+
+                            {/* Metadata with Score and Basic Info */}
                             <div className="flex items-center gap-4 text-sm text-gray-300 mb-4">
                                 <span className="flex items-center gap-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-yellow-400">
@@ -188,9 +220,23 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 )}
                                 <span className="px-2 py-0.5 rounded bg-white/10 text-xs">HD</span>
                             </div>
-                            <p className="text-gray-300 text-base mb-6 line-clamp-3 leading-relaxed max-w-xl">
+
+                            {/* Glass-effect Genre Pills */}
+                            {featuredAnime.genres && featuredAnime.genres.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {featuredAnime.genres.slice(0, 4).map(genre => (
+                                        <span key={genre.mal_id} className="genre-pill">
+                                            {genre.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Description with max-width for readability */}
+                            <p className="text-gray-300 text-base mb-6 line-clamp-3 leading-relaxed" style={{ maxWidth: '600px' }}>
                                 {featuredAnime.synopsis}
                             </p>
+
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={(e) => handleWatchNow(e, featuredAnime)}
@@ -223,6 +269,107 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
             {renderHero()}
 
             <main className={`container mx-auto px-6 ${viewMode === 'home' && !searchQuery && featuredAnime ? 'pt-12' : 'pt-28'}`}>
+
+                {/* Continue Watching Row - Only show on home with history */}
+                {viewMode === 'home' && !searchQuery && watchHistory.length > 0 && (
+                    <section className="mb-12 animate-fade-in">
+                        <div className="content-row-header">
+                            <h2 className="content-row-title flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-miru-primary">
+                                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm14.024-.983a1.125 1.125 0 0 1 0 1.966l-5.603 3.113A1.125 1.125 0 0 1 9 15.113V8.887c0-.857.921-1.4 1.671-.983l5.603 3.113Z" clipRule="evenodd" />
+                                </svg>
+                                Continue Watching
+                            </h2>
+                        </div>
+                        <div className="horizontal-scroll">
+                            {watchHistory.slice(0, 10).map(item => (
+                                <div
+                                    key={item.mal_id}
+                                    onClick={() => navigate(`/watch/${item.mal_id}`)}
+                                    className="flex-shrink-0 w-72 landscape-card group"
+                                >
+                                    <img
+                                        src={item.image_url}
+                                        alt={item.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                                        <p className="text-xs text-miru-primary font-medium mb-1">
+                                            Episode {item.currentEpisode}
+                                        </p>
+                                        <h3 className="font-bold text-white text-sm line-clamp-1 landscape-card-title">
+                                            {item.title}
+                                        </h3>
+                                    </div>
+                                    {/* Progress Bar Overlay */}
+                                    <div
+                                        className="progress-overlay"
+                                        style={{ '--progress': `${item.progress}%` } as React.CSSProperties}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Trending Row - Only show on home */}
+                {viewMode === 'home' && !searchQuery && trendingAnime.length > 0 && (
+                    <section className="mb-12 animate-fade-in">
+                        <div className="content-row-header">
+                            <h2 className="content-row-title flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-orange-500">
+                                    <path fillRule="evenodd" d="M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.177A7.547 7.547 0 0 1 6.648 6.61a.75.75 0 0 0-1.152.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.545 3.75 3.75 0 0 1 3.255 3.717Z" clipRule="evenodd" />
+                                </svg>
+                                Trending Now
+                            </h2>
+                            <button
+                                onClick={() => navigate('/trending')}
+                                className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                            >
+                                View All
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="horizontal-scroll">
+                            {trendingAnime.slice(0, 8).map(anime => (
+                                <div
+                                    key={anime.mal_id}
+                                    onClick={() => navigate(`/anime/${anime.mal_id}`)}
+                                    className="flex-shrink-0 w-80 landscape-card group"
+                                >
+                                    <img
+                                        src={anime.images.jpg.large_image_url}
+                                        alt={anime.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {anime.score > 0 && (
+                                                <span className="flex items-center gap-1 text-xs text-yellow-400">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                                        <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                                    </svg>
+                                                    {anime.score}
+                                                </span>
+                                            )}
+                                            <span className="text-xs text-gray-400">{anime.type}</span>
+                                            {anime.episodes && (
+                                                <span className="text-xs text-gray-400">{anime.episodes} eps</span>
+                                            )}
+                                        </div>
+                                        <h3 className="font-bold text-white text-sm line-clamp-1 landscape-card-title">
+                                            {anime.title}
+                                        </h3>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {/* Genre Selector View */}
                 {viewMode === 'genres' && !selectedGenreId && (
