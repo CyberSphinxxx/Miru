@@ -113,12 +113,55 @@ export async function getPopularAnime(
 /**
  * Get anime by genre using advanced search
  */
+
+import { GENRE_ID_MAP } from './genreIds';
+import { adaptJikanToAnime } from './jikan.adapter';
+
+/**
+ * Get anime by genre using strict ID filtering (Jikan)
+ * Falls back to fuzzy search (Consumet) if genre not in map
+ */
 export async function getAnimeByGenre(
     genreName: string,
     page = 1,
     perPage = 24
 ): Promise<PaginatedResponse<Anime>> {
     try {
+        const normalizedGenre = genreName.toLowerCase().trim();
+        const genreId = GENRE_ID_MAP[normalizedGenre];
+
+        // 1. Strict ID Filtering (if known genre)
+        if (genreId) {
+            console.log(`[API] Fetching genre "${genreName}" (ID: ${genreId}) from Jikan`);
+            // Jikan API: https://api.jikan.moe/v4/anime?genres=1&order_by=score&sort=desc
+            const endpoint = `https://api.jikan.moe/v4/anime?genres=${genreId}&order_by=score&sort=desc&page=${page}&limit=${perPage}&sfw=true`;
+
+            const res = await fetch(endpoint);
+
+            if (!res.ok) {
+                if (res.status === 429) {
+                    // Rate limited - Fallback or wait? Jikan rate limits are tight.
+                    // For now, let's treat it as an error and fall back?
+                    // Or better, just throw and let error handler try something else?
+                    // Let's warn and fall through to old method if Jikan fails.
+                    console.warn('[API] Jikan rate limited. Falling back to fuzzy search.');
+                } else {
+                    throw new Error(`Jikan API Error: ${res.status}`);
+                }
+            } else {
+                const data = await res.json();
+
+                return {
+                    data: data.data.map(adaptJikanToAnime),
+                    pagination: {
+                        last_visible_page: data.pagination.last_visible_page,
+                    }
+                };
+            }
+        }
+
+        // 2. Fallback: Fuzzy Text Search (Consumet)
+        console.log(`[API] Genre "${genreName}" not mapped or Jikan failed. Using fuzzy search.`);
         const endpoint = `meta/anilist/advanced-search?genres=["${encodeURIComponent(genreName)}"]&page=${page}&perPage=${perPage}`;
         const res = await fetchWithRetry(endpoint);
         const data: ConsumetSearchResponse = await res.json();
@@ -131,6 +174,10 @@ export async function getAnimeByGenre(
         };
     } catch (error) {
         console.error('[API] Genre search error:', error);
+        // Retry with fuzzy search if Jikan failed and we haven't tried it yet
+        // Simpler to just return empty or let global error handler catch it.
+        // But for robustness, let's try fuzzy search as a last resort in case Jikan is down?
+        // Risky if infinite loop. Let's just return empty for now.
         return { data: [], pagination: { last_visible_page: 1 } };
     }
 }
