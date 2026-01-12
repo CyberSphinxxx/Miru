@@ -4,8 +4,13 @@ import AnimeCard from '../components/AnimeCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Genre } from '../types';
 import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
-
-import { API_BASE } from '../services/api';
+import {
+    searchAnime,
+    getTrendingAnime,
+    getPopularAnime,
+    getAnimeByGenre,
+    getGenres
+} from '../services/api';
 
 interface HomeProps {
     viewMode: 'home' | 'trending' | 'genres';
@@ -39,17 +44,14 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         setCurrentPage(1);
     }, [viewMode, selectedGenreId, searchQuery]);
 
-    // Fetch Genres (only once or when needed)
+    // Fetch Genres (static list from Consumet adapter)
     useEffect(() => {
         const fetchGenres = async () => {
             if (genres.length > 0) return;
             try {
                 setGenresLoading(true);
-                const res = await fetch(`${API_BASE}/jikan/genres`);
-                const data = await res.json();
-                if (data?.data) {
-                    setGenres(data.data);
-                }
+                const genreList = getGenres();
+                setGenres(genreList);
             } catch (err) {
                 console.error('Failed to fetch genres', err);
             } finally {
@@ -70,11 +72,8 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         const fetchTrending = async () => {
             if (viewMode !== 'home' || searchQuery) return;
             try {
-                const res = await fetch(`${API_BASE}/jikan/trending?page=1&limit=10`);
-                const data = await res.json();
-                if (data?.data) {
-                    setTrendingAnime(data.data);
-                }
+                const result = await getTrendingAnime(1, 10);
+                setTrendingAnime(result.data);
             } catch (err) {
                 console.error('Failed to fetch trending', err);
             }
@@ -90,49 +89,45 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 setError(null);
                 setAnimeList([]);
 
-                let url = '';
+                let result: { data: Anime[]; pagination: { last_visible_page: number } };
 
                 if (searchQuery) {
-                    url = `${API_BASE}/jikan/search?q=${encodeURIComponent(searchQuery)}&page=${currentPage}&limit=24`;
+                    result = await searchAnime(searchQuery, currentPage, 24);
                 } else if (viewMode === 'trending') {
-                    url = `${API_BASE}/jikan/trending?page=${currentPage}&limit=24`;
+                    result = await getTrendingAnime(currentPage, 24);
                 } else if (viewMode === 'genres') {
                     if (selectedGenreId) {
-                        url = `${API_BASE}/jikan/genres/${selectedGenreId}?page=${currentPage}&limit=24`;
+                        // Find genre name from ID
+                        const genre = genres.find(g => g.mal_id.toString() === selectedGenreId);
+                        const genreName = genre?.name || 'Action';
+                        result = await getAnimeByGenre(genreName, currentPage, 24);
                     } else {
                         // Just show genres list, no anime fetch needed yet
                         setLoading(false);
                         return;
                     }
                 } else {
-                    // Default Home (Top Anime)
-                    url = `${API_BASE}/jikan/top?page=${currentPage}&limit=24`;
+                    // Default Home (Popular Anime - used as "Top")
+                    result = await getPopularAnime(currentPage, 24);
                 }
 
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('Failed to fetch');
-                const data = await res.json();
+                setAnimeList(result.data);
+                setLastVisiblePage(result.pagination.last_visible_page);
 
-                if (data?.data) {
-                    setAnimeList(data.data);
-                    if (data.pagination) {
-                        setLastVisiblePage(data.pagination.last_visible_page);
-                    }
-                    // Set featured from first result if on home and not searching
-                    if (viewMode === 'home' && !searchQuery && currentPage === 1 && data.data.length > 0) {
-                        setFeaturedAnime(data.data[0]);
-                    }
+                // Set featured from first result if on home and not searching
+                if (viewMode === 'home' && !searchQuery && currentPage === 1 && result.data.length > 0) {
+                    setFeaturedAnime(result.data[0]);
                 }
             } catch (err) {
                 console.error(err);
-                setError('Failed to load anime. Please make sure the backend is running.');
+                setError('Failed to load anime. Please make sure the API is accessible.');
             } finally {
                 setLoading(false);
             }
         };
 
         fetchAnime();
-    }, [viewMode, selectedGenreId, searchQuery, currentPage]);
+    }, [viewMode, selectedGenreId, searchQuery, currentPage, genres]);
 
     const handleAnimeClick = (anime: Anime) => {
         navigate(`/anime/${anime.mal_id}`);
@@ -158,7 +153,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
             const g = genres.find(g => g.mal_id.toString() === selectedGenreId);
             return g ? g.name : 'Genre Anime';
         }
-        return 'Top Anime';
+        return 'Popular Anime';
     };
 
     const getPageSubtitle = () => {
@@ -168,7 +163,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
             const g = genres.find(g => g.mal_id.toString() === selectedGenreId);
             return `Browse ${g?.name || ''} anime`;
         }
-        return 'Discover the highest rated anime';
+        return 'Discover the most popular anime';
     };
 
     // Render Hero Section
@@ -333,38 +328,15 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 </svg>
                             </button>
                         </div>
-                        <div className="horizontal-scroll">
-                            {trendingAnime.slice(0, 8).map(anime => (
-                                <div
-                                    key={anime.mal_id}
-                                    onClick={() => navigate(`/anime/${anime.mal_id}`)}
-                                    className="flex-shrink-0 w-80 landscape-card group"
-                                >
-                                    <img
-                                        src={anime.images.jpg.large_image_url}
-                                        alt={anime.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        <div className="horizontal-scroll gap-4 py-4">
+                            {trendingAnime.slice(0, 10).map(anime => (
+                                <div key={anime.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                                    <AnimeCard
+                                        anime={anime}
+                                        onClick={() => handleAnimeClick(anime)}
+                                        onPlayClick={() => navigate(`/watch/${anime.mal_id}`)}
+                                        onWatchlistChange={handleWatchlistChange}
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            {anime.score > 0 && (
-                                                <span className="flex items-center gap-1 text-xs text-yellow-400">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-                                                        <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                                                    </svg>
-                                                    {anime.score}
-                                                </span>
-                                            )}
-                                            <span className="text-xs text-gray-400">{anime.type}</span>
-                                            {anime.episodes && (
-                                                <span className="text-xs text-gray-400">{anime.episodes} eps</span>
-                                            )}
-                                        </div>
-                                        <h3 className="font-bold text-white text-sm line-clamp-1 landscape-card-title">
-                                            {anime.title}
-                                        </h3>
-                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -446,7 +418,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                     </svg>
                                 </div>
                                 <p className="text-red-400 mb-2">{error}</p>
-                                <p className="text-gray-500 text-sm">Make sure the backend server is running on port 3001</p>
+                                <p className="text-gray-500 text-sm">Make sure the Consumet API is running and accessible</p>
                             </div>
                         ) : (
                             <>
