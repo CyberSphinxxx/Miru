@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AnimeDetailPage from '../components/AnimeDetailPage';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getAnimeExtraDetails, getSimilarAnime } from '../services/api';
+import { getAnimeInfo } from '../services/api';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../types';
-
-import { API_BASE } from '../services/api';
 
 function Detail() {
     const { id } = useParams<{ id: string }>();
@@ -24,24 +22,50 @@ function Detail() {
     const [similar, setSimilar] = useState<Anime[]>([]);
     const [extrasLoading, setExtrasLoading] = useState(true);
 
-    // Fetch Anime Data
+    // Fetch Anime Data (all in one call with Consumet)
     useEffect(() => {
         const fetchAnimeData = async () => {
             if (!id) return;
 
             try {
                 setLoading(true);
+                setExtrasLoading(true);
                 setError(null);
 
-                // Fetch main details
-                const res = await fetch(`${API_BASE}/jikan/anime/${id}`);
-                const data = await res.json();
+                // Consumet returns everything in one call
+                const result = await getAnimeInfo(id);
 
-                if (data?.data) {
-                    setAnime(data.data);
+                if (result) {
+                    setAnime(result.anime);
+                    setCharacters(result.characters);
+                    setRecommendations(result.recommendations);
 
-                    // Once we have valid anime data, fetch extras
-                    fetchExtras(data.data);
+                    // Consumet doesn't have separate relations in the same format
+                    // We'll use recommendations as similar anime
+                    setSimilar([]);
+                    setRelations([]);
+
+                    // Consumet doesn't provide promo videos directly
+                    // If the anime has a trailer, we can create a single video entry
+                    if (result.anime.trailer?.youtube_id) {
+                        setVideos([{
+                            title: 'Trailer',
+                            trailer: {
+                                youtube_id: result.anime.trailer.youtube_id,
+                                url: result.anime.trailer.url,
+                                embed_url: result.anime.trailer.embed_url,
+                                images: {
+                                    image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/default.jpg`,
+                                    small_image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/default.jpg`,
+                                    medium_image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/mqdefault.jpg`,
+                                    large_image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/hqdefault.jpg`,
+                                    maximum_image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/maxresdefault.jpg`,
+                                }
+                            }
+                        }]);
+                    } else {
+                        setVideos([]);
+                    }
                 } else {
                     setError('Anime not found');
                 }
@@ -50,25 +74,6 @@ function Detail() {
                 setError('Failed to load anime details');
             } finally {
                 setLoading(false);
-            }
-        };
-
-        const fetchExtras = async (animeData: Anime) => {
-            setExtrasLoading(true);
-            try {
-                const [extras, similarData] = await Promise.all([
-                    getAnimeExtraDetails(animeData.mal_id),
-                    animeData.genres ? getSimilarAnime(animeData.genres) : Promise.resolve([])
-                ]);
-
-                setCharacters(extras.characters);
-                setRelations(extras.relations);
-                setVideos(extras.videos);
-                setRecommendations(extras.recommendations);
-                setSimilar(similarData);
-            } catch (err) {
-                console.error('Failed to load extra details', err);
-            } finally {
                 setExtrasLoading(false);
             }
         };
