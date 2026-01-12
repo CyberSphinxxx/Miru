@@ -124,17 +124,19 @@ import { adaptJikanToAnime } from './jikan.adapter';
 export async function getAnimeByGenre(
     genreName: string,
     page = 1,
-    perPage = 24
+    perPage = 24,
+    genreId?: number
 ): Promise<PaginatedResponse<Anime>> {
     try {
         const normalizedGenre = genreName.toLowerCase().trim();
-        const genreId = GENRE_ID_MAP[normalizedGenre];
+        const mappedGenreId = GENRE_ID_MAP[normalizedGenre];
+        const effectiveGenreId = genreId || mappedGenreId;
 
         // 1. Strict ID Filtering (if known genre)
-        if (genreId) {
-            console.log(`[API] Fetching genre "${genreName}" (ID: ${genreId}) from Jikan`);
+        if (effectiveGenreId) {
+            console.log(`[API] Fetching genre "${genreName}" (ID: ${effectiveGenreId}) from Jikan`);
             // Jikan API: https://api.jikan.moe/v4/anime?genres=1&order_by=score&sort=desc
-            const endpoint = `https://api.jikan.moe/v4/anime?genres=${genreId}&order_by=score&sort=desc&page=${page}&limit=${perPage}&sfw=true`;
+            const endpoint = `https://api.jikan.moe/v4/anime?genres=${effectiveGenreId}&order_by=score&sort=desc&page=${page}&limit=${perPage}&sfw=true`;
 
             const res = await fetch(endpoint);
 
