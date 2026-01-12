@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import WatchPage from '../components/WatchPage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Episode, StreamLink } from '../types';
+import { saveWatchProgress } from '../services/watchHistoryService';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -131,6 +132,14 @@ function Watch() {
         setStreams([]);
         setSelectedStreamIndex(0);
         setIsAutoQuality(true);
+
+        // Save to watch history
+        if (anime) {
+            const epNum = typeof episode.episodeNumber === 'string'
+                ? parseInt(episode.episodeNumber)
+                : episode.episodeNumber;
+            saveWatchProgress(anime, epNum, 0);
+        }
 
         try {
             const res = await fetch(`${API_BASE}/scraper/streams?anime_session=${session}&ep_session=${episode.session}`);
