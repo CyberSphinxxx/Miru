@@ -132,7 +132,6 @@ function Detail() {
             loading={extrasLoading}
             onBack={handleBack}
             onWatchClick={handleWatchClick}
-            onWatchlistChange={() => { }} // Can implement watchlist context later
             onRelatedClick={handleRelatedClick}
         />
     );
