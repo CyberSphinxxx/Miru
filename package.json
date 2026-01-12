@@ -3,11 +3,18 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "./dist-electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:compile": "tsc -p electron/tsconfig.json && powershell -Command \"Remove-Item dist-electron/*.cjs -Force -ErrorAction SilentlyContinue; Get-ChildItem dist-electron/*.js | ForEach-Object { $content = Get-Content $_.FullName -Raw; $content = $content -replace 'require\\(\\\"\\./server\\\"\\)', 'require(\\\"./server.cjs\\\")'; $content = $content -replace 'require\\(\\\"\\./preload\\\"\\)', 'require(\\\"./preload.cjs\\\")'; Set-Content ($_.FullName -replace '.js$','.cjs') $content; Remove-Item $_.FullName }\"",
+    "electron:dev": "npm run electron:compile && concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:watch": "tsc -w -p electron/tsconfig.json",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder",
+    "electron:build:win": "npm run build && npm run electron:compile && electron-builder --win",
+    "electron:pack": "npm run build && npm run electron:compile && electron-builder --dir"
   },
   "dependencies": {
     "firebase": "^12.7.0",
@@ -27,6 +34,9 @@
     "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -35,6 +45,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "wait-on": "^7.2.0"
   }
 }
