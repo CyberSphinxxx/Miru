@@ -5,6 +5,7 @@ export interface Anime {
         jpg: {
             image_url: string;
             large_image_url: string;
+            banner_image?: string; // High-res landscape/banner image
         };
     };
     score: number;
