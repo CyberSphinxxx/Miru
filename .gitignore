@@ -5,6 +5,9 @@ node_modules/
 
 # Build outputs
 dist/
+dist-electron/
+release/
+backend/dist/
 build/
 *.tsbuildinfo
 
