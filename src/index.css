@@ -363,6 +363,7 @@ body::before {
     display: flex;
     gap: 1rem;
     overflow-x: auto;
+    overflow-y: hidden;
     padding-bottom: 0.5rem;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
