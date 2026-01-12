@@ -20,10 +20,6 @@ const API_PROVIDERS = [
 // Keep track of the currently working provider index to avoid retrying dead ones
 let currentProviderIndex = 0;
 
-// Retry configuration
-const MAX_RETRIES_PER_PROVIDER = 1; // Don't retry too much on a single provider if we have backups
-const RETRY_DELAY_MS = 1000;
-
 /**
  * Helper function to fetch with failover capability
  * Tries the current provider first, then falls back to others if needed.
