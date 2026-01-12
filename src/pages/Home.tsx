@@ -108,7 +108,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                         // Find genre name from ID
                         const genre = genres.find(g => g.mal_id.toString() === selectedGenreId);
                         const genreName = genre?.name || 'Action';
-                        result = await getAnimeByGenre(genreName, currentPage, 24);
+                        result = await getAnimeByGenre(genreName, currentPage, 24, genre ? genre.mal_id : undefined);
                     } else {
                         // Just show genres list, no anime fetch needed yet
                         setLoading(false);
