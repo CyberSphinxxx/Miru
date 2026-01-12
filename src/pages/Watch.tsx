@@ -4,7 +4,7 @@ import WatchPage from '../components/WatchPage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
-import { getAnimeInfo, getEpisodeStreams } from '../services/api';
+import { getAnimeInfo } from '../services/api';
 import { searchLocalAnime, getLocalEpisodes, getLocalStreams } from '../services/localApi';
 
 function Watch() {
@@ -97,28 +97,9 @@ function Watch() {
                 return;
             }
 
-            // Attempt 2: Primary Consumet API
-            console.log('Local backend failed, trying Primary API...');
-            const streamData = await getEpisodeStreams(episode.id);
-
-            if (streamData.length > 0) {
-                // Deduplicate by quality
-                const qualityMap = new Map<string, StreamLink>();
-
-                streamData.forEach((s: StreamLink) => {
-                    const mapped = getMappedQuality(s.quality);
-                    if (!qualityMap.has(mapped)) {
-                        qualityMap.set(mapped, { ...s, quality: mapped });
-                    }
-                });
-
-                const standardizedStreams = Array.from(qualityMap.values());
-                setStreams(standardizedStreams);
-            } else {
-                // Final fallback to external URL
-                if (episode.url) {
-                    setExternalUrl(episode.url);
-                }
+            // Attempt 2: Fallback to external URL if local backend fails
+            if (episode.url) {
+                setExternalUrl(episode.url);
             }
         } catch (e) {
             console.error('All stream fetch attempts failed', e);
