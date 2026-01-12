@@ -51,6 +51,10 @@ export interface Episode {
     episodeNumber: string | number;
     duration?: string;
     title?: string;
+    description?: string;
+    image?: string;
+    airDate?: string;
+    url?: string; // External watch link (fallback)
     snapshot?: string;
 }
 
