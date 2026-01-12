@@ -12,19 +12,19 @@
  */
 const DATA_MAPPING: Record<string, string> = {
     // ===== Top Level Genres =====
-    'action': 'https://cdn.myanimelist.net/images/anime/10/47347l.jpg',           // Attack on Titan
+    'action': 'https://cdn.myanimelist.net/images/anime/1223/96541l.jpg',           // Fullmetal Alchemist: Brotherhood
     'adventure': 'https://cdn.myanimelist.net/images/anime/6/73245l.jpg',         // One Piece
-    'avant garde': 'https://cdn.myanimelist.net/images/anime/1816/133604l.jpg',   // Angel's Egg
+    'avant garde': 'https://cdn.myanimelist.net/images/anime/13/18580l.jpg',      // Serial Experiments Lain
     'award winning': 'https://cdn.myanimelist.net/images/anime/6/79597l.jpg',     // Spirited Away
-    'boys love': 'https://cdn.myanimelist.net/images/anime/1236/95664l.jpg',      // Given
-    'comedy': 'https://cdn.myanimelist.net/images/anime/1988/135093l.jpg',        // Spy x Family
-    'drama': 'https://cdn.myanimelist.net/images/anime/13/91361l.jpg',            // Violet Evergarden
-    'fantasy': 'https://cdn.myanimelist.net/images/anime/1286/99889l.jpg',        // Demon Slayer
-    'girls love': 'https://cdn.myanimelist.net/images/anime/1783/95855l.jpg',     // Bloom Into You
+    'boys love': 'https://cdn.myanimelist.net/images/anime/12/35925l.jpg',        // Sekaiichi Hatsukoi
+    'comedy': 'https://cdn.myanimelist.net/images/anime/1208/94745l.jpg',         // Gintama
+    'drama': 'https://cdn.myanimelist.net/images/anime/10/71037l.jpg',            // Clannad: After Story
+    'fantasy': 'https://cdn.myanimelist.net/images/anime/2/88339l.jpg',           // Made in Abyss
+    'girls love': 'https://cdn.myanimelist.net/images/anime/12/99091l.jpg',       // Citrus
     'gourmet': 'https://cdn.myanimelist.net/images/anime/8/76672l.jpg',           // Food Wars
     'horror': 'https://cdn.myanimelist.net/images/anime/1858/97705l.jpg',         // Another
     'mystery': 'https://cdn.myanimelist.net/images/anime/13/50521l.jpg',          // Hyouka
-    'romance': 'https://cdn.myanimelist.net/images/anime/1295/106551l.jpg',       // Kaguya-sama
+    'romance': 'https://cdn.myanimelist.net/images/anime/13/24361l.jpg',          // Toradora
     'sci-fi': 'https://cdn.myanimelist.net/images/anime/5/73199l.jpg',            // Steins;Gate
     'slice of life': 'https://cdn.myanimelist.net/images/anime/1935/127974l.jpg', // Bocchi the Rock
     'sports': 'https://cdn.myanimelist.net/images/anime/7/76014l.jpg',            // Haikyuu
@@ -53,20 +53,20 @@ const DATA_MAPPING: Record<string, string> = {
     'idols (male)': 'https://cdn.myanimelist.net/images/anime/6/41819l.jpg',      // Uta no Prince-sama
     'isekai': 'https://cdn.myanimelist.net/images/anime/1522/128039l.jpg',        // Mushoku Tensei
     'iyashikei': 'https://cdn.myanimelist.net/images/anime/2/83141l.jpg',         // Laid-Back Camp
-    'love polygon': 'https://cdn.myanimelist.net/images/anime/13/24361l.jpg',     // Toradora
+    'love polygon': 'https://cdn.myanimelist.net/images/anime/13/55609l.jpg',     // Nagi no Asukara
     'love status quo': 'https://cdn.myanimelist.net/images/anime/1628/117180l.jpg', // Karakai Jouzu no Takagi-san
     'magical sex shift': 'https://cdn.myanimelist.net/images/anime/1121/133480l.jpg', // Onimai
     'magic': 'https://cdn.myanimelist.net/images/anime/11/39717l.jpg',            // Madoka Magica
     'mahou shoujo': 'https://cdn.myanimelist.net/images/anime/11/55225l.jpg',     // Cardcaptor Sakura
     'martial arts': 'https://cdn.myanimelist.net/images/anime/1565/111305l.jpg',  // Baki
-    'mecha': 'https://cdn.myanimelist.net/images/anime/1314/108941l.jpg',         // Code Geass
+    'mecha': 'https://cdn.myanimelist.net/images/anime/10/73111l.jpg',            // Gurren Lagann
     'medical': 'https://cdn.myanimelist.net/images/anime/12/37521l.jpg',          // Black Jack
     'military': 'https://cdn.myanimelist.net/images/anime/1001/100346l.jpg',      // 86
     'music': 'https://cdn.myanimelist.net/images/anime/3/67177l.jpg',             // Your Lie in April
     'mythology': 'https://cdn.myanimelist.net/images/anime/10/76792l.jpg',        // Noragami
     'organized crime': 'https://cdn.myanimelist.net/images/anime/10/71923l.jpg',  // 91 Days
     'otaku culture': 'https://cdn.myanimelist.net/images/anime/1629/94480l.jpg',  // Lucky Star
-    'parody': 'https://cdn.myanimelist.net/images/anime/10/73274l.jpg',           // Gintama
+    'parody': 'https://cdn.myanimelist.net/images/anime/8/83640l.jpg',            // Konosuba
     'performing arts': 'https://cdn.myanimelist.net/images/anime/12/75178l.jpg',  // Hibike Euphonium
     'pets': 'https://cdn.myanimelist.net/images/anime/1936/123168l.jpg',          // My Roommate is a Cat
     'police': 'https://cdn.myanimelist.net/images/anime/5/73676l.jpg',            // Psycho-Pass
@@ -97,9 +97,8 @@ const DATA_MAPPING: Record<string, string> = {
     'shounen': 'https://cdn.myanimelist.net/images/anime/1015/138006l.jpg',       // Jujutsu Kaisen
 };
 
-// Default fallback image (Something neutral and beautiful, distinct from AoT)
-// Using "Your Name" (Kimi no Na wa) background art style
-const DEFAULT_IMAGE = 'https://cdn.myanimelist.net/images/anime/5/87048l.jpg'; // Kimi no Na wa
+// Default fallback image (Abstract pattern)
+export const DEFAULT_IMAGE = '/images/genre-placeholder.png';
 
 /**
  * Get the cover image URL for a genre
