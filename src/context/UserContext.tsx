@@ -134,6 +134,30 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
 // Context
 // ============================================================================
 
+// Helper to recursively remove undefined values or convert them to null for Firestore
+const sanitizeForFirestore = (obj: any): any => {
+    if (obj === undefined) return null;
+    if (obj === null || typeof obj !== 'object') return obj;
+
+    if (Array.isArray(obj)) {
+        return obj.map(sanitizeForFirestore);
+    }
+
+    const result: any = {};
+    for (const key in obj) {
+        const value = obj[key];
+        if (value !== undefined) {
+            result[key] = sanitizeForFirestore(value);
+        } else {
+            // Option 1: Convert undefined to null
+            // result[key] = null;
+            // Option 2: Delete the key (preferred for cleaner Firestore docs)
+            // Do nothing, key is skipped
+        }
+    }
+    return result;
+};
+
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -163,7 +187,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         if (hasLocalData) {
                             // Merge local data with cloud data
                             const mergedData = mergeUserData(localData, cloudData);
-                            await setDoc(userDocRef, mergedData);
+                            await setDoc(userDocRef, sanitizeForFirestore(mergedData));
                             setUserData(mergedData);
                             // Clear local storage after successful merge
                             localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -174,7 +198,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     } else {
                         // New user: Check for local data to upload
                         const localData = getLocalData();
-                        await setDoc(userDocRef, localData);
+                        await setDoc(userDocRef, sanitizeForFirestore(localData));
                         setUserData(localData);
                         // Clear local storage after upload
                         localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -204,7 +228,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Save to Firestore
             try {
                 const userDocRef = doc(db, 'users', currentUser.uid);
-                await setDoc(userDocRef, newData);
+                await setDoc(userDocRef, sanitizeForFirestore(newData));
             } catch (error) {
                 console.error('Error saving to Firestore:', error);
                 // Fallback: save locally
