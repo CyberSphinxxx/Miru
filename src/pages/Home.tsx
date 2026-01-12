@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/AnimeCard';
+import GenreCard from '../components/GenreCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Genre } from '../types';
 import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
@@ -31,13 +32,13 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
     const [genres, setGenres] = useState<Genre[]>([]);
     const [genresLoading, setGenresLoading] = useState(false);
+    const [genreFilter, setGenreFilter] = useState('');
 
     // UI state
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [lastVisiblePage, setLastVisiblePage] = useState(1);
-    const [watchlistRefresh, setWatchlistRefresh] = useState(0);
 
     // New state for homepage redesign
     const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]);
@@ -70,7 +71,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     useEffect(() => {
         const history = getWatchHistory();
         setWatchHistory(history);
-    }, [watchlistRefresh]);
+    }, []);
 
     // Fetch trending anime for the Trending row (home view only)
     useEffect(() => {
@@ -169,10 +170,6 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         navigate(`/watch/${anime.mal_id}`);
     };
 
-    const handleWatchlistChange = () => {
-        setWatchlistRefresh(prev => prev + 1);
-    };
-
     const handleGenreClick = (id: number) => {
         navigate(`/genres/${id}`);
     };
@@ -204,26 +201,46 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
 
         return (
-            <section className="relative h-[75vh] min-h-[500px] overflow-hidden group">
+            <section className="relative h-[70vh] min-h-[450px] overflow-hidden group">
                 {/* Carousel Slides */}
-                {spotlightAnime.map((anime, index) => (
-                    <div
+                {spotlightAnime.map((anime, index) => {
+                    // Priority: Banner image (HD) > YouTube thumbnail > Poster
+                    const heroImage = anime.images.jpg.banner_image
+                        || (anime.trailer?.youtube_id
+                            ? `https://img.youtube.com/vi/${anime.trailer.youtube_id}/maxresdefault.jpg`
+                            : anime.images.jpg.large_image_url);
+
+                    return (<div
                         key={anime.mal_id}
                         className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                     >
+                        {/* Background Image */}
                         <div
-                            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-[10000ms] ease-linear"
+                            className="absolute inset-0 transition-transform duration-[10000ms] ease-linear"
                             style={{
-                                backgroundImage: `url(${anime.images.jpg.large_image_url})`,
-                                backgroundPosition: 'center 20%',
-                                transform: index === currentSlide ? 'scale(1.05)' : 'scale(1)'
+                                backgroundImage: `url(${heroImage})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center 30%',
+                                transform: index === currentSlide ? 'scale(1.02)' : 'scale(1)'
                             }}
                         />
-                        {/* Gradients */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-miru-bg via-miru-bg/90 to-transparent" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-miru-bg via-miru-bg/60 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-miru-bg to-transparent" />
-                        <div className="absolute inset-0 bg-black/20" />
+
+                        {/* Primary Left Gradient - Strong fade for content area */}
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                background: 'linear-gradient(90deg, #050505 0%, #050505 20%, rgba(5,5,5,0.95) 35%, rgba(5,5,5,0.6) 55%, transparent 75%)'
+                            }}
+                        />
+
+                        {/* Bottom Fade */}
+                        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-miru-bg via-miru-bg/80 to-transparent" />
+
+                        {/* Top Subtle Vignette */}
+                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-miru-bg/40 to-transparent" />
+
+                        {/* Color Overlay for Vibe */}
+                        <div className="absolute inset-0 bg-purple-900/10 mix-blend-multiply" />
 
                         {/* Content */}
                         <div className="relative z-10 h-full flex items-end pb-16">
@@ -302,7 +319,8 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                             </div>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
 
                 {/* Navigation Arrows */}
                 <button
@@ -442,7 +460,6 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                             anime={anime}
                                             onClick={() => handleAnimeClick(anime)}
                                             onPlayClick={() => navigate(`/watch/${anime.mal_id}`)}
-                                            onWatchlistChange={handleWatchlistChange}
                                         />
                                     </div>
                                 ))}
@@ -455,26 +472,75 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 {viewMode === 'genres' && !selectedGenreId && (
                     <div className="mb-8 animate-fade-in">
                         <h2 className="text-3xl font-black mb-2 text-gradient">Browse by Genre</h2>
-                        <p className="text-gray-500 text-sm mb-8">Select a genre to explore</p>
+                        <p className="text-gray-500 text-sm mb-6">Select a genre to explore</p>
+
+                        {/* Genre Search Filter */}
+                        <div className="relative max-w-md mx-auto mb-8">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-500">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                value={genreFilter}
+                                onChange={(e) => setGenreFilter(e.target.value)}
+                                placeholder="Filter genres... (e.g., 'Horror', 'Slice of Life')"
+                                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-miru-accent focus:ring-2 focus:ring-miru-accent/20 transition-all"
+                            />
+                            {genreFilter && (
+                                <button
+                                    onClick={() => setGenreFilter('')}
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-white transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
 
                         {genresLoading ? (
                             <div className="flex justify-center py-12">
                                 <LoadingSpinner size="lg" text="Loading genres..." />
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                                {genres.map(genre => (
-                                    <button
-                                        key={genre.mal_id}
-                                        onClick={() => handleGenreClick(genre.mal_id)}
-                                        className="p-4 rounded-2xl bg-miru-surface hover:bg-miru-surface-light border border-white/5 hover:border-miru-primary/50 transition-all duration-300 text-left group hover:scale-105"
-                                    >
-                                        <h3 className="font-bold text-sm group-hover:text-gradient transition-colors">{genre.name}</h3>
-                                        <p className="text-xs text-gray-500 mt-1">{genre.count.toLocaleString()} anime</p>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        ) : (() => {
+                            const filteredGenres = genres.filter(g =>
+                                g.name.toLowerCase().includes(genreFilter.toLowerCase())
+                            );
+
+                            if (filteredGenres.length === 0) {
+                                return (
+                                    <div className="text-center py-16">
+                                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-gray-500">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-gray-400 mb-2">No genres found matching "{genreFilter}"</p>
+                                        <button
+                                            onClick={() => setGenreFilter('')}
+                                            className="text-miru-accent hover:underline text-sm"
+                                        >
+                                            Clear filter
+                                        </button>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                    {filteredGenres.map((genre, index) => (
+                                        <GenreCard
+                                            key={genre.mal_id}
+                                            genre={genre}
+                                            onClick={() => handleGenreClick(genre.mal_id)}
+                                            index={index}
+                                        />
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
 
@@ -534,14 +600,13 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                                     {animeList.map((anime, index) => (
                                         <AnimeCard
-                                            key={`${anime.mal_id}-${watchlistRefresh}`}
+                                            key={anime.mal_id}
                                             anime={{
                                                 ...anime,
                                                 rank: viewMode === 'home' && !searchQuery ? ((currentPage - 1) * 24 + index + 1) : undefined
                                             }}
                                             onClick={() => handleAnimeClick(anime)}
                                             onPlayClick={() => navigate(`/watch/${anime.mal_id}`)}
-                                            onWatchlistChange={handleWatchlistChange}
                                         />
                                     ))}
                                 </div>
