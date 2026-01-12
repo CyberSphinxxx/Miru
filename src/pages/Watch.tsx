@@ -5,7 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
 
-const API_BASE = 'http://localhost:3001/api';
+import { API_BASE } from '../services/api';
 
 function Watch() {
     const { id } = useParams<{ id: string }>();
