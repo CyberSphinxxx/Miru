@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Genre } from '../types';
-import { getGenreCoverImage, getGenreGradient } from '../services/api/genreImages';
+import { getGenreCoverImage, getGenreGradient, DEFAULT_IMAGE } from '../services/api/genreImages';
+import { getAnimeByGenre } from '../services/api';
 
 interface GenreCardProps {
     genre: Genre;
@@ -11,14 +12,67 @@ interface GenreCardProps {
 function GenreCard({ genre, onClick, index }: GenreCardProps) {
     // Static images - no async needed, just get the curated image directly
     const staticImage = getGenreCoverImage(genre.name);
-    console.log(`[GenreCard] Genre: "${genre.name}", Image: ${staticImage}`);
-    const [coverImage, setCoverImage] = useState<string>(staticImage);
+
+    // Initialize with cached image if available, otherwise static or default
+    const [coverImage, setCoverImage] = useState<string>(() => {
+        const cached = localStorage.getItem(`genre_img_${genre.mal_id}`);
+        return cached || staticImage;
+    });
+
     const [isLoading, setIsLoading] = useState(true);
+    const [hasAttemptedDynamicFetch, setHasAttemptedDynamicFetch] = useState(false);
 
     const handleImageError = () => {
-        // If the image fails to load, use Action's image as ultimate fallback
-        setCoverImage(getGenreCoverImage('Action'));
+        // If the image fails to load, use the default fallback image
+        // But do NOT block dynamic fetch if we haven't tried it yet
+        setCoverImage(DEFAULT_IMAGE);
     };
+
+    // Self-healing: If we are using the default image (either initially or after error),
+    // try to fetch the most popular anime for this genre dynamically.
+    useEffect(() => {
+        // Only try dynamic fetch if:
+        // 1. We are using the default image
+        // 2. We haven't tried fetching yet
+        // 3. We don't have a cached value (though useState check covers initialization, we check again to be safe)
+        const isDefault = coverImage === DEFAULT_IMAGE;
+
+        if (isDefault && !hasAttemptedDynamicFetch) {
+            // Stagger requests to avoid Jikan API rate limits (3 req/sec)
+            // Use index to delay: e.g. 0ms, 300ms, 600ms...
+            const delay = index * 200;
+
+            const timer = setTimeout(() => {
+                const fetchDynamicImage = async () => {
+                    setHasAttemptedDynamicFetch(true);
+
+                    // distinct check before network call
+                    if (localStorage.getItem(`genre_img_${genre.mal_id}`)) return;
+
+                    try {
+                        // Fetch top 1 anime by popularity for this genre
+                        const result = await getAnimeByGenre(genre.name, 1, 1, genre.mal_id);
+                        if (result.data && result.data.length > 0) {
+                            const topAnime = result.data[0];
+                            const newImage = topAnime.images.jpg.large_image_url || topAnime.images.jpg.image_url;
+
+                            if (newImage) {
+                                console.log(`[GenreCard] Dynamic fetch for "${genre.name}": Found "${topAnime.title}"`);
+                                setCoverImage(newImage);
+                                // Cache it so we don't hit API next time
+                                localStorage.setItem(`genre_img_${genre.mal_id}`, newImage);
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`[GenreCard] Failed to fetch dynamic image for ${genre.name}`, err);
+                    }
+                };
+                fetchDynamicImage();
+            }, delay);
+
+            return () => clearTimeout(timer);
+        }
+    }, [coverImage, hasAttemptedDynamicFetch, genre.name, genre.mal_id, index]);
 
     const fallbackGradient = getGenreGradient(genre.name);
 
