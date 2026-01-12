@@ -5,7 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { getAnimeExtraDetails, getSimilarAnime } from '../services/api';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../types';
 
-const API_BASE = 'http://localhost:3001/api';
+import { API_BASE } from '../services/api';
 
 function Detail() {
     const { id } = useParams<{ id: string }>();
