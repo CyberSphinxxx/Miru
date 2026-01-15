@@ -28,7 +28,7 @@ function Watch() {
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
     const [isAutoQuality, setIsAutoQuality] = useState(true);
 
-    // 1. Fetch Anime Info and Episodes (both come from Consumet in one call)
+    // 1. Fetch Anime Info and Episodes (from AniList + scraper)
     useEffect(() => {
         const initWatch = async () => {
             if (!id) return;
@@ -36,7 +36,7 @@ function Watch() {
                 setLoading(true);
                 setEpLoading(true);
 
-                // Consumet returns anime info + episodes in one call
+                // AniList returns anime info, scraper returns episodes
                 const result = await getAnimeInfo(id);
 
                 if (result) {
@@ -62,7 +62,7 @@ function Watch() {
     }, [id]);
 
     const getMappedQuality = (q: string): string => {
-        // Consumet returns quality like "1080p", "720p", "480p", "360p", "default", "backup"
+        // Quality format mapping
         if (q.includes('1080')) return '1080P';
         if (q.includes('720')) return '720P';
         if (q.includes('480')) return '480P';
@@ -89,39 +89,38 @@ function Watch() {
         }
 
         try {
-            // Attempt 1: Try Local Backend first (for users with local backend)
-            console.log('Attempting to load from Local Backend...');
+            // Try to fetch streams from local backend (AnimePahe scraper)
+            console.log('Attempting to load from AnimePahe scraper...');
             const localSuccess = activeAnime ? await fetchLocalStream(episode, activeAnime) : false;
 
             if (localSuccess) {
                 return;
             }
 
-            // Attempt 2: Try Consumet API streams (for Vercel deployment)
-            console.log('Local backend unavailable, trying Consumet API...');
-            const consumetStreams = await getEpisodeStreams(episode.id);
-
-            if (consumetStreams.length > 0) {
-                // Deduplicate and map qualities
-                const qualityMap = new Map<string, StreamLink>();
-                consumetStreams.forEach((s: StreamLink) => {
-                    const mapped = getMappedQuality(s.quality);
-                    if (!qualityMap.has(mapped)) {
-                        qualityMap.set(mapped, { ...s, quality: mapped });
-                    }
-                });
-                const uniqueStreams = Array.from(qualityMap.values());
-                setStreams(uniqueStreams);
-                console.log('Loaded streams from Consumet API');
-                return;
+            // Fallback: Try using episode session directly if available
+            if (episode.session && activeAnime) {
+                const directStreams = await getEpisodeStreams(episode.session, episode.id);
+                if (directStreams && directStreams.length > 0) {
+                    const qualityMap = new Map<string, StreamLink>();
+                    directStreams.forEach((s: StreamLink) => {
+                        const mapped = getMappedQuality(s.quality);
+                        if (!qualityMap.has(mapped)) {
+                            qualityMap.set(mapped, { ...s, quality: mapped });
+                        }
+                    });
+                    const uniqueStreams = Array.from(qualityMap.values());
+                    setStreams(uniqueStreams);
+                    console.log('Loaded streams from scraper');
+                    return;
+                }
             }
 
-            // Attempt 3: Fallback to external URL as last resort
+            // Last resort: External URL
             if (episode.url) {
                 setExternalUrl(episode.url);
             }
         } catch (e) {
-            console.error('All stream fetch attempts failed', e);
+            console.error('Stream fetch failed', e);
             if (episode.url) {
                 setExternalUrl(episode.url);
             }
