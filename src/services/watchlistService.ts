@@ -23,7 +23,7 @@ export const addToWatchlist = (anime: Anime): void => {
         mal_id: anime.mal_id,
         title: anime.title,
         image_url: anime.images.jpg.large_image_url,
-        type: anime.type,
+        type: anime.type || 'TV',
         episodes: anime.episodes,
         score: anime.score,
         addedAt: new Date().toISOString(),
