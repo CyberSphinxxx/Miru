@@ -60,8 +60,8 @@ export async function addToFirebaseWatchlist(anime: Anime): Promise<void> {
         const item: FirebaseWatchlistItem = {
             mal_id: anime.mal_id,
             title: anime.title,
-            image_url: anime.images.jpg.large_image_url,
-            type: anime.type,
+            image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
+            type: anime.type || 'TV',
             episodes: anime.episodes,
             score: anime.score,
             addedAt: Timestamp.now(),
