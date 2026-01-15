@@ -322,7 +322,13 @@ export const getAnimeInfo = async (id: string | number) => {
             entry: {
                 mal_id: r.mediaRecommendation?.id,
                 title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
-                images: { jpg: { image_url: r.mediaRecommendation?.coverImage?.large || '' } },
+                images: {
+                    jpg: {
+                        image_url: r.mediaRecommendation?.coverImage?.large || '',
+                        large_image_url: r.mediaRecommendation?.coverImage?.extraLarge || r.mediaRecommendation?.coverImage?.large || '',
+                        small_image_url: r.mediaRecommendation?.coverImage?.large || ''
+                    }
+                },
                 url: ''
             },
             votes: 0,
