@@ -51,7 +51,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
 
                     try {
                         // Fetch top 1 anime by popularity for this genre
-                        const result = await animeService.searchAnime(genre.name, 1);
+                        const result = await animeService.getAnimeByGenre(genre.name, 1);
                         if (result.data && result.data.length > 0) {
                             const topAnime = result.data[0];
                             const newImage = topAnime.images.jpg.large_image_url || topAnime.images.jpg.image_url;
