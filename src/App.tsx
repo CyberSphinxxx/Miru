@@ -1,9 +1,20 @@
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
-import Detail from './pages/Detail';
-import Watch from './pages/Watch';
-import Profile from './pages/Profile';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Lazy load heavy pages for better initial load time
+const Detail = lazy(() => import('./pages/Detail'));
+const Watch = lazy(() => import('./pages/Watch'));
+const Profile = lazy(() => import('./pages/Profile'));
+
+// Loading fallback component
+const PageLoader = () => (
+    <div className="min-h-screen bg-miru-bg flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+    </div>
+);
 
 // Wrapper to provide navigation props to Navbar
 function AppContent() {
@@ -43,21 +54,22 @@ function AppContent() {
                 viewMode={getViewMode()}
                 onViewChange={handleViewChange}
             />
-            <Routes>
-                <Route path="/" element={<Home viewMode="home" />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/trending" element={<Home viewMode="trending" />} />
-                <Route path="/genres" element={<Home viewMode="genres" />} />
-                <Route path="/genres/:genreId" element={<WrapperGenreHome />} />
-                <Route path="/anime/:id" element={<Detail />} />
-                <Route path="/watch/:id" element={<Watch />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+                <Routes>
+                    <Route path="/" element={<Home viewMode="home" />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/trending" element={<Home viewMode="trending" />} />
+                    <Route path="/genres" element={<Home viewMode="genres" />} />
+                    <Route path="/genres/:genreId" element={<WrapperGenreHome />} />
+                    <Route path="/anime/:id" element={<Detail />} />
+                    <Route path="/watch/:id" element={<Watch />} />
+                </Routes>
+            </Suspense>
         </div>
     );
 }
 
 // Small wrapper to extract params since Home expects props
-import { useParams } from 'react-router-dom';
 function WrapperGenreHome() {
     const { genreId } = useParams<{ genreId: string }>();
     return <Home viewMode="genres" selectedGenreId={genreId} />;
