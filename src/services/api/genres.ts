@@ -29,7 +29,9 @@ const GENRES: Genre[] = [
     { mal_id: 36, name: 'Slice of Life', count: 0 },
     { mal_id: 30, name: 'Sports', count: 0 },
     { mal_id: 37, name: 'Supernatural', count: 0 },
-    { mal_id: 41, name: 'Thriller', count: 0 }
+    { mal_id: 41, name: 'Thriller', count: 0 },
+    { mal_id: 62, name: 'Isekai', count: 0 },
+    { mal_id: 63, name: 'Iyashikei', count: 0 }
 ];
 
 /**
