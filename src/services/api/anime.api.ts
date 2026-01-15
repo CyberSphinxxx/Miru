@@ -233,6 +233,41 @@ export const animeService = {
 
         inFlightRequests.set(cacheKey, fetchPromise);
         return fetchPromise;
+    },
+
+    // Get anime by genre
+    async getAnimeByGenre(genre: string, page: number = 1, limit: number = 24) {
+        const cacheKey = `genre-${genre}-${page}-${limit}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/anilist/genre/${encodeURIComponent(genre)}?page=${page}&limit=${limit}`);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch genre ${genre}: ${res.statusText}`);
+                    return { data: [], pagination: null };
+                }
+                const data = await res.json();
+                const result = {
+                    data: data.media?.map(mapAnilistToAnime) || [],
+                    pagination: {
+                        last_visible_page: data.pageInfo?.lastPage || 1,
+                        current_page: data.pageInfo?.currentPage || 1,
+                        has_next_page: data.pageInfo?.hasNextPage || false
+                    }
+                };
+
+                if (result.data.length > 0) setCache(cacheKey, result);
+                return result;
+            } catch (error) {
+                console.error('Error fetching genre:', error);
+                return { data: [], pagination: null };
+            }
+        })();
+
+        setCache(cacheKey, { data: await fetchPromise, timestamp: Date.now() }); // Cache handling is a bit messy in original, but sticking to pattern
+        return fetchPromise;
     }
 };
 
