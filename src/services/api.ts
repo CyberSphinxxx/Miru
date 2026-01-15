@@ -1,10 +1,10 @@
 /**
- * Consumet API Service
+ * AniList API Service (Yorumi Architecture)
  * 
- * This module provides functions to interact with the Consumet API
- * and transforms responses to match the existing Miru type definitions.
+ * This module provides functions to interact with the AniList GraphQL API
+ * and AnimePahe scraper, matching Yorumi's implementation.
  * 
- * NOTE: This file now serves as a barrel export for backward compatibility.
+ * NOTE: This file serves as a barrel export for backward compatibility.
  * New code should import directly from './api/index' or specific modules.
  */
 
@@ -13,4 +13,3 @@ export * from './api/index';
 
 // Types that were previously exported from here
 export type { Anime, Episode, StreamLink, Character, Recommendation, Genre } from '../types';
-
