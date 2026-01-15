@@ -1,14 +1,15 @@
 import { db } from '../config/firebase.config.js';
-import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Cache Service for Firestore-based caching
  * Implements the "Scrape-and-Save" strategy
+ * 
+ * Note: Uses Date instead of firebase Timestamp for Vercel compatibility
  */
 
 interface CachedData<T> {
     data: T;
-    cachedAt: Timestamp;
+    cachedAt: Date | { toMillis: () => number };
 }
 
 // Default TTL values in hours
@@ -57,9 +58,10 @@ async function set<T>(collection: string, docId: string, data: T): Promise<void>
         const safeDocId = sanitizeDocId(docId);
         const docRef = db.collection(collection).doc(safeDocId);
 
+        // Use Date object instead of Timestamp for compatibility
         await docRef.set({
             data,
-            cachedAt: Timestamp.now()
+            cachedAt: new Date()
         });
 
         console.log(`Cache set: ${collection}/${safeDocId}`);
@@ -72,9 +74,12 @@ async function set<T>(collection: string, docId: string, data: T): Promise<void>
 /**
  * Check if cached data is expired
  */
-function isExpired(cachedAt: Timestamp, ttlHours: number): boolean {
+function isExpired(cachedAt: Date | { toMillis: () => number }, ttlHours: number): boolean {
     const now = Date.now();
-    const cachedTime = cachedAt.toMillis();
+    // Handle both Date objects and Firestore Timestamps
+    const cachedTime = typeof cachedAt === 'object' && 'toMillis' in cachedAt
+        ? cachedAt.toMillis()
+        : new Date(cachedAt as any).getTime();
     const ttlMs = ttlHours * 60 * 60 * 1000;
 
     return (now - cachedTime) > ttlMs;
