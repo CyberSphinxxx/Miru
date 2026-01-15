@@ -1,5 +1,7 @@
 import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 let app: App;
 let db: Firestore;
@@ -34,8 +36,9 @@ function initializeFirebase(): void {
         // Option 2: Service account file path (local development)
         const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
         if (serviceAccountPath) {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const serviceAccount = require(serviceAccountPath);
+            // Resolve path relative to the backend directory
+            const absolutePath = resolve(process.cwd(), serviceAccountPath);
+            const serviceAccount = JSON.parse(readFileSync(absolutePath, 'utf-8'));
             app = initializeApp({
                 credential: cert(serviceAccount)
             });

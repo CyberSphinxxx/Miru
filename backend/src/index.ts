@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import scraperRoutes from './api/scraper/scraper.routes.js';
