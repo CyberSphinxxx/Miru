@@ -35,3 +35,7 @@ debug_*.png
 
 # Yorumi reference (kept for reference, not deployed)
 Yorumi-main/
+
+# Firebase service account keys (NEVER commit these!)
+*firebase-adminsdk*.json
+serviceAccountKey.json
