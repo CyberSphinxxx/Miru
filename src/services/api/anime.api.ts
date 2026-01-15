@@ -61,23 +61,106 @@ const mapAnilistToAnime = (item: any) => {
     };
 };
 
-// Simple in-memory cache
-const cache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// ============================================================================
+// CLIENT-SIDE CACHE with SessionStorage
+// Persists across navigation, reduces duplicate API calls
+// ============================================================================
 
-const getCached = (key: string) => {
-    if (cache.has(key)) {
-        const entry = cache.get(key)!;
-        if (Date.now() - entry.timestamp < CACHE_TTL) {
+const CACHE_PREFIX = 'miru_cache_';
+const CACHE_TTL_CONFIG = {
+    default: 5 * 60 * 1000,      // 5 minutes
+    trending: 10 * 60 * 1000,    // 10 minutes
+    top: 10 * 60 * 1000,         // 10 minutes  
+    details: 30 * 60 * 1000,     // 30 minutes
+    genre: 5 * 60 * 1000,        // 5 minutes
+    search: 5 * 60 * 1000,       // 5 minutes
+};
+
+// In-memory cache for instant access (falls back to sessionStorage)
+const memoryCache = new Map<string, { data: any, timestamp: number }>();
+
+/**
+ * Get cached data - checks memory first, then sessionStorage
+ */
+const getCached = (key: string, ttlType: keyof typeof CACHE_TTL_CONFIG = 'default') => {
+    const ttl = CACHE_TTL_CONFIG[ttlType];
+    const fullKey = CACHE_PREFIX + key;
+
+    // Check memory cache first (fastest)
+    if (memoryCache.has(fullKey)) {
+        const entry = memoryCache.get(fullKey)!;
+        if (Date.now() - entry.timestamp < ttl) {
+            console.log(`[Cache HIT - Memory] ${key}`);
             return entry.data;
         }
-        cache.delete(key);
+        memoryCache.delete(fullKey);
     }
+
+    // Check sessionStorage (persists across navigation)
+    try {
+        const stored = sessionStorage.getItem(fullKey);
+        if (stored) {
+            const entry = JSON.parse(stored);
+            if (Date.now() - entry.timestamp < ttl) {
+                // Restore to memory cache for faster subsequent access
+                memoryCache.set(fullKey, entry);
+                console.log(`[Cache HIT - SessionStorage] ${key}`);
+                return entry.data;
+            }
+            // Expired - clean up
+            sessionStorage.removeItem(fullKey);
+        }
+    } catch (e) {
+        // sessionStorage might be unavailable or full
+    }
+
     return null;
 };
 
+/**
+ * Set cached data - saves to both memory and sessionStorage
+ */
 const setCache = (key: string, data: any) => {
-    cache.set(key, { data, timestamp: Date.now() });
+    const fullKey = CACHE_PREFIX + key;
+    const entry = { data, timestamp: Date.now() };
+
+    // Save to memory cache
+    memoryCache.set(fullKey, entry);
+
+    // Save to sessionStorage for persistence
+    try {
+        sessionStorage.setItem(fullKey, JSON.stringify(entry));
+        console.log(`[Cache SET] ${key}`);
+    } catch (e) {
+        // sessionStorage might be full - clear old entries
+        try {
+            clearOldCacheEntries();
+            sessionStorage.setItem(fullKey, JSON.stringify(entry));
+        } catch {
+            // Still failed - just use memory cache
+        }
+    }
+};
+
+/**
+ * Clear expired cache entries from sessionStorage
+ */
+const clearOldCacheEntries = () => {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith(CACHE_PREFIX)) {
+            try {
+                const entry = JSON.parse(sessionStorage.getItem(key) || '{}');
+                if (Date.now() - entry.timestamp > CACHE_TTL_CONFIG.default) {
+                    keysToRemove.push(key);
+                }
+            } catch {
+                keysToRemove.push(key!);
+            }
+        }
+    }
+    keysToRemove.forEach(k => sessionStorage.removeItem(k));
 };
 
 // Track in-flight requests to prevent duplicates
@@ -87,7 +170,7 @@ export const animeService = {
     // Fetch top anime from AniList
     async getTopAnime(page: number = 1) {
         const cacheKey = `top-anime-${page}`;
-        const cached = getCached(cacheKey);
+        const cached = getCached(cacheKey, 'top');
         if (cached) return cached;
 
         if (inFlightRequests.has(cacheKey)) {
@@ -161,7 +244,7 @@ export const animeService = {
     // Get trending anime from AniList
     async getTrendingAnime(page: number = 1, limit: number = 10) {
         const cacheKey = `trending-${page}-${limit}`;
-        const cached = getCached(cacheKey);
+        const cached = getCached(cacheKey, 'trending');
         if (cached) return cached;
 
         if (inFlightRequests.has(cacheKey)) {
@@ -238,7 +321,7 @@ export const animeService = {
     // Get anime by genre
     async getAnimeByGenre(genre: string, page: number = 1, limit: number = 24) {
         const cacheKey = `genre-${genre}-${page}-${limit}`;
-        const cached = getCached(cacheKey);
+        const cached = getCached(cacheKey, 'genre');
         if (cached) return cached;
 
         const fetchPromise = (async () => {
