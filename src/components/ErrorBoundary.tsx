@@ -71,7 +71,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
             // Default fallback UI
             return (
-                <div className="min-h-[400px] flex items-center justify-center p-8">
+                <div className="min-h-screen bg-miru-bg flex items-center justify-center p-8">
                     <div className="text-center max-w-md">
                         {/* Error Icon */}
                         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/10 flex items-center justify-center">
