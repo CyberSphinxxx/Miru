@@ -182,12 +182,12 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     };
 
     const handleAnimeClick = (anime: Anime) => {
-        navigate(`/anime/${anime.id}`);
+        navigate(`/anime/${anime.id || anime.mal_id}`);
     };
 
     const handleWatchNow = (e: React.MouseEvent, anime: Anime) => {
         e.stopPropagation();
-        navigate(`/watch/${anime.id}`);
+        navigate(`/watch/${anime.id || anime.mal_id}`);
     };
 
     const handleGenreClick = (id: number) => {
@@ -479,7 +479,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                         <AnimeCard
                                             anime={anime}
                                             onClick={() => handleAnimeClick(anime)}
-                                            onPlayClick={() => navigate(`/watch/${anime.id}`)}
+                                            onPlayClick={() => navigate(`/watch/${anime.id || anime.mal_id}`)}
                                         />
                                     </div>
                                 ))}
@@ -647,7 +647,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                                 rank: viewMode === 'home' && !searchQuery ? ((currentPage - 1) * 24 + index + 1) : undefined
                                             }}
                                             onClick={() => handleAnimeClick(anime)}
-                                            onPlayClick={() => navigate(`/watch/${anime.id}`)}
+                                            onPlayClick={() => navigate(`/watch/${anime.id || anime.mal_id}`)}
                                         />
                                     ))}
                                 </div>
