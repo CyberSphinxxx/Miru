@@ -1,6 +1,5 @@
 // API Service for Anime operations - Using AniList (Yorumi Architecture)
-const VITE_API_URL = import.meta.env.VITE_API_URL;
-const API_BASE = VITE_API_URL ? `${VITE_API_URL}/api` : 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Helper to map AniList response to our Anime interface format
 const mapAnilistToAnime = (item: any) => {
