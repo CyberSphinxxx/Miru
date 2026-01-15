@@ -6,9 +6,10 @@ interface AnimeCardProps {
     anime: Anime;
     onClick: () => void;
     onPlayClick?: () => void;
+    onDelete?: () => void;
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDelete }) => {
 
     const [isHovered, setIsHovered] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
@@ -34,6 +35,11 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick }) =>
     const handlePlayClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onPlayClick?.();
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onDelete?.();
     };
 
     return (
@@ -107,8 +113,19 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick }) =>
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Top Section - Title and Meta */}
-                        <div>
-                            <h4 className="font-bold text-white text-sm mb-2 line-clamp-2 drop-shadow-lg">
+                        <div className="relative pr-6"> {/* Add padding for delete button */}
+                            {onDelete && (
+                                <button
+                                    onClick={handleDeleteClick}
+                                    className="absolute -top-1 -right-0 p-1.5 hover:bg-red-500/80 rounded-full text-white/50 hover:text-white transition-all z-20"
+                                    title="Delete"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                            <h4 className="font-bold text-white text-sm mb-2 line-clamp-2 drop-shadow-lg pr-4">
                                 {anime.title}
                             </h4>
 
