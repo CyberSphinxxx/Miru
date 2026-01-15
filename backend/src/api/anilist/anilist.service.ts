@@ -302,7 +302,7 @@ export const anilistService = {
                             mediaRecommendation {
                                 id
                                 title { romaji english }
-                                coverImage { large }
+                                coverImage { large extraLarge }
                             }
                         }
                     }
@@ -386,8 +386,17 @@ export const anilistService = {
     }
     ,
     async getAnimeByGenre(genre: string, page: number = 1, perPage: number = 24) {
+        const STANDARD_GENRES = [
+            'Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy', 'Horror',
+            'Mahou Shoujo', 'Mecha', 'Music', 'Mystery', 'Psychological', 'Romance',
+            'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller'
+        ];
+
+        const isGenre = STANDARD_GENRES.includes(genre);
+        const variableName = isGenre ? 'genre' : 'tag';
+
         const query = `
-            query ($genre: String, $page: Int, $perPage: Int) {
+            query ($${variableName}: String, $page: Int, $perPage: Int) {
                 Page(page: $page, perPage: $perPage) {
                     pageInfo {
                         total
@@ -395,7 +404,7 @@ export const anilistService = {
                         lastPage
                         hasNextPage
                     }
-                    media(genre: $genre, type: ANIME, sort: POPULARITY_DESC) {
+                    media(${variableName}: $${variableName}, type: ANIME, sort: POPULARITY_DESC) {
                         ${MEDIA_FIELDS}
                     }
                 }
@@ -403,13 +412,16 @@ export const anilistService = {
         `;
 
         try {
+            const variables: any = { page, perPage };
+            variables[variableName] = genre;
+
             const response = await axios.post(ANILIST_API_URL, {
                 query,
-                variables: { genre, page, perPage }
+                variables
             });
             return response.data.data.Page;
         } catch (error) {
-            console.error('Error fetching anime by genre:', error);
+            console.error('Error fetching anime by genre/tag:', error);
             return { media: [], pageInfo: {} };
         }
     }
