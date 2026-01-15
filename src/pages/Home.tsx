@@ -114,9 +114,9 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                             return; // Wait for genres to load
                         }
 
-                        // Use search with genre name as a workaround
+                        // Use dedicated genre endpoint
                         const genreName = genre?.name || 'Action';
-                        result = await animeService.searchAnime(genreName, currentPage);
+                        result = await animeService.getAnimeByGenre(genreName, currentPage);
                     } else {
                         // Just show genres list, no anime fetch needed yet
                         setLoading(false);
