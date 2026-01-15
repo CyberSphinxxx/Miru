@@ -1,10 +1,10 @@
 import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-let app: App;
-let db: Firestore;
+let app: App | null = null;
+let db: Firestore | null = null;
 
 /**
  * Initialize Firebase Admin SDK
@@ -12,6 +12,8 @@ let db: Firestore;
  * 1. FIREBASE_SERVICE_ACCOUNT env var (JSON string - for Vercel)
  * 2. FIREBASE_SERVICE_ACCOUNT_PATH env var (file path - for local dev)
  * 3. Default credentials (for Google Cloud environments)
+ * 
+ * Fails gracefully - caching will be disabled if Firebase can't initialize
  */
 function initializeFirebase(): void {
     if (getApps().length > 0) {
@@ -36,15 +38,20 @@ function initializeFirebase(): void {
         // Option 2: Service account file path (local development)
         const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
         if (serviceAccountPath) {
-            // Resolve path relative to the backend directory
             const absolutePath = resolve(process.cwd(), serviceAccountPath);
-            const serviceAccount = JSON.parse(readFileSync(absolutePath, 'utf-8'));
-            app = initializeApp({
-                credential: cert(serviceAccount)
-            });
-            console.log('Firebase Admin SDK initialized from service account file');
-            db = getFirestore(app);
-            return;
+
+            // Check if file exists before trying to read
+            if (existsSync(absolutePath)) {
+                const serviceAccount = JSON.parse(readFileSync(absolutePath, 'utf-8'));
+                app = initializeApp({
+                    credential: cert(serviceAccount)
+                });
+                console.log('Firebase Admin SDK initialized from service account file');
+                db = getFirestore(app);
+                return;
+            } else {
+                console.warn(`Firebase service account file not found: ${absolutePath}`);
+            }
         }
 
         // Option 3: Project ID only (application default credentials)
@@ -56,14 +63,14 @@ function initializeFirebase(): void {
             return;
         }
 
-        // Fallback
-        console.warn('No Firebase credentials provided. Using default initialization.');
-        app = initializeApp();
-        db = getFirestore(app);
+        // No credentials available - caching will be disabled
+        console.warn('No Firebase credentials provided. Caching is disabled.');
 
     } catch (error) {
-        console.error('Firebase initialization error:', error);
-        throw error;
+        // Don't crash - just disable caching
+        console.error('Firebase initialization failed. Caching is disabled:', error);
+        app = null;
+        db = null;
     }
 }
 
@@ -71,4 +78,4 @@ function initializeFirebase(): void {
 initializeFirebase();
 
 export { db };
-export default app!;
+export default app;

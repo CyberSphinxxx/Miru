@@ -22,6 +22,11 @@ const TTL_HOURS = {
  * Get cached data from Firestore
  */
 async function get<T>(collection: string, docId: string): Promise<CachedData<T> | null> {
+    // If Firebase isn't available, caching is disabled
+    if (!db) {
+        return null;
+    }
+
     try {
         // Sanitize docId to be Firestore-safe (no slashes, etc.)
         const safeDocId = sanitizeDocId(docId);
@@ -43,6 +48,11 @@ async function get<T>(collection: string, docId: string): Promise<CachedData<T> 
  * Store data in Firestore cache
  */
 async function set<T>(collection: string, docId: string, data: T): Promise<void> {
+    // If Firebase isn't available, caching is disabled
+    if (!db) {
+        return;
+    }
+
     try {
         const safeDocId = sanitizeDocId(docId);
         const docRef = db.collection(collection).doc(safeDocId);
