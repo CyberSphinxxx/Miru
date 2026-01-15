@@ -63,17 +63,24 @@ function Detail() {
                         })) || []
                     })) || []);
 
-                    // Extract recommendations
-                    setRecommendations(animeData.recommendations?.nodes?.map((r: any) => ({
-                        entry: {
-                            mal_id: r.mediaRecommendation?.id,
-                            title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
-                            images: { jpg: { image_url: r.mediaRecommendation?.coverImage?.large || '' } },
+                    // Extract recommendations - filter out entries with missing data
+                    setRecommendations(animeData.recommendations?.nodes
+                        ?.filter((r: any) => r.mediaRecommendation?.id && r.mediaRecommendation?.coverImage?.large)
+                        ?.map((r: any) => ({
+                            entry: {
+                                mal_id: r.mediaRecommendation?.id,
+                                title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
+                                images: {
+                                    jpg: {
+                                        image_url: r.mediaRecommendation?.coverImage?.large || '',
+                                        large_image_url: r.mediaRecommendation?.coverImage?.extraLarge || r.mediaRecommendation?.coverImage?.large || ''
+                                    }
+                                },
+                                url: ''
+                            },
+                            votes: 0,
                             url: ''
-                        },
-                        votes: 0,
-                        url: ''
-                    })) || []);
+                        })) || []);
 
                     // Create video entry from trailer if available
                     if (animeData.trailer?.youtube_id) {
