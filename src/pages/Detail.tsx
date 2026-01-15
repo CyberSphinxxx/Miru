@@ -87,7 +87,7 @@ function Detail() {
 
     const handleWatchClick = () => {
         if (anime) {
-            navigate(`/watch/${anime.mal_id}`);
+            navigate(`/watch/${anime.id}`);
         }
     };
 
