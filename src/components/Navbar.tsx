@@ -117,7 +117,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                                         onFocus={() => setIsSearchFocused(true)}
                                         onBlur={() => setIsSearchFocused(false)}
                                         className={`w-full rounded-xl px-4 py-2.5 pl-11 pr-16 text-sm text-white placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
-                                            ? 'bg-white/15 border-2 border-purple-500 shadow-lg shadow-purple-500/20'
+                                            ? 'bg-white/15 border border-purple-500 ring-1 ring-purple-500 shadow-lg shadow-purple-500/20'
                                             : 'bg-white/10 border border-white/10 hover:border-white/20'
                                             }`}
                                     />
