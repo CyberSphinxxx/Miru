@@ -22,7 +22,7 @@ function Detail() {
     const [similar, setSimilar] = useState<Anime[]>([]);
     const [extrasLoading, setExtrasLoading] = useState(true);
 
-    // Fetch Anime Data (all in one call with Consumet)
+    // Fetch Anime Data (AniList + scraper)
     useEffect(() => {
         const fetchAnimeData = async () => {
             if (!id) return;
@@ -32,7 +32,7 @@ function Detail() {
                 setExtrasLoading(true);
                 setError(null);
 
-                // Consumet returns everything in one call
+                // AniList returns anime details, scraper returns episodes
                 const result = await getAnimeInfo(id);
 
                 if (result) {
@@ -40,20 +40,18 @@ function Detail() {
                     setCharacters(result.characters);
                     setRecommendations(result.recommendations);
 
-                    // Consumet doesn't have separate relations in the same format
-                    // We'll use recommendations as similar anime
+                    // Relations/similar anime handled by AniList recommendations
                     setSimilar([]);
                     setRelations([]);
 
-                    // Consumet doesn't provide promo videos directly
-                    // If the anime has a trailer, we can create a single video entry
+                    // Create video entry from trailer if available
                     if (result.anime.trailer?.youtube_id) {
                         setVideos([{
                             title: 'Trailer',
                             trailer: {
                                 youtube_id: result.anime.trailer.youtube_id,
-                                url: result.anime.trailer.url,
-                                embed_url: result.anime.trailer.embed_url,
+                                url: result.anime.trailer.url || `https://www.youtube.com/watch?v=${result.anime.trailer.youtube_id}`,
+                                embed_url: result.anime.trailer.embed_url || `https://www.youtube.com/embed/${result.anime.trailer.youtube_id}`,
                                 images: {
                                     image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/default.jpg`,
                                     small_image_url: `https://img.youtube.com/vi/${result.anime.trailer.youtube_id}/default.jpg`,
