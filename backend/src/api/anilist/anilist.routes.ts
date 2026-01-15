@@ -143,6 +143,26 @@ router.get('/manga/:id', async (req, res) => {
     }
 });
 
+// Get anime by genre
+router.get('/genre/:genre', async (req, res) => {
+    try {
+        const genre = req.params.genre;
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+
+        if (!genre) {
+            res.status(400).json({ error: 'Genre is required' });
+            return;
+        }
+
+        const data = await anilistService.getAnimeByGenre(genre, page, perPage);
+        res.json(data);
+    } catch (error) {
+        console.error('Error in genre route:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Batch covers (keep for compatibility)
 router.post('/batch-covers', async (req, res) => {
     try {
