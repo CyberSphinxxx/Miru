@@ -1,6 +1,9 @@
 import { StreamLink } from '../types';
 
-const LOCAL_API_BASE = 'http://localhost:3001/api/scraper';
+const API_URL = import.meta.env.VITE_API_URL;
+const LOCAL_API_BASE = API_URL
+    ? `${API_URL}/api/scraper`
+    : 'http://localhost:3001/api/scraper';
 
 export interface LocalAnimeResult {
     id: string;

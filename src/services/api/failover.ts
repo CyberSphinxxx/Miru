@@ -13,7 +13,7 @@
  * Base URL for Consumet API (configurable via environment variable)
  */
 export const CONSUMET_BASE =
-    import.meta.env.VITE_API_URL || 'https://miru-consumet.vercel.app';
+    import.meta.env.VITE_CONSUMET_URL || 'https://miru-consumet.vercel.app';
 
 /**
  * List of API providers to try in order of preference
