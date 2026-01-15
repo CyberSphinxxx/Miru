@@ -250,8 +250,16 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                         onClick={() => handleCardClick(rec.entry.mal_id)}
                                         className="group text-left"
                                     >
-                                        <div className="aspect-[2/3] rounded-xl overflow-hidden mb-2 relative">
-                                            <img src={rec.entry.images.jpg.large_image_url} alt={rec.entry.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        <div className="aspect-[2/3] rounded-xl overflow-hidden mb-2 relative bg-gray-800">
+                                            <img
+                                                src={rec.entry.images?.jpg?.large_image_url || rec.entry.images?.jpg?.image_url || ''}
+                                                alt={rec.entry.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                }}
+                                            />
                                             <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-md text-xs font-bold flex items-center gap-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-miru-primary">
                                                     <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />

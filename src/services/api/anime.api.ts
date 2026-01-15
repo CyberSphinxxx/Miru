@@ -401,22 +401,24 @@ export const getAnimeInfo = async (id: string | number) => {
                 language: va.languageV2
             })) || []
         })) || [],
-        recommendations: result.data.recommendations?.nodes?.map((r: any) => ({
-            entry: {
-                mal_id: r.mediaRecommendation?.id,
-                title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
-                images: {
-                    jpg: {
-                        image_url: r.mediaRecommendation?.coverImage?.large || '',
-                        large_image_url: r.mediaRecommendation?.coverImage?.extraLarge || r.mediaRecommendation?.coverImage?.large || '',
-                        small_image_url: r.mediaRecommendation?.coverImage?.large || ''
-                    }
+        recommendations: result.data.recommendations?.nodes
+            ?.filter((r: any) => r.mediaRecommendation?.id && r.mediaRecommendation?.coverImage?.large)
+            ?.map((r: any) => ({
+                entry: {
+                    mal_id: r.mediaRecommendation?.id,
+                    title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
+                    images: {
+                        jpg: {
+                            image_url: r.mediaRecommendation?.coverImage?.large || '',
+                            large_image_url: r.mediaRecommendation?.coverImage?.extraLarge || r.mediaRecommendation?.coverImage?.large || '',
+                            small_image_url: r.mediaRecommendation?.coverImage?.large || ''
+                        }
+                    },
+                    url: ''
                 },
+                votes: 0,
                 url: ''
-            },
-            votes: 0,
-            url: ''
-        })) || []
+            })) || []
     };
 };
 
