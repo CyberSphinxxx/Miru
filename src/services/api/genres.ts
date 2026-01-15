@@ -2,7 +2,7 @@
  * Genre Data
  * 
  * Comprehensive list of anime genres.
- * Covers all standard anime categories from MAL/Anilist (Jikan v4 IDs).
+ * Covers all standard anime categories from AniList.
  */
 
 import { Genre } from '../../types';

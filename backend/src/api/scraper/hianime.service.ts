@@ -27,7 +27,7 @@ export class HiAnimeScraper {
         } catch (error) {
             console.error('Error scraping HiAnime spotlight:', error);
             // Fallback to empty array so the app doesn't crash, 
-            // the frontend can fall back to standard Jikan top anime.
+            // the frontend can fall back to AniList trending anime.
             return [];
         }
     }

@@ -33,5 +33,5 @@ Thumbs.db
 *.png
 debug_*.png
 
-# yorumi reference (kept for reference)
-yorumi-main/
+# Yorumi reference (kept for reference, not deployed)
+Yorumi-main/

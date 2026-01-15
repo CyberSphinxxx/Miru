@@ -38,7 +38,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
         const isDefault = coverImage === DEFAULT_IMAGE;
 
         if (isDefault && !hasAttemptedDynamicFetch) {
-            // Stagger requests to avoid Jikan API rate limits (3 req/sec)
+            // Stagger requests to avoid API rate limits
             // Use index to delay: e.g. 0ms, 300ms, 600ms...
             const delay = index * 200;
 
