@@ -51,8 +51,9 @@ const WatchPage: React.FC<WatchPageProps> = ({
         const video = videoRef.current;
         if (!video || !currentStream) return;
 
-        // Check if this is an HLS stream
-        const isHlsStream = currentStream.isHls || currentStream.url.includes('.m3u8');
+        // Get the playable URL - prefer directUrl (resolved .m3u8) over url (embed)
+        const videoUrl = currentStream.directUrl || currentStream.url;
+        const isHlsStream = videoUrl.includes('.m3u8') || currentStream.isHls;
 
         if (isHlsStream && Hls.isSupported()) {
             // Destroy previous HLS instance
@@ -65,7 +66,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
                 lowLatencyMode: true,
             });
 
-            hls.loadSource(currentStream.url);
+            hls.loadSource(videoUrl);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 video.play().catch(() => {
@@ -76,13 +77,13 @@ const WatchPage: React.FC<WatchPageProps> = ({
             hlsRef.current = hls;
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Safari native HLS support
-            video.src = currentStream.url;
+            video.src = videoUrl;
             video.addEventListener('loadedmetadata', () => {
                 video.play().catch(() => { });
             });
-        } else if (!isHlsStream) {
-            // Regular video URL
-            video.src = currentStream.url;
+        } else if (!isHlsStream && videoUrl) {
+            // Regular video URL (mp4, etc)
+            video.src = videoUrl;
         }
 
         return () => {
