@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Genre } from '../types';
 import { getGenreCoverImage, getGenreGradient, DEFAULT_IMAGE } from '../services/api/genreImages';
-import { getAnimeByGenre } from '../services/api';
+import { animeService } from '../services/api';
 
 interface GenreCardProps {
     genre: Genre;
@@ -51,7 +51,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
 
                     try {
                         // Fetch top 1 anime by popularity for this genre
-                        const result = await getAnimeByGenre(genre.name, 1, 1, genre.mal_id);
+                        const result = await animeService.searchAnime(genre.name, 1);
                         if (result.data && result.data.length > 0) {
                             const topAnime = result.data[0];
                             const newImage = topAnime.images.jpg.large_image_url || topAnime.images.jpg.image_url;

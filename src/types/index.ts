@@ -66,8 +66,8 @@ export interface WatchlistItem {
 }
 
 export interface Episode {
-    id: string;
-    session?: string;
+    id?: string;
+    session: string; // Required for scraper
     episodeNumber: string | number;
     duration?: string;
     title?: string;

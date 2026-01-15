@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import WatchPage from '../components/WatchPage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
-import { getAnimeInfo, getEpisodeStreams } from '../services/api';
-import { searchLocalAnime, getLocalEpisodes, getLocalStreams } from '../services/localApi';
+import { animeService } from '../services/api';
 
 function Watch() {
     const { id } = useParams<{ id: string }>();
@@ -16,19 +15,23 @@ function Watch() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
     const [streams, setStreams] = useState<StreamLink[]>([]);
+    const [scraperSession, setScraperSession] = useState<string | null>(null);
     const [externalUrl, setExternalUrl] = useState<string | null>(null);
 
     // UI State
-    const [loading, setLoading] = useState(true); // Initial page load
-    const [epLoading, setEpLoading] = useState(true); // Fetching episodes
-    const [streamLoading, setStreamLoading] = useState(false); // Fetching streams
+    const [loading, setLoading] = useState(true);
+    const [epLoading, setEpLoading] = useState(true);
+    const [streamLoading, setStreamLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Player State
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
     const [isAutoQuality, setIsAutoQuality] = useState(true);
 
-    // 1. Fetch Anime Info and Episodes (from AniList + scraper)
+    // Cache refs
+    const sessionCache = useRef(new Map<number, string>());
+
+    // 1. Fetch Anime Info and Episodes
     useEffect(() => {
         const initWatch = async () => {
             if (!id) return;
@@ -36,19 +39,43 @@ function Watch() {
                 setLoading(true);
                 setEpLoading(true);
 
-                // AniList returns anime info, scraper returns episodes
-                const result = await getAnimeInfo(id);
+                // First try to get anime details
+                const animeResult = await animeService.getAnimeDetails(Number(id));
 
-                if (result) {
-                    setAnime(result.anime);
-                    setEpisodes(result.episodes);
+                if (!animeResult.data) {
+                    setError('Anime not found');
+                    setLoading(false);
+                    return;
+                }
 
-                    // Auto-load first episode streams
-                    if (result.episodes.length > 0) {
-                        loadStream(result.episodes[0], result.anime);
+                setAnime(animeResult.data);
+
+                // Then search for the anime on the scraper
+                const searchResults = await animeService.searchScraper(animeResult.data.title);
+
+                if (searchResults && searchResults.length > 0) {
+                    const session = searchResults[0].session;
+                    setScraperSession(session);
+                    sessionCache.current.set(Number(id), session);
+
+                    // Get episodes
+                    const epsData = await animeService.getEpisodes(session);
+                    const eps = (epsData.episodes || epsData.ep_details || epsData || []).map((ep: any) => ({
+                        id: ep.session,
+                        session: ep.session,
+                        episodeNumber: ep.episodeNumber || ep.episode || ep.number,
+                        title: ep.title || `Episode ${ep.episodeNumber || ep.episode || ep.number}`,
+                        snapshot: ep.snapshot
+                    }));
+
+                    setEpisodes(eps);
+
+                    // Auto-load first episode
+                    if (eps.length > 0) {
+                        loadStream(eps[0], session, animeResult.data);
                     }
                 } else {
-                    setError('Anime not found');
+                    setError('No episodes found');
                 }
             } catch (err) {
                 console.error(err);
@@ -62,17 +89,16 @@ function Watch() {
     }, [id]);
 
     const getMappedQuality = (q: string): string => {
-        // Quality format mapping
-        if (q.includes('1080')) return '1080P';
-        if (q.includes('720')) return '720P';
-        if (q.includes('480')) return '480P';
-        if (q.includes('360')) return '360P';
-        if (q === 'auto') return 'Auto';
-        return q.toUpperCase();
+        const res = parseInt(q);
+        if (res >= 1000) return '1080P';
+        if (res >= 600) return '720P';
+        return '360P';
     };
 
-    const loadStream = async (episode: Episode, animeOverride?: Anime) => {
+    const loadStream = async (episode: Episode, session?: string, animeOverride?: Anime) => {
         const activeAnime = animeOverride || anime;
+        const activeSession = session || scraperSession;
+
         setCurrentEpisode(episode);
         setStreamLoading(true);
         setStreams([]);
@@ -89,83 +115,37 @@ function Watch() {
         }
 
         try {
-            // Try to fetch streams from local backend (AnimePahe scraper)
-            console.log('Attempting to load from AnimePahe scraper...');
-            const localSuccess = activeAnime ? await fetchLocalStream(episode, activeAnime) : false;
-
-            if (localSuccess) {
+            if (!activeSession || !episode.session) {
+                console.error('No session available');
+                setStreamLoading(false);
                 return;
             }
 
-            // Fallback: Try using episode session directly if available
-            if (episode.session && activeAnime) {
-                const directStreams = await getEpisodeStreams(episode.session, episode.id);
-                if (directStreams && directStreams.length > 0) {
-                    const qualityMap = new Map<string, StreamLink>();
-                    directStreams.forEach((s: StreamLink) => {
-                        const mapped = getMappedQuality(s.quality);
-                        if (!qualityMap.has(mapped)) {
-                            qualityMap.set(mapped, { ...s, quality: mapped });
-                        }
-                    });
-                    const uniqueStreams = Array.from(qualityMap.values());
-                    setStreams(uniqueStreams);
-                    console.log('Loaded streams from scraper');
-                    return;
-                }
-            }
+            const streamData = await animeService.getStreams(activeSession, episode.session);
 
-            // Last resort: External URL
-            if (episode.url) {
-                setExternalUrl(episode.url);
-            }
-        } catch (e) {
-            console.error('Stream fetch failed', e);
-            if (episode.url) {
-                setExternalUrl(episode.url);
-            }
-        } finally {
-            setStreamLoading(false);
-        }
-    };
-
-    const fetchLocalStream = async (episode: Episode, activeAnime: Anime): Promise<boolean> => {
-        try {
-            // 1. Search for the anime locally
-            const searchResults = await searchLocalAnime(activeAnime.title);
-            if (searchResults.length === 0) return false;
-
-            // Simple matching: take the first one or try to match title
-            const localAnime = searchResults[0];
-
-            // 2. Get episodes for the local anime
-            const { episodes: localEpisodes } = await getLocalEpisodes(localAnime.session);
-
-            // 3. Find the matching episode
-            const targetEp = localEpisodes.find(ep => ep.episodeNumber === Number(episode.episodeNumber));
-            if (!targetEp) return false;
-
-            // 4. Get streams
-            const localStreams = await getLocalStreams(localAnime.session, targetEp.session);
-
-            if (localStreams.length > 0) {
-                // Deduplicate local streams
+            if (streamData && streamData.length > 0) {
+                // Deduplicate and map qualities
                 const qualityMap = new Map<string, StreamLink>();
-                localStreams.forEach((s: StreamLink) => {
+                const sortedData = [...streamData].sort(
+                    (a: StreamLink, b: StreamLink) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0)
+                );
+
+                sortedData.forEach((s: StreamLink) => {
                     const mapped = getMappedQuality(s.quality);
                     if (!qualityMap.has(mapped)) {
                         qualityMap.set(mapped, { ...s, quality: mapped });
                     }
                 });
-                const uniqueStreams = Array.from(qualityMap.values());
 
+                const uniqueStreams = Array.from(qualityMap.values());
                 setStreams(uniqueStreams);
-                return true;
+            } else {
+                console.log('No streams available');
             }
-            return false;
-        } catch (localError) {
-            console.error('Local backend attempt failed:', localError);
-            return false;
+        } catch (e) {
+            console.error('Stream fetch failed', e);
+        } finally {
+            setStreamLoading(false);
         }
     };
 

@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { Anime } from '../types';
-import { prefetchEpisodes } from '../services/api';
 import QuickAddDropdown from './QuickAddDropdown';
 
 interface AnimeCardProps {
@@ -192,7 +191,6 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick }) =>
                                 </button>
                                 <button
                                     onClick={handlePlayClick}
-                                    onMouseEnter={() => prefetchEpisodes(anime.title)}
                                     className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-miru-accent hover:bg-miru-accent/90 text-white text-xs font-medium transition-all shadow-lg group/btn"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">

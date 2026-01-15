@@ -1,4 +1,4 @@
-// API Service for Anime operations - Using AniList (Yorumi Architecture)
+// API Service for Anime operations - Using AniList + AnimePahe (Yorumi Architecture)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Helper to map AniList response to our Anime interface format
@@ -97,9 +97,7 @@ export const animeService = {
         const fetchPromise = (async () => {
             try {
                 const res = await fetch(`${API_BASE}/anilist/top?page=${page}&limit=18`);
-                if (!res.ok) {
-                    throw new Error(`Failed to fetch top anime: ${res.statusText}`);
-                }
+                if (!res.ok) throw new Error(`Failed to fetch top anime: ${res.statusText}`);
                 const data = await res.json();
                 const result = {
                     data: data.media?.map(mapAnilistToAnime) || [],
@@ -109,10 +107,7 @@ export const animeService = {
                         has_next_page: data.pageInfo?.hasNextPage || false
                     }
                 };
-
-                if (result.data.length > 0) {
-                    setCache(cacheKey, result);
-                }
+                if (result.data.length > 0) setCache(cacheKey, result);
                 return result;
             } finally {
                 inFlightRequests.delete(cacheKey);
@@ -149,46 +144,6 @@ export const animeService = {
     async searchScraper(title: string) {
         const res = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(title)}`);
         return res.json();
-    },
-
-    // Get popular this season from AniList
-    async getPopularThisSeason(page: number = 1, limit: number = 10) {
-        const cacheKey = `popular-season-${page}-${limit}`;
-        const cached = getCached(cacheKey);
-        if (cached) return cached;
-
-        if (inFlightRequests.has(cacheKey)) {
-            return inFlightRequests.get(cacheKey);
-        }
-
-        const fetchPromise = (async () => {
-            try {
-                const res = await fetch(`${API_BASE}/anilist/popular-this-season?page=${page}&limit=${limit}`);
-                if (!res.ok) {
-                    console.warn(`Failed to fetch popular season: ${res.statusText}`);
-                    return { data: [], pagination: null };
-                }
-                const data = await res.json();
-                const result = {
-                    data: data.media?.map(mapAnilistToAnime) || [],
-                    pagination: {
-                        last_visible_page: data.pageInfo?.lastPage || 1,
-                        current_page: data.pageInfo?.currentPage || 1,
-                        has_next_page: data.pageInfo?.hasNextPage || false
-                    }
-                };
-
-                if (result.data.length > 0) {
-                    setCache(cacheKey, result);
-                }
-                return result;
-            } finally {
-                inFlightRequests.delete(cacheKey);
-            }
-        })();
-
-        inFlightRequests.set(cacheKey, fetchPromise);
-        return fetchPromise;
     },
 
     // Get episodes from scraper
@@ -231,9 +186,45 @@ export const animeService = {
                     }
                 };
 
-                if (result.data.length > 0) {
-                    setCache(cacheKey, result);
+                if (result.data.length > 0) setCache(cacheKey, result);
+                return result;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
+    },
+
+    // Get popular this season from AniList
+    async getPopularThisSeason(page: number = 1, limit: number = 10) {
+        const cacheKey = `popular-season-${page}-${limit}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
+
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/anilist/popular-this-season?page=${page}&limit=${limit}`);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch popular season: ${res.statusText}`);
+                    return { data: [], pagination: null };
                 }
+                const data = await res.json();
+                const result = {
+                    data: data.media?.map(mapAnilistToAnime) || [],
+                    pagination: {
+                        last_visible_page: data.pageInfo?.lastPage || 1,
+                        current_page: data.pageInfo?.currentPage || 1,
+                        has_next_page: data.pageInfo?.hasNextPage || false
+                    }
+                };
+
+                if (result.data.length > 0) setCache(cacheKey, result);
                 return result;
             } finally {
                 inFlightRequests.delete(cacheKey);
@@ -245,22 +236,9 @@ export const animeService = {
     }
 };
 
-// Legacy exports for backward compatibility
-export const searchAnime = async (query: string, page: number = 1, perPage: number = 24) => {
-    const result = await animeService.searchAnime(query, page);
-    return {
-        data: result.data.slice(0, perPage),
-        pagination: result.pagination
-    };
-};
-export const getTrendingAnime = animeService.getTrendingAnime;
-export const getPopularAnime = async (page: number = 1, perPage: number = 24) => {
-    const result = await animeService.getTopAnime(page);
-    return {
-        data: result.data.slice(0, perPage),
-        pagination: result.pagination
-    };
-};
+// Legacy exports for backward compatibility with existing components
+export const getPopularAnime = animeService.getTopAnime;
+export const searchAnime = animeService.searchAnime;
 export const getAnimeInfo = async (id: string | number) => {
     const result = await animeService.getAnimeDetails(Number(id));
     if (!result.data) return null;
@@ -318,47 +296,8 @@ export const getAnimeInfo = async (id: string | number) => {
     };
 };
 
-export interface AnimeInfoResponse {
-    anime: any;
-    episodes: any[];
-    characters: any[];
-    recommendations: any[];
-}
-
-export const getEpisodeStreams = async (episodeSession: string, animeSession?: string) => {
-    if (!animeSession) {
-        console.warn('No anime session provided for getEpisodeStreams');
-        return [];
-    }
-    const data = await animeService.getStreams(animeSession, episodeSession);
-    return data || [];
+export const getEpisodeStreams = async (episodeSession: string, animeSession: string) => {
+    return animeService.getStreams(animeSession, episodeSession);
 };
 
-export const prefetchEpisodes = async (_title: string): Promise<void> => { };
-export const clearSearchCache = (): void => { };
-export const getAnimeByGenre = async (
-    genreName: string,
-    page: number = 1,
-    perPage: number = 24,
-    _genreId?: number
-) => {
-    // Use search with genre name as fallback
-    try {
-        const result = await animeService.searchAnime(genreName, page);
-        return {
-            data: result.data.slice(0, perPage),
-            pagination: result.pagination
-        };
-    } catch (e) {
-        console.error('getAnimeByGenre failed', e);
-        return { data: [], pagination: { last_visible_page: 1 } };
-    }
-};
-export const getSimilarAnime = async () => [];
-export const getAnimeExtraDetails = async () => ({
-    characters: [],
-    relations: [],
-    videos: [],
-    recommendations: [],
-    similar: []
-});
+export default animeService;

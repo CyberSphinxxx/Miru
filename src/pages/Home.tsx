@@ -6,10 +6,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { Anime, Genre } from '../types';
 import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
 import {
-    searchAnime,
-    getTrendingAnime,
+    animeService,
     getPopularAnime,
-    getAnimeByGenre,
     getGenres
 } from '../services/api';
 
@@ -80,7 +78,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
             if (viewMode !== 'home' || searchQuery) return;
             setTrendingError(false);
             try {
-                const result = await getTrendingAnime(1, 10);
+                const result = await animeService.getTrendingAnime(1, 10);
                 setTrendingAnime(result.data);
             } catch (err) {
                 console.error('Failed to fetch trending', err);
@@ -103,9 +101,9 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 let result: { data: Anime[]; pagination: { last_visible_page: number } };
 
                 if (searchQuery) {
-                    result = await searchAnime(searchQuery, currentPage, 24);
+                    result = await animeService.searchAnime(searchQuery, currentPage);
                 } else if (viewMode === 'trending') {
-                    result = await getTrendingAnime(currentPage, 24);
+                    result = await animeService.getTrendingAnime(currentPage, 24);
                 } else if (viewMode === 'genres') {
                     if (selectedGenreId) {
                         // Find genre name from ID
@@ -116,8 +114,9 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                             return; // Wait for genres to load
                         }
 
+                        // Use search with genre name as a workaround
                         const genreName = genre?.name || 'Action';
-                        result = await getAnimeByGenre(genreName, currentPage, 24, genre?.mal_id);
+                        result = await animeService.searchAnime(genreName, currentPage);
                     } else {
                         // Just show genres list, no anime fetch needed yet
                         setLoading(false);
@@ -125,7 +124,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     }
                 } else {
                     // Default Home (Popular Anime - used as "Top")
-                    result = await getPopularAnime(currentPage, 24);
+                    result = await getPopularAnime(currentPage);
                 }
 
                 if (!isMounted) return;
@@ -463,8 +462,8 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 <button
                                     onClick={() => {
                                         setTrendingError(false);
-                                        getTrendingAnime(1, 10)
-                                            .then(result => setTrendingAnime(result.data))
+                                        animeService.getTrendingAnime(1, 10)
+                                            .then((result: any) => setTrendingAnime(result.data))
                                             .catch(() => setTrendingError(true));
                                     }}
                                     className="px-4 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors text-sm font-medium"

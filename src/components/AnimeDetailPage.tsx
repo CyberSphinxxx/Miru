@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import VideoModal from './VideoModal';
 import StatusButton from './StatusButton';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../types';
-import { prefetchEpisodes } from '../services/api';
 
 interface AnimeDetailPageProps {
     anime: Anime;
@@ -75,7 +74,6 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                         <div className="space-y-3">
                             <button
                                 onClick={onWatchClick}
-                                onMouseEnter={() => prefetchEpisodes(anime.title)}
                                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-miru-primary to-miru-accent text-white font-bold shadow-lg shadow-miru-primary/25 hover:shadow-miru-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
