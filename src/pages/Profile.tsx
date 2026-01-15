@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocalUser, LibraryStatus, LibraryEntry } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
 import AnimeCard from '../components/AnimeCard';
 import { Anime } from '../types';
-import { getWatchHistory } from '../services/watchHistoryService';
+import { getWatchHistory, clearWatchHistory, removeFromHistory } from '../services/watchHistoryService';
 
 type Tab = 'All' | 'Watching' | 'Completed' | 'Plan to Watch' | 'On Hold' | 'Dropped' | 'History';
 
@@ -13,7 +13,26 @@ function Profile() {
     const { currentUser, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<Tab>('All');
-    const watchHistory = getWatchHistory();
+    const [historyUpdate, setHistoryUpdate] = useState(0);
+
+    // Get watch history, refreshing when historyUpdate changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const watchHistory = useMemo(() => getWatchHistory(), [historyUpdate]);
+
+    const handleClearHistory = () => {
+        if (window.confirm('Are you sure you want to clear your entire watch history?')) {
+            clearWatchHistory();
+            setHistoryUpdate(prev => prev + 1);
+        }
+    };
+
+    const handleRemoveFromHistory = (e: React.MouseEvent, animeId: number) => {
+        e.stopPropagation();
+        if (window.confirm('Remove this anime from history?')) {
+            removeFromHistory(animeId);
+            setHistoryUpdate(prev => prev + 1);
+        }
+    };
 
     // Calculate stats
     const totalAnime = Object.values(userData.library).reduce((acc, list) => acc + list.length, 0);
@@ -46,10 +65,20 @@ function Profile() {
                 images: { jpg: { image_url: item.image_url, large_image_url: item.image_url } },
                 type: item.type,
                 episodes: item.episodes,
-                score: 0,
-                genres: [],
-                synopsis: ''
-            } as Anime));
+                // Use stored details if available
+                score: item.score || 0,
+                genres: item.genres || [],
+                synopsis: item.synopsis || '',
+                status: item.status,
+                rank: item.rank,
+                title_japanese: item.title_japanese,
+                // Pass history specific data
+                historyData: {
+                    currentEpisode: item.currentEpisode,
+                    progress: item.progress,
+                    lastWatched: item.lastWatched
+                }
+            } as any));
         }
 
         if (activeTab === 'All') {
@@ -199,7 +228,7 @@ function Profile() {
                 </div>
 
                 {/* Navigation Tabs (Underline Style) */}
-                <div className="sticky top-20 z-20 bg-miru-bg/80 backdrop-blur-lg border-b border-white/5 -mx-6 px-6 mb-8">
+                <div className="sticky top-20 z-20 bg-miru-bg/80 backdrop-blur-lg border-b border-white/5 -mx-6 px-6 mb-8 flex items-center justify-between">
                     <div className="flex gap-6 overflow-x-auto pb-px">
                         {tabs.map(tab => (
                             <button
@@ -225,6 +254,16 @@ function Profile() {
                             </button>
                         ))}
                     </div>
+
+                    {/* Clear History Button */}
+                    {activeTab === 'History' && watchHistory.length > 0 && (
+                        <button
+                            onClick={handleClearHistory}
+                            className="text-red-400 hover:text-red-300 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors whitespace-nowrap"
+                        >
+                            Clear History
+                        </button>
+                    )}
                 </div>
 
                 {/* Grid / Empty State */}
@@ -232,11 +271,23 @@ function Profile() {
                     {currentList.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
                             {currentList.map(anime => (
-                                <AnimeCard
-                                    key={anime.mal_id}
-                                    anime={anime}
-                                    onClick={() => handleCardClick(anime)}
-                                />
+                                <div key={anime.mal_id} className="relative group">
+                                    <AnimeCard
+                                        anime={anime}
+                                        onClick={() => handleCardClick(anime)}
+                                    />
+                                    {activeTab === 'History' && (
+                                        <button
+                                            onClick={(e) => handleRemoveFromHistory(e, anime.mal_id)}
+                                            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-red-500/80 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-all opacity-0 group-hover:opacity-100 scale-90 hover:scale-100 z-10"
+                                            title="Remove from history"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     ) : (
@@ -247,8 +298,14 @@ function Profile() {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 16.318A4.486 4.486 0 0012.016 15a4.486 4.486 0 00-3.198 1.318M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-400 mb-2">Your list is empty</h3>
-                            <p className="text-gray-500 mb-6 max-w-xs">Time to start an adventure! Add some anime to your watchlist.</p>
+                            <h3 className="text-xl font-bold text-gray-400 mb-2">
+                                {activeTab === 'History' ? 'No history yet' : 'Your list is empty'}
+                            </h3>
+                            <p className="text-gray-500 mb-6 max-w-xs">
+                                {activeTab === 'History'
+                                    ? 'Start watching anime to build your history.'
+                                    : 'Time to start an adventure! Add some anime to your watchlist.'}
+                            </p>
                             <button
                                 onClick={() => navigate('/trending')}
                                 className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors shadow-lg shadow-purple-500/25 flex items-center gap-2"

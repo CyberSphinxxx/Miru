@@ -13,6 +13,13 @@ export interface WatchHistoryItem {
     currentEpisode: number;
     progress: number; // 0-100 percentage
     lastWatched: string;
+    // Extra details for card display
+    synopsis?: string;
+    genres?: { mal_id: number; name: string }[];
+    score?: number;
+    status?: string;
+    rank?: number;
+    title_japanese?: string;
 }
 
 export const getWatchHistory = (): WatchHistoryItem[] => {
@@ -48,6 +55,13 @@ export const saveWatchProgress = (
         currentEpisode: episodeNumber,
         progress: Math.min(100, Math.max(0, progress)),
         lastWatched: new Date().toISOString(),
+        // Store extra details
+        synopsis: anime.synopsis,
+        genres: anime.genres,
+        score: anime.score,
+        status: anime.status,
+        rank: anime.rank,
+        title_japanese: anime.title_japanese
     };
 
     // Add to front of list
