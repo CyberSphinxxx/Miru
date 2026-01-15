@@ -331,17 +331,36 @@ export const anilistService = {
             }
         `;
 
-        try {
-            const response = await axios.post(ANILIST_API_URL, {
-                query,
-                variables: { id }
-            });
+        // Retry logic with exponential backoff
+        const maxRetries = 3;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await axios.post(ANILIST_API_URL, {
+                    query,
+                    variables: { id }
+                }, {
+                    timeout: 15000, // 15 second timeout
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
 
-            return response.data.data.Media;
-        } catch (error) {
-            console.error('Error fetching anime by ID:', error);
-            return null;
+                return response.data.data.Media;
+            } catch (error: any) {
+                console.error(`Attempt ${attempt} failed for anime ID ${id}:`, error.message);
+
+                // If it's the last attempt or not a retryable error, give up
+                if (attempt === maxRetries || (error.response && error.response.status < 500)) {
+                    console.error('Error fetching anime by ID:', error);
+                    return null;
+                }
+
+                // Wait before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
         }
+        return null;
     },
 
     async getMangaById(id: number) {
