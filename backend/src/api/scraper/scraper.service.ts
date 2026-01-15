@@ -61,7 +61,7 @@ export class ScraperService {
         // Try to use cache if available
         if (cacheService) {
             try {
-                const cached = await cacheService.getIfFresh<{ episodes: any[]; lastPage: number }>(
+                const cached = await cacheService.getIfFresh(
                     'anime_episodes',
                     session,
                     cacheService.TTL_HOURS.EPISODES
