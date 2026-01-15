@@ -1,5 +1,5 @@
 
-import { AnimePaheScraper } from '../../../src/scraper/animepahe';
+import { AnimePaheScraper } from '../../scraper/animepahe.js';
 
 export class ScraperService {
     private scraper: AnimePaheScraper;
