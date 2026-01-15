@@ -51,7 +51,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         setCurrentPage(1);
     }, [viewMode, selectedGenreId, searchQuery]);
 
-    // Fetch Genres (static list from Consumet adapter)
+    // Fetch Genres (static list)
     useEffect(() => {
         const fetchGenres = async () => {
             if (genres.length > 0) return;
@@ -633,7 +633,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                     </svg>
                                 </div>
                                 <p className="text-red-400 mb-2">{error}</p>
-                                <p className="text-gray-500 text-sm">Make sure the Consumet API is running and accessible</p>
+                                <p className="text-gray-500 text-sm">Make sure the backend API is running and accessible</p>
                             </div>
                         ) : (
                             <>
