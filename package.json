@@ -17,6 +17,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "firebase": "^12.8.0",
+    "firebase-admin": "^13.6.0",
     "hls.js": "^1.6.15",
     "puppeteer-core": "^24.35.0",
     "react": "^19.2.0",
