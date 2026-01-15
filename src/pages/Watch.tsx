@@ -50,7 +50,41 @@ function Watch() {
 
                 setAnime(animeResult.data);
 
-                // Then search for the anime on the scraper
+                // Check for prefetched data from Detail page (background prefetch)
+                const prefetchKey = `watch_prefetch_${id}`;
+                const prefetchedData = sessionStorage.getItem(prefetchKey);
+
+                if (prefetchedData) {
+                    try {
+                        const cached = JSON.parse(prefetchedData);
+                        // Use cached data if it's less than 10 minutes old
+                        if (cached.timestamp && Date.now() - cached.timestamp < 10 * 60 * 1000) {
+                            console.log('[Watch] Using prefetched data from Detail page');
+                            const { session, episodes } = cached;
+
+                            setScraperSession(session);
+                            sessionCache.current.set(Number(id), session);
+                            setEpisodes(episodes);
+
+                            // Auto-load first episode
+                            if (episodes.length > 0) {
+                                loadStream(episodes[0], session, animeResult.data);
+                            }
+
+                            // Clean up cache
+                            sessionStorage.removeItem(prefetchKey);
+
+                            setLoading(false);
+                            setEpLoading(false);
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('[Watch] Invalid prefetch cache, fetching normally');
+                    }
+                }
+
+                // No valid cache - fetch normally from scraper
+                console.log('[Watch] No prefetch cache, fetching from scraper');
                 const searchResults = await animeService.searchScraper(animeResult.data.title);
 
                 if (searchResults && searchResults.length > 0) {

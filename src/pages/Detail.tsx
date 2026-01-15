@@ -102,6 +102,13 @@ function Detail() {
                     // IMMEDIATELY show content, mark initial load done
                     setLoading(false);
 
+                    // PHASE 2: Background prefetch for Watch page
+                    // Start loading scraper data so it's ready when user clicks Watch
+                    if (!scraperFetchStarted.current) {
+                        scraperFetchStarted.current = true;
+                        prefetchWatchData(animeData.title, Number(id));
+                    }
+
                 } else {
                     setError('Anime not found');
                     setLoading(false);
@@ -117,6 +124,41 @@ function Detail() {
 
         fetchAnimeBasicInfo();
     }, [id]);
+
+    // Background prefetch function - stores data in sessionStorage for Watch page
+    const prefetchWatchData = async (title: string, animeId: number) => {
+        try {
+            console.log('[Prefetch] Starting background prefetch for:', title);
+
+            // Search for anime on scraper
+            const searchRes = await animeService.searchScraper(title);
+            if (searchRes && searchRes.length > 0) {
+                const session = searchRes[0].session;
+
+                // Get episodes
+                const epsData = await animeService.getEpisodes(session);
+                const episodes = (epsData.episodes || epsData.ep_details || epsData || []).map((ep: any) => ({
+                    id: ep.session,
+                    session: ep.session,
+                    episodeNumber: ep.episodeNumber || ep.episode || ep.number,
+                    title: ep.title || `Episode ${ep.episodeNumber || ep.episode || ep.number}`,
+                    snapshot: ep.snapshot
+                }));
+
+                // Cache data for Watch page
+                const cacheData = {
+                    session,
+                    episodes,
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem(`watch_prefetch_${animeId}`, JSON.stringify(cacheData));
+                console.log('[Prefetch] Cached', episodes.length, 'episodes for anime', animeId);
+            }
+        } catch (e) {
+            // Prefetch failed silently - Watch page will fetch normally
+            console.warn('[Prefetch] Background prefetch failed:', e);
+        }
+    };
 
     const handleBack = () => {
         navigate('/');
