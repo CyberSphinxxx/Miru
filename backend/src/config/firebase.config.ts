@@ -1,10 +1,21 @@
-import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { readFileSync, existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-let app: App | null = null;
-let db: Firestore | null = null;
+// Firebase imports - wrapped in try-catch to prevent crashes if firebase-admin is not available
+let firebaseApp: any = null;
+let firebaseFirestore: any = null;
+
+try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    firebaseApp = require('firebase-admin/app');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    firebaseFirestore = require('firebase-admin/firestore');
+} catch (error) {
+    console.warn('firebase-admin could not be loaded. Caching is disabled.');
+}
+
+let app: any = null;
+let db: any = null;
 
 /**
  * Initialize Firebase Admin SDK
@@ -16,6 +27,15 @@ let db: Firestore | null = null;
  * Fails gracefully - caching will be disabled if Firebase can't initialize
  */
 function initializeFirebase(): void {
+    // If firebase-admin couldn't be imported, skip initialization
+    if (!firebaseApp || !firebaseFirestore) {
+        console.warn('Firebase Admin SDK not available. Caching is disabled.');
+        return;
+    }
+
+    const { initializeApp, cert, getApps } = firebaseApp;
+    const { getFirestore } = firebaseFirestore;
+
     if (getApps().length > 0) {
         app = getApps()[0];
         db = getFirestore(app);
