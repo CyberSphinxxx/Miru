@@ -1,8 +1,10 @@
+
 import { Browser, Page } from 'puppeteer-core';
 import { getBrowserInstance } from '../utils/browser';
 
 const BASE_URL = 'https://animepahe.si';
 const API_URL = 'https://animepahe.si/api';
+const DDOS_WAIT = 10000; // 10 seconds for DDoS-Guard
 
 export interface AnimeSearchResult {
     id: string;
@@ -14,7 +16,7 @@ export interface AnimeSearchResult {
     episodes?: number;
     year?: string;
     score?: string;
-    session: string;
+    session: string; // Unified ID
 }
 
 export interface Episode {
@@ -31,8 +33,8 @@ export interface Episode {
 export interface StreamLink {
     quality: string;
     audio: string;
-    url: string;
-    directUrl?: string;
+    url: string; // The original embed URL
+    directUrl?: string; // The resolved .m3u8 URL
     isHls: boolean;
 }
 
@@ -62,12 +64,15 @@ export class AnimePaheScraper {
             const searchUrl = `${API_URL}?m=search&q=${encodeURIComponent(query)}`;
             console.log(`Searching: ${searchUrl}`);
 
+            // Go directly to search URL
             await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
+            // Wait for potential DDoS guard to resolve
+            // We check if the body looks like JSON (starts with {)
             try {
                 await page.waitForFunction(
                     () => document.body.innerText.trim().startsWith('{'),
-                    { timeout: 8000 }
+                    { timeout: 8000 } // Give it 8s max to resolve
                 );
             } catch (e) {
                 console.log('Timeout waiting for JSON expectation, trying to parse anyway...');
@@ -117,8 +122,10 @@ export class AnimePaheScraper {
             const apiUrl = `${API_URL}?m=release&id=${animeSessionId}&sort=episode_asc&page=${pageNum}`;
             console.log(`Fetching episodes: ${apiUrl}`);
 
+            // Direct navigation
             await page.goto(apiUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
+            // Wait for JSON body
             try {
                 await page.waitForFunction(
                     () => document.body.innerText.trim().startsWith('{'),
@@ -191,14 +198,17 @@ export class AnimePaheScraper {
             const streamLinks: StreamLink[] = [];
 
             for (const link of links) {
+                // Now we need to go to each kwik link and extract the direct video URL
+                // To save time/resources, we'll only resolve the best one? 
+                // No, let's resolve all but sequentially with a shortcut
                 try {
                     const directUrl = await this.resolveKwik(link.kwik);
                     streamLinks.push({
                         quality: link.quality,
                         audio: link.audio,
-                        url: link.kwik,
+                        url: link.kwik, // Return the stable Kwik embed URL as primary
                         directUrl: directUrl || undefined,
-                        isHls: false
+                        isHls: false // The primary URL is an embed, not direct HLS
                     });
                 } catch (e) {
                     console.error(`Failed to resolve kwik link ${link.kwik}:`, e);
@@ -219,6 +229,7 @@ export class AnimePaheScraper {
         const browser = await this.getBrowser();
         const page = await browser.newPage();
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        // Kwik needs referer
         await page.setExtraHTTPHeaders({
             'referer': 'https://kwik.cx/',
             'origin': 'https://kwik.cx'
@@ -227,25 +238,42 @@ export class AnimePaheScraper {
         try {
             await page.goto(url, { waitUntil: 'domcontentloaded' });
 
+            // The direct link is usually inside a packed script.
+            // We can wait for the page to evaluate it or extract and solve.
+            // Let's try to find potential source from content first.
             const content = await page.content();
 
+            // Logic to handle kwik's eval(p,a,c,k,e,d)
+            // Or just wait for the video tag to appear?
+            // Usually kwik loads a script that then creates the video/source.
+
             const directUrl = await page.evaluate(() => {
+                // Try to find the script and execute a modified version to get the URL?
+                // Actually, kwik's script usually sets a variable or just creates the player.
+                // Let's try to extract it from the source code directly using regex if it's there.
                 const scripts = Array.from(document.querySelectorAll('script'));
                 for (const script of scripts) {
                     const text = script.textContent || '';
                     if (text.includes('eval(function(p,a,c,k,e,d)')) {
-                        // This is the packed script
+                        // This is the one. We could try to decode it, 
+                        // but maybe it's already in a variable after execution?
+                        // Let's check common variables.
                     }
                 }
+
+                // Often kwik has a "source" variable or similar in the window
                 return (window as any).source || (document.querySelector('source') as any)?.src || null;
             });
 
             if (directUrl) return directUrl;
 
+            // If not found, use regex on the content
             const packedMatch = content.match(/eval\(function\(p,a,c,k,e,d\)\{.*\}\(.*\)\)/);
             if (packedMatch) {
+                // We can't easily unpack in Node without a library, but we can try to evaluate it in the browser!
                 const solved = await page.evaluate((packed) => {
                     try {
+                        // Override eval to capture the result
                         let result = '';
                         const originalEval = window.eval;
                         (window as any).eval = (s: string) => { result = s; return originalEval(s); };

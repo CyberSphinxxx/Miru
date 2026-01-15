@@ -1,56 +1,44 @@
-import { AnimePaheScraper } from '../../scraper/animepahe';
 
-class ScraperService {
+import { AnimePaheScraper } from '../../../src/scraper/animepahe';
+
+export class ScraperService {
     private scraper: AnimePaheScraper;
-
-    private cache = new Map<string, { data: any, timestamp: number }>();
-    private CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache
 
     constructor() {
         this.scraper = new AnimePaheScraper();
     }
 
-    private getCached<T>(key: string): T | null {
-        const entry = this.cache.get(key);
-        if (entry && Date.now() - entry.timestamp < this.CACHE_TTL) {
-            console.log(`Cache hit: ${key}`);
-            return entry.data as T;
-        }
-        return null;
-    }
-
-    private setCache(key: string, data: any) {
-        this.cache.set(key, { data, timestamp: Date.now() });
-    }
-
     async search(query: string) {
-        const cacheKey = `search:${query}`;
-        const cached = this.getCached<any>(cacheKey);
-        if (cached) return cached;
-
-        const result = await this.scraper.search(query);
-        if (result.length > 0) this.setCache(cacheKey, result);
-        return result;
+        return this.scraper.search(query);
     }
 
-    async getEpisodes(session: string, page: number = 1) {
-        const cacheKey = `episodes:${session}:${page}`;
-        const cached = this.getCached<any>(cacheKey);
-        if (cached) return cached;
+    async getEpisodes(session: string) {
+        // Fetch first page to see how many pages there are
+        const firstPage = await this.scraper.getEpisodes(session, 1);
+        let allEpisodes = [...firstPage.episodes];
 
-        const result = await this.scraper.getEpisodes(session, page);
-        if (result.episodes.length > 0) this.setCache(cacheKey, result);
-        return result;
+        if (firstPage.lastPage > 1) {
+            console.log(`Anime has ${firstPage.lastPage} pages of episodes. Fetching the rest...`);
+            const pagePromises = [];
+            for (let i = 2; i <= firstPage.lastPage; i++) {
+                pagePromises.push(this.scraper.getEpisodes(session, i));
+            }
+
+            const results = await Promise.all(pagePromises);
+            results.forEach(res => {
+                allEpisodes = [...allEpisodes, ...res.episodes];
+            });
+        }
+
+        // Return structured data like the first page, but with all episodes
+        return {
+            episodes: allEpisodes,
+            lastPage: firstPage.lastPage
+        };
     }
 
     async getStreams(animeSession: string, epSession: string) {
-        const cacheKey = `streams:${animeSession}:${epSession}`;
-        const cached = this.getCached<any>(cacheKey);
-        if (cached) return cached;
-
-        const result = await this.scraper.getLinks(animeSession, epSession);
-        if (result.length > 0) this.setCache(cacheKey, result);
-        return result;
+        return this.scraper.getLinks(animeSession, epSession);
     }
 }
 

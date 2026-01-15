@@ -21,6 +21,20 @@ router.get('/top', async (req, res) => {
     }
 });
 
+// Get top/popular manga
+router.get('/top/manga', async (req, res) => {
+    try {
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+
+        const data = await anilistService.getTopManga(page, perPage);
+        res.json(data);
+    } catch (error) {
+        console.error('Error in top manga route:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Get trending anime
 router.get('/trending', async (req, res) => {
     try {
@@ -67,6 +81,26 @@ router.get('/search', async (req, res) => {
     }
 });
 
+// Search manga
+router.get('/search/manga', async (req, res) => {
+    try {
+        const query = req.query.q as string;
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+
+        if (!query) {
+            res.status(400).json({ error: 'Query parameter "q" is required' });
+            return;
+        }
+
+        const data = await anilistService.searchManga(query, page, perPage);
+        res.json(data);
+    } catch (error) {
+        console.error('Error in search manga route:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Get anime by ID
 router.get('/anime/:id', async (req, res) => {
     try {
@@ -84,6 +118,27 @@ router.get('/anime/:id', async (req, res) => {
         res.json(data);
     } catch (error) {
         console.error('Error in anime by ID route:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get manga by ID
+router.get('/manga/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ error: 'Invalid ID' });
+            return;
+        }
+
+        const data = await anilistService.getMangaById(id);
+        if (!data) {
+            res.status(404).json({ error: 'Manga not found' });
+            return;
+        }
+        res.json(data);
+    } catch (error) {
+        console.error('Error in manga by ID route:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -106,7 +161,7 @@ router.post('/batch-covers', async (req, res) => {
     }
 });
 
-// Legacy POST search (keep for compatibility)
+// Legacy POST search (keep for compatibility with spotlight resolution)
 router.post('/search', async (req, res) => {
     try {
         const { query } = req.body;

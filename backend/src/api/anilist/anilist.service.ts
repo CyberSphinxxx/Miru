@@ -180,7 +180,36 @@ export const anilistService = {
             return response.data.data.Page;
         } catch (error) {
             console.error('Error fetching top anime:', error);
-            throw error;
+            throw error; // Propagate error to route handler
+        }
+    },
+
+    async getTopManga(page: number = 1, perPage: number = 24) {
+        const query = `
+            query ($page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                    pageInfo {
+                        total
+                        currentPage
+                        lastPage
+                        hasNextPage
+                    }
+                    media(type: MANGA, sort: POPULARITY_DESC) {
+                        ${MEDIA_FIELDS}
+                    }
+                }
+            }
+        `;
+
+        try {
+            const response = await axios.post(ANILIST_API_URL, {
+                query,
+                variables: { page, perPage }
+            });
+            return response.data.data.Page;
+        } catch (error) {
+            console.error('Error fetching top manga:', error);
+            return { media: [], pageInfo: {} };
         }
     },
 
@@ -208,14 +237,46 @@ export const anilistService = {
             });
 
             const pageData = response.data.data.Page;
+            // Recalculate lastPage to ensure it matches the actual perPage limit
             if (pageData.pageInfo && pageData.pageInfo.total) {
                 pageData.pageInfo.lastPage = Math.ceil(pageData.pageInfo.total / perPage);
+                // Also ensure hasNextPage is accurate
                 pageData.pageInfo.hasNextPage = page < pageData.pageInfo.lastPage;
             }
 
             return pageData;
         } catch (error) {
             console.error('Error searching AniList:', error);
+            return { media: [], pageInfo: {} };
+        }
+    },
+
+    async searchManga(search: string, page: number = 1, perPage: number = 24) {
+        const query = `
+            query ($search: String, $page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                    pageInfo {
+                        total
+                        currentPage
+                        lastPage
+                        hasNextPage
+                    }
+                    media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
+                        ${MEDIA_FIELDS}
+                    }
+                }
+            }
+        `;
+
+        try {
+            const response = await axios.post(ANILIST_API_URL, {
+                query,
+                variables: { search, page, perPage }
+            });
+
+            return response.data.data.Page;
+        } catch (error) {
+            console.error('Error searching manga:', error);
             return { media: [], pageInfo: {} };
         }
     },
@@ -279,6 +340,28 @@ export const anilistService = {
             return response.data.data.Media;
         } catch (error) {
             console.error('Error fetching anime by ID:', error);
+            return null;
+        }
+    },
+
+    async getMangaById(id: number) {
+        const query = `
+            query ($id: Int) {
+                Media(idMal: $id, type: MANGA) {
+                    ${MEDIA_FIELDS}
+                }
+            }
+        `;
+
+        try {
+            const response = await axios.post(ANILIST_API_URL, {
+                query,
+                variables: { id }
+            });
+
+            return response.data.data.Media;
+        } catch (error) {
+            console.error('Error fetching manga by ID:', error);
             return null;
         }
     }

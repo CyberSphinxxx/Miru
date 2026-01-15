@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import anilistRoutes from './api/anilist/anilist.routes';
 import scraperRoutes from './api/scraper/scraper.routes';
+import mangaScraperRoutes from './api/scraper/mangascraper.routes';
+import anilistRoutes from './api/anilist/anilist.routes';
+import hianimeRoutes from './api/scraper/hianime.routes';
+import jikanRoutes from './api/jikan/jikan.routes';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -13,22 +16,17 @@ app.use(express.json());
 // Routes
 app.use('/api/anilist', anilistRoutes);
 app.use('/api/scraper', scraperRoutes);
+app.use('/api/manga', mangaScraperRoutes);
+app.use('/api/hianime', hianimeRoutes);
+app.use('/api/jikan', jikanRoutes);
 
 app.get('/', (req, res) => {
-    res.json({
-        message: 'Miru Backend API',
-        version: '2.0.0',
-        endpoints: {
-            anilist: '/api/anilist',
-            scraper: '/api/scraper'
-        }
-    });
+    res.send('Miru Backend is running');
 });
 
-// Standalone mode
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
-        console.log(`🎬 Miru Backend running on http://localhost:${port}`);
+        console.log(`Server is running on http://localhost:${port}`);
     });
 }
 
