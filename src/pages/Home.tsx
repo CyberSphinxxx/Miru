@@ -92,11 +92,15 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     useEffect(() => {
         let isMounted = true;
         const fetchAnime = async () => {
+            // If viewing a specific genre but genres list isn't loaded yet,
+            // wait for it (loading state stays true from initial render)
+            if (viewMode === 'genres' && selectedGenreId && genres.length === 0) {
+                return;
+            }
+
             try {
                 setLoading(true);
                 setError(null);
-                // Don't clear list immediately to prevent flashing white if we can avoid it, 
-                // but for genre switching we probably should. Let's keep existing behavior but safe.
 
                 let result: { data: Anime[]; pagination: { last_visible_page: number } };
 
@@ -108,11 +112,6 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     if (selectedGenreId) {
                         // Find genre name from ID
                         const genre = genres.find(g => g.mal_id.toString() === selectedGenreId);
-                        // If genres aren't loaded yet, we can't resolve the ID. 
-                        // Wait for genres to load instead of defaulting to Action.
-                        if (!genre && genres.length === 0) {
-                            return; // Wait for genres to load
-                        }
 
                         // Use dedicated genre endpoint
                         const genreName = genre?.name || 'Action';
