@@ -10,8 +10,10 @@ try {
     firebaseApp = require('firebase-admin/app');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     firebaseFirestore = require('firebase-admin/firestore');
-} catch (error) {
+    console.log('firebase-admin loaded successfully');
+} catch (error: any) {
     console.warn('firebase-admin could not be loaded. Caching is disabled.');
+    console.warn('Error details:', error?.message || error);
 }
 
 let app: any = null;
