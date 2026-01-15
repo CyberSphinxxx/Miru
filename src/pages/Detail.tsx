@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AnimeDetailPage from '../components/AnimeDetailPage';
-import LoadingSpinner from '../components/LoadingSpinner';
+import DetailPageSkeleton from '../components/DetailPageSkeleton';
 import { getAnimeInfo } from '../services/api';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../types';
 
@@ -98,11 +98,7 @@ function Detail() {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-miru-bg flex justify-center items-center">
-                <LoadingSpinner size="lg" text="Loading details..." />
-            </div>
-        );
+        return <DetailPageSkeleton />;
     }
 
     if (error || !anime) {
