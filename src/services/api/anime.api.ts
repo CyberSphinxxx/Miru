@@ -1,354 +1,365 @@
-/**
- * Anime API Functions
- * 
- * Core API functions for fetching anime data from the Consumet API.
- * Uses failover for reliability and adapters for type transformation.
- */
+// API Service for Anime operations - Using AniList (Yorumi Architecture)
+const VITE_API_URL = import.meta.env.VITE_API_URL;
+const API_BASE = VITE_API_URL ? `${VITE_API_URL}/api` : 'http://localhost:3001/api';
 
-import { Anime, Episode, StreamLink, Character, Recommendation } from '../../types';
-import { fetchWithRetry } from './failover';
-import {
-    adaptConsumetToAnime,
-    adaptConsumetEpisode,
-    adaptConsumetStream,
-    adaptConsumetCharacter,
-    adaptConsumetRecommendation,
-} from './consumet.adapter';
-import {
-    ConsumetSearchResponse,
-    ConsumetAnimeResult,
-    ConsumetStreamResponse,
-    PaginatedResponse,
-} from './consumet.types';
-
-// ============================================================================
-// Search & Browse Functions
-// ============================================================================
-
-/**
- * Search for anime by query
- */
-export async function searchAnime(
-    query: string,
-    page = 1,
-    perPage = 24
-): Promise<PaginatedResponse<Anime>> {
-    const endpoint = `meta/anilist/${encodeURIComponent(query)}?page=${page}&perPage=${perPage}`;
-    const res = await fetchWithRetry(endpoint);
-
-    if (!res.ok) {
-        throw new Error(`API Error: ${res.status}`);
-    }
-
-    const data: ConsumetSearchResponse = await res.json();
-
-    if (!data.results) {
-        return { data: [], pagination: { last_visible_page: 1 } };
-    }
-
+// Helper to map AniList response to our Anime interface format
+const mapAnilistToAnime = (item: any) => {
     return {
-        data: data.results.map(adaptConsumetToAnime),
-        pagination: {
-            last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
+        mal_id: item.idMal || item.id,
+        id: item.id,
+        title: item.title?.english || item.title?.romaji || item.title?.native || 'Unknown',
+        title_japanese: item.title?.native,
+        title_english: item.title?.english,
+        title_romaji: item.title?.romaji,
+        synonyms: item.synonyms || [],
+        images: {
+            jpg: {
+                image_url: item.coverImage?.large || '',
+                large_image_url: item.coverImage?.extraLarge || item.coverImage?.large || '',
+                banner_image: item.bannerImage || ''
+            }
         },
-    };
-}
-
-/**
- * Get trending anime
- */
-export async function getTrendingAnime(
-    page = 1,
-    perPage = 24
-): Promise<PaginatedResponse<Anime>> {
-    const endpoint = `meta/anilist/trending?page=${page}&perPage=${perPage}`;
-    const res = await fetchWithRetry(endpoint);
-
-    if (!res.ok) {
-        throw new Error(`API Error: ${res.status}`);
-    }
-
-    const data: ConsumetSearchResponse = await res.json();
-
-    if (!data.results) {
-        return { data: [], pagination: { last_visible_page: 1 } };
-    }
-
-    return {
-        data: data.results.map(adaptConsumetToAnime),
-        pagination: {
-            last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
+        synopsis: item.description?.replace(/<[^>]*>/g, '') || '',
+        type: item.format,
+        episodes: item.episodes,
+        score: item.averageScore ? item.averageScore / 10 : 0,
+        status: item.status,
+        duration: item.duration ? `${item.duration} min` : undefined,
+        rating: item.isAdult ? 'R+ - Mild Nudity' : undefined,
+        genres: item.genres?.map((g: string) => ({ name: g, mal_id: 0 })) || [],
+        studios: item.studios?.nodes?.map((s: any) => ({ name: s.name, mal_id: 0 })) || [],
+        year: item.seasonYear || item.startDate?.year,
+        season: item.season?.toLowerCase(),
+        aired: {
+            from: item.startDate ? `${item.startDate.year}-${item.startDate.month}-${item.startDate.day}` : undefined,
+            to: item.endDate ? `${item.endDate.year}-${item.endDate.month}-${item.endDate.day}` : undefined,
+            string: item.startDate?.year ? `${item.season || ''} ${item.startDate.year}`.trim() : undefined
         },
+        anilist_banner_image: item.bannerImage,
+        anilist_cover_image: item.coverImage?.extraLarge || item.coverImage?.large,
+        nextAiringEpisode: item.nextAiringEpisode ? {
+            episode: item.nextAiringEpisode.episode,
+            timeUntilAiring: item.nextAiringEpisode.timeUntilAiring ?? (item.nextAiringEpisode.airingAt ? item.nextAiringEpisode.airingAt - Math.floor(Date.now() / 1000) : 0)
+        } : undefined,
+        latestEpisode: item.nextAiringEpisode ? item.nextAiringEpisode.episode - 1 : undefined,
+        characters: item.characters,
+        trailer: item.trailer ? {
+            id: item.trailer.id,
+            site: item.trailer.site,
+            thumbnail: item.trailer.thumbnail,
+            youtube_id: item.trailer.site === 'youtube' ? item.trailer.id : undefined,
+            url: item.trailer.site === 'youtube' ? `https://www.youtube.com/watch?v=${item.trailer.id}` : undefined,
+            embed_url: item.trailer.site === 'youtube' ? `https://www.youtube.com/embed/${item.trailer.id}` : undefined
+        } : undefined,
+        episodeMetadata: item.streamingEpisodes?.map((e: any) => ({
+            title: e.title,
+            thumbnail: e.thumbnail,
+            url: e.url,
+            site: e.site
+        })) || [],
+        relations: item.relations,
+        recommendations: item.recommendations
     };
-}
+};
 
-/**
- * Get popular anime (Top Rated - sorted by score descending)
- */
-export async function getPopularAnime(
-    page = 1,
-    perPage = 24
-): Promise<PaginatedResponse<Anime>> {
-    const endpoint = `meta/anilist/advanced-search?sort=["SCORE_DESC"]&page=${page}&perPage=${perPage}`;
-    const res = await fetchWithRetry(endpoint);
+// Simple in-memory cache
+const cache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-    if (!res.ok) {
-        throw new Error(`API Error: ${res.status}`);
+const getCached = (key: string) => {
+    if (cache.has(key)) {
+        const entry = cache.get(key)!;
+        if (Date.now() - entry.timestamp < CACHE_TTL) {
+            return entry.data;
+        }
+        cache.delete(key);
     }
+    return null;
+};
 
-    const data: ConsumetSearchResponse = await res.json();
+const setCache = (key: string, data: any) => {
+    cache.set(key, { data, timestamp: Date.now() });
+};
 
-    if (!data.results) {
-        return { data: [], pagination: { last_visible_page: 1 } };
-    }
+// Track in-flight requests to prevent duplicates
+const inFlightRequests = new Map<string, Promise<any>>();
 
-    return {
-        data: data.results.map(adaptConsumetToAnime),
-        pagination: {
-            last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
-        },
-    };
-}
+export const animeService = {
+    // Fetch top anime from AniList
+    async getTopAnime(page: number = 1) {
+        const cacheKey = `top-anime-${page}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
 
-/**
- * Get anime by genre using advanced search
- */
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
 
-import { GENRE_ID_MAP } from './genreIds';
-import { adaptJikanToAnime } from './jikan.adapter';
-
-/**
- * Get anime by genre using strict ID filtering (Jikan)
- * Falls back to fuzzy search (Consumet) if genre not in map
- */
-export async function getAnimeByGenre(
-    genreName: string,
-    page = 1,
-    perPage = 24,
-    genreId?: number
-): Promise<PaginatedResponse<Anime>> {
-    try {
-        const normalizedGenre = genreName.toLowerCase().trim();
-        const mappedGenreId = GENRE_ID_MAP[normalizedGenre];
-        const effectiveGenreId = genreId || mappedGenreId;
-
-        // 1. Strict ID Filtering (if known genre)
-        if (effectiveGenreId) {
-            console.log(`[API] Fetching genre "${genreName}" (ID: ${effectiveGenreId}) from Jikan`);
-            // Jikan API: https://api.jikan.moe/v4/anime?genres=1&order_by=score&sort=desc
-            const endpoint = `https://api.jikan.moe/v4/anime?genres=${effectiveGenreId}&order_by=score&sort=desc&page=${page}&limit=${perPage}&sfw=true`;
-
-            const res = await fetch(endpoint);
-
-            if (!res.ok) {
-                if (res.status === 429) {
-                    // Rate limited - Fallback or wait? Jikan rate limits are tight.
-                    // For now, let's treat it as an error and fall back?
-                    // Or better, just throw and let error handler try something else?
-                    // Let's warn and fall through to old method if Jikan fails.
-                    console.warn('[API] Jikan rate limited. Falling back to fuzzy search.');
-                } else {
-                    throw new Error(`Jikan API Error: ${res.status}`);
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/anilist/top?page=${page}&limit=18`);
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch top anime: ${res.statusText}`);
                 }
-            } else {
                 const data = await res.json();
-
-                return {
-                    data: data.data.map(adaptJikanToAnime),
+                const result = {
+                    data: data.media?.map(mapAnilistToAnime) || [],
                     pagination: {
-                        last_visible_page: data.pagination.last_visible_page,
+                        last_visible_page: data.pageInfo?.lastPage || 1,
+                        current_page: data.pageInfo?.currentPage || 1,
+                        has_next_page: data.pageInfo?.hasNextPage || false
                     }
                 };
+
+                if (result.data.length > 0) {
+                    setCache(cacheKey, result);
+                }
+                return result;
+            } finally {
+                inFlightRequests.delete(cacheKey);
             }
-        }
+        })();
 
-        // 2. Fallback: Fuzzy Text Search (Consumet)
-        console.log(`[API] Genre "${genreName}" not mapped or Jikan failed. Using fuzzy search.`);
-        const endpoint = `meta/anilist/advanced-search?genres=["${encodeURIComponent(genreName)}"]&page=${page}&perPage=${perPage}`;
-        const res = await fetchWithRetry(endpoint);
-        const data: ConsumetSearchResponse = await res.json();
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
+    },
 
+    // Search anime via AniList
+    async searchAnime(query: string, page: number = 1) {
+        const res = await fetch(`${API_BASE}/anilist/search?q=${encodeURIComponent(query)}&page=${page}&limit=18`);
+        const data = await res.json();
         return {
-            data: data.results.map(adaptConsumetToAnime),
+            data: data.media?.map(mapAnilistToAnime) || [],
             pagination: {
-                last_visible_page: data.totalPages || (data.hasNextPage ? page + 1 : page),
-            },
+                last_visible_page: data.pageInfo?.lastPage || 1,
+                current_page: data.pageInfo?.currentPage || 1,
+                has_next_page: data.pageInfo?.hasNextPage || false
+            }
         };
-    } catch (error) {
-        console.error('[API] Genre search error:', error);
-        // Retry with fuzzy search if Jikan failed and we haven't tried it yet
-        // Simpler to just return empty or let global error handler catch it.
-        // But for robustness, let's try fuzzy search as a last resort in case Jikan is down?
-        // Risky if infinite loop. Let's just return empty for now.
-        return { data: [], pagination: { last_visible_page: 1 } };
-    }
-}
+    },
 
-// ============================================================================
-// Anime Detail Functions
-// ============================================================================
+    // Get anime details from AniList
+    async getAnimeDetails(id: number) {
+        const res = await fetch(`${API_BASE}/anilist/anime/${id}`);
+        const data = await res.json();
+        if (!data || data.error) return { data: null };
+        return { data: mapAnilistToAnime(data) };
+    },
 
-/**
- * Anime info response structure
- */
-export interface AnimeInfoResponse {
-    anime: Anime;
-    episodes: Episode[];
-    characters: Character[];
-    recommendations: Recommendation[];
-}
+    // Search anime on scraper (AnimePahe)
+    async searchScraper(title: string) {
+        const res = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(title)}`);
+        return res.json();
+    },
 
-/**
- * Get anime info by Anilist ID
- * Returns anime details along with episodes, characters, recommendations
- */
-export async function getAnimeInfo(
-    id: string | number
-): Promise<AnimeInfoResponse | null> {
-    try {
-        const endpoint = `meta/anilist/info/${id}?provider=gogoanime`;
-        const res = await fetchWithRetry(endpoint);
-        const data: ConsumetAnimeResult = await res.json();
+    // Get popular this season from AniList
+    async getPopularThisSeason(page: number = 1, limit: number = 10) {
+        const cacheKey = `popular-season-${page}-${limit}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
 
-        if (!data || !data.id) {
-            return null;
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
         }
 
-        return {
-            anime: adaptConsumetToAnime(data),
-            episodes: data.episodes?.map(adaptConsumetEpisode) || [],
-            characters: data.characters?.map(adaptConsumetCharacter) || [],
-            recommendations: data.recommendations?.map(adaptConsumetRecommendation) || [],
-        };
-    } catch (error) {
-        console.error('[API] Get anime info error:', error);
-        return null;
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/anilist/popular-this-season?page=${page}&limit=${limit}`);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch popular season: ${res.statusText}`);
+                    return { data: [], pagination: null };
+                }
+                const data = await res.json();
+                const result = {
+                    data: data.media?.map(mapAnilistToAnime) || [],
+                    pagination: {
+                        last_visible_page: data.pageInfo?.lastPage || 1,
+                        current_page: data.pageInfo?.currentPage || 1,
+                        has_next_page: data.pageInfo?.hasNextPage || false
+                    }
+                };
+
+                if (result.data.length > 0) {
+                    setCache(cacheKey, result);
+                }
+                return result;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
+    },
+
+    // Get episodes from scraper
+    async getEpisodes(session: string) {
+        const res = await fetch(`${API_BASE}/scraper/episodes?session=${session}`);
+        return res.json();
+    },
+
+    // Get stream links from scraper
+    async getStreams(animeSession: string, episodeSession: string) {
+        const res = await fetch(`${API_BASE}/scraper/streams?anime_session=${animeSession}&ep_session=${episodeSession}`);
+        return res.json();
+    },
+
+    // Get trending anime from AniList
+    async getTrendingAnime(page: number = 1, limit: number = 10) {
+        const cacheKey = `trending-${page}-${limit}`;
+        const cached = getCached(cacheKey);
+        if (cached) return cached;
+
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/anilist/trending?page=${page}&limit=${limit}`);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch trending: ${res.statusText}`);
+                    return { data: [], pagination: null };
+                }
+
+                const data = await res.json();
+                const result = {
+                    data: data.media?.map(mapAnilistToAnime) || [],
+                    pagination: {
+                        last_visible_page: data.pageInfo?.lastPage || 1,
+                        current_page: data.pageInfo?.currentPage || 1,
+                        has_next_page: data.pageInfo?.hasNextPage || false
+                    }
+                };
+
+                if (result.data.length > 0) {
+                    setCache(cacheKey, result);
+                }
+                return result;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
     }
-}
-
-// ============================================================================
-// Streaming Functions
-// ============================================================================
-
-/**
- * Quality order for sorting streams (higher is better)
- */
-const QUALITY_ORDER: Record<string, number> = {
-    '1080p': 4,
-    '720p': 3,
-    '480p': 2,
-    '360p': 1,
-    'default': 0,
-    'backup': 0,
-    'auto': 5,
 };
 
-/**
- * Get streaming sources for an episode
- */
-// Streaming providers to try in order
-const STREAM_PROVIDERS = [
-    undefined, // Default (usually GogoAnime)
-    'zoro',
-    'animepahe',
-    'gogoanime', // Explicit retry
-    'marin'
-];
-
-/**
- * Get streaming sources for an episode
- */
-export async function getEpisodeStreams(episodeId: string): Promise<StreamLink[]> {
-    // Try each provider in order until one works
-    for (const provider of STREAM_PROVIDERS) {
-        try {
-            // Construct endpoint with provider param if specified
-            const endpoint = `meta/anilist/watch/${episodeId}${provider ? `?provider=${provider}` : ''}`;
-
-            console.log(`[API] Fetching streams from provider: ${provider || 'default'}`);
-            const res = await fetchWithRetry(endpoint);
-
-            // Check for non-OK response locally before parsing (fetchWithRetry handles domain failover)
-            if (!res.ok) {
-                throw new Error(`Status ${res.status}`);
-            }
-
-            const data: ConsumetStreamResponse = await res.json();
-
-            if (data && data.sources && data.sources.length > 0) {
-                console.log(`[API] Successfully loaded streams from: ${provider || 'default'}`);
-
-                // Sort by quality (highest first)
-                const sorted = [...data.sources].sort((a, b) => {
-                    return (QUALITY_ORDER[b.quality] || 0) - (QUALITY_ORDER[a.quality] || 0);
-                });
-
-                return sorted.map(adaptConsumetStream);
-            }
-        } catch (error) {
-            console.warn(`[API] Provider ${provider || 'default'} failed:`, error);
-            // Continue to next provider
-        }
-    }
-
-    console.error('[API] All stream providers failed');
-    return [];
-}
-
-// ============================================================================
-// Legacy/Helper Functions
-// ============================================================================
-
-/**
- * Legacy: Get extra details (now handled by getAnimeInfo)
- */
-export async function getAnimeExtraDetails(id: number) {
-    const result = await getAnimeInfo(id.toString());
-    if (!result) {
-        return {
-            characters: [],
-            relations: [],
-            videos: [],
-            recommendations: [],
-            similar: [],
-        };
-    }
+// Legacy exports for backward compatibility
+export const searchAnime = async (query: string, page: number = 1, perPage: number = 24) => {
+    const result = await animeService.searchAnime(query, page);
     return {
-        characters: result.characters,
-        relations: [],
-        videos: [],
-        recommendations: result.recommendations,
-        similar: [],
+        data: result.data.slice(0, perPage),
+        pagination: result.pagination
     };
+};
+export const getTrendingAnime = animeService.getTrendingAnime;
+export const getPopularAnime = async (page: number = 1, perPage: number = 24) => {
+    const result = await animeService.getTopAnime(page);
+    return {
+        data: result.data.slice(0, perPage),
+        pagination: result.pagination
+    };
+};
+export const getAnimeInfo = async (id: string | number) => {
+    const result = await animeService.getAnimeDetails(Number(id));
+    if (!result.data) return null;
+
+    // Try to get episodes from scraper
+    let episodes: any[] = [];
+    try {
+        const searchRes = await animeService.searchScraper(result.data.title);
+        if (searchRes && searchRes.length > 0) {
+            const epsData = await animeService.getEpisodes(searchRes[0].session);
+            episodes = (epsData.episodes || []).map((ep: any) => ({
+                id: ep.session,
+                session: ep.session,
+                episodeNumber: ep.episodeNumber,
+                title: ep.title || `Episode ${ep.episodeNumber}`,
+                image: ep.snapshot,
+                url: ''
+            }));
+        }
+    } catch (e) {
+        console.warn('Failed to fetch episodes from scraper', e);
+    }
+
+    return {
+        anime: result.data,
+        episodes,
+        characters: result.data.characters?.edges?.map((c: any) => ({
+            character: {
+                mal_id: c.node.id,
+                name: c.node.name.full,
+                images: { jpg: { image_url: c.node.image?.large || '' } },
+                url: ''
+            },
+            role: c.role,
+            voice_actors: c.voiceActors?.map((va: any) => ({
+                person: {
+                    mal_id: va.id,
+                    name: va.name.full,
+                    images: { jpg: { image_url: va.image?.large || '' } },
+                    url: ''
+                },
+                language: va.languageV2
+            })) || []
+        })) || [],
+        recommendations: result.data.recommendations?.nodes?.map((r: any) => ({
+            entry: {
+                mal_id: r.mediaRecommendation?.id,
+                title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
+                images: { jpg: { image_url: r.mediaRecommendation?.coverImage?.large || '' } },
+                url: ''
+            },
+            votes: 0,
+            url: ''
+        })) || []
+    };
+};
+
+export interface AnimeInfoResponse {
+    anime: any;
+    episodes: any[];
+    characters: any[];
+    recommendations: any[];
 }
 
-/**
- * Legacy: Get similar anime by genre
- */
-export async function getSimilarAnime(
-    genres: { mal_id: number; name?: string }[]
-): Promise<Anime[]> {
-    if (!genres || genres.length === 0) return [];
-    try {
-        const genreName = genres[0].name || 'Action';
-        const result = await getAnimeByGenre(genreName, 1, 12);
-        return result.data;
-    } catch (error) {
-        console.error('[API] Error fetching similar anime:', error);
+export const getEpisodeStreams = async (episodeSession: string, animeSession?: string) => {
+    if (!animeSession) {
+        console.warn('No anime session provided for getEpisodeStreams');
         return [];
     }
-}
-
-/**
- * Legacy: Prefetch episodes (no-op since Consumet bundles episodes with info)
- */
-export const prefetchEpisodes = async (_title: string): Promise<void> => {
-    // No-op: Consumet API returns episodes with info, no need to prefetch
+    const data = await animeService.getStreams(animeSession, episodeSession);
+    return data || [];
 };
 
-/**
- * Legacy: Clear search cache (no-op)
- */
-export const clearSearchCache = (): void => {
-    // No-op: Consumet handles caching on the server
+export const prefetchEpisodes = async (_title: string): Promise<void> => { };
+export const clearSearchCache = (): void => { };
+export const getAnimeByGenre = async (
+    genreName: string,
+    page: number = 1,
+    perPage: number = 24,
+    _genreId?: number
+) => {
+    // Use search with genre name as fallback
+    try {
+        const result = await animeService.searchAnime(genreName, page);
+        return {
+            data: result.data.slice(0, perPage),
+            pagination: result.pagination
+        };
+    } catch (e) {
+        console.error('getAnimeByGenre failed', e);
+        return { data: [], pagination: { last_visible_page: 1 } };
+    }
 };
+export const getSimilarAnime = async () => [];
+export const getAnimeExtraDetails = async () => ({
+    characters: [],
+    relations: [],
+    videos: [],
+    recommendations: [],
+    similar: []
+});
