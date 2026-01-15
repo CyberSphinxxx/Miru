@@ -1,22 +1,26 @@
 export interface Anime {
     mal_id: number;
+    id?: number; // AniList ID
     title: string;
+    title_japanese?: string;
+    title_english?: string;
+    title_romaji?: string;
+    synonyms?: string[];
     images: {
         jpg: {
             image_url: string;
             large_image_url: string;
-            banner_image?: string; // High-res landscape/banner image
+            banner_image?: string;
         };
     };
     score: number;
     rank?: number;
-    status: string;
-    type: string;
+    status?: string;
+    type?: string;
     episodes: number | null;
     year?: number;
     season?: string;
     synopsis?: string;
-    title_japanese?: string;
     duration?: string;
     rating?: string;
     scored_by?: number;
@@ -24,16 +28,31 @@ export interface Anime {
     studios?: { mal_id: number; name: string }[];
     producers?: { mal_id: number; name: string }[];
     aired?: {
-        from: string;
-        to: string | null;
-        string: string;
+        from?: string;
+        to?: string | null;
+        string?: string;
     };
     trailer?: {
-        youtube_id: string;
-        url: string;
-        embed_url: string;
+        youtube_id?: string;
+        url?: string;
+        embed_url?: string;
+        id?: string;
+        site?: string;
+        thumbnail?: string;
     };
     source?: string;
+    // AniList specific fields
+    anilist_banner_image?: string;
+    anilist_cover_image?: string;
+    nextAiringEpisode?: {
+        episode: number;
+        timeUntilAiring: number;
+    };
+    latestEpisode?: number;
+    characters?: any;
+    episodeMetadata?: any[];
+    relations?: any;
+    recommendations?: any;
 }
 
 export interface WatchlistItem {
@@ -48,14 +67,14 @@ export interface WatchlistItem {
 
 export interface Episode {
     id: string;
-    session: string;
+    session?: string;
     episodeNumber: string | number;
     duration?: string;
     title?: string;
     description?: string;
     image?: string;
     airDate?: string;
-    url?: string; // External watch link (fallback)
+    url?: string;
     snapshot?: string;
 }
 
