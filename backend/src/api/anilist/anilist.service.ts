@@ -384,4 +384,33 @@ export const anilistService = {
             return null;
         }
     }
+    ,
+    async getAnimeByGenre(genre: string, page: number = 1, perPage: number = 24) {
+        const query = `
+            query ($genre: String, $page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                    pageInfo {
+                        total
+                        currentPage
+                        lastPage
+                        hasNextPage
+                    }
+                    media(genre: $genre, type: ANIME, sort: POPULARITY_DESC) {
+                        ${MEDIA_FIELDS}
+                    }
+                }
+            }
+        `;
+
+        try {
+            const response = await axios.post(ANILIST_API_URL, {
+                query,
+                variables: { genre, page, perPage }
+            });
+            return response.data.data.Page;
+        } catch (error) {
+            console.error('Error fetching anime by genre:', error);
+            return { media: [], pageInfo: {} };
+        }
+    }
 };
