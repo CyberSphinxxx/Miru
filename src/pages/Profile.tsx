@@ -4,14 +4,16 @@ import { useLocalUser, LibraryStatus, LibraryEntry } from '../context/UserContex
 import { useAuth } from '../context/AuthContext';
 import AnimeCard from '../components/AnimeCard';
 import { Anime } from '../types';
+import { getWatchHistory } from '../services/watchHistoryService';
 
-type Tab = 'All' | 'Watching' | 'Completed' | 'Plan to Watch' | 'On Hold' | 'Dropped';
+type Tab = 'All' | 'Watching' | 'Completed' | 'Plan to Watch' | 'On Hold' | 'Dropped' | 'History';
 
 function Profile() {
     const { userData } = useLocalUser();
     const { currentUser, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<Tab>('All');
+    const watchHistory = getWatchHistory();
 
     // Calculate stats
     const totalAnime = Object.values(userData.library).reduce((acc, list) => acc + list.length, 0);
@@ -35,6 +37,21 @@ function Profile() {
 
     // Get current list based on active tab
     const getCurrentList = (): Anime[] => {
+        if (activeTab === 'History') {
+            // Convert watch history items to Anime format
+            return watchHistory.map(item => ({
+                mal_id: item.mal_id,
+                id: item.id,
+                title: item.title,
+                images: { jpg: { image_url: item.image_url, large_image_url: item.image_url } },
+                type: item.type,
+                episodes: item.episodes,
+                score: 0,
+                genres: [],
+                synopsis: ''
+            } as Anime));
+        }
+
         if (activeTab === 'All') {
             const allAnime: Anime[] = [];
             Object.values(userData.library).forEach((list: LibraryEntry[]) => {
@@ -50,11 +67,12 @@ function Profile() {
     const currentList = getCurrentList();
 
     const handleCardClick = (anime: Anime) => {
-        navigate(`/anime/${anime.mal_id}`);
+        navigate(`/anime/${anime.mal_id || anime.id}`);
     };
 
     const tabs: { label: Tab; count: number }[] = [
         { label: 'All', count: totalAnime },
+        { label: 'History', count: watchHistory.length },
         { label: 'Watching', count: watchingCount },
         { label: 'Completed', count: completedCount },
         { label: 'Plan to Watch', count: planToWatchCount },

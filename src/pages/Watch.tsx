@@ -5,10 +5,12 @@ import WatchPageSkeleton from '../components/WatchPageSkeleton';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
 import { animeService } from '../services/api';
+import { useLocalUser } from '../context/UserContext';
 
 function Watch() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { updateStatus, getAnimeStatus } = useLocalUser();
 
     // State
     const [anime, setAnime] = useState<Anime | null>(null);
@@ -17,6 +19,7 @@ function Watch() {
     const [streams, setStreams] = useState<StreamLink[]>([]);
     const [scraperSession, setScraperSession] = useState<string | null>(null);
     const [externalUrl, setExternalUrl] = useState<string | null>(null);
+    const [addedToWatching, setAddedToWatching] = useState(false);
 
     // UI State
     const [loading, setLoading] = useState(true);
@@ -27,6 +30,9 @@ function Watch() {
     // Player State
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
     const [isAutoQuality, setIsAutoQuality] = useState(true);
+
+    // 5-minute timer ref for auto-adding to Watching
+    const watchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Cache refs
     const sessionCache = useRef(new Map<number, string>());
@@ -121,6 +127,41 @@ function Watch() {
         };
         initWatch();
     }, [id]);
+
+    // 5-minute timer to auto-add to "Watching" list
+    useEffect(() => {
+        // Clear any existing timer
+        if (watchTimerRef.current) {
+            clearTimeout(watchTimerRef.current);
+        }
+
+        // Only start timer if we have anime data
+        if (!anime) return;
+
+        // Check if anime is already in any library list
+        const status = getAnimeStatus(anime.mal_id || anime.id || 0);
+        if (status) {
+            // Already in library, don't auto-add
+            setAddedToWatching(true);
+            return;
+        }
+
+        // Start 5-minute timer
+        watchTimerRef.current = setTimeout(() => {
+            if (anime && !addedToWatching) {
+                console.log('[Watch] Auto-adding to Watching after 5 minutes:', anime.title);
+                updateStatus(anime, 'watching');
+                setAddedToWatching(true);
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+
+        // Cleanup on unmount or when anime changes
+        return () => {
+            if (watchTimerRef.current) {
+                clearTimeout(watchTimerRef.current);
+            }
+        };
+    }, [anime, addedToWatching, getAnimeStatus, updateStatus]);
 
     const getMappedQuality = (q: string): string => {
         const res = parseInt(q);
