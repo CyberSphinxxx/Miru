@@ -1,6 +1,14 @@
 
 import { AnimePaheScraper } from '../../scraper/animepahe.js';
-import { cacheService } from '../../services/cache.service.js';
+
+// Cache service import - wrapped in try-catch to prevent crashes
+let cacheService: any = null;
+try {
+    // Dynamically import cache service - if it fails, caching is disabled
+    cacheService = require('../../services/cache.service.js').cacheService;
+} catch (error) {
+    console.warn('Cache service could not be loaded. Caching is disabled.');
+}
 
 export class ScraperService {
     private scraper: AnimePaheScraper;
@@ -10,46 +18,63 @@ export class ScraperService {
     }
 
     /**
-     * Search for anime - cached for 6 hours
+     * Search for anime - cached for 6 hours if caching is available
      */
     async search(query: string) {
-        const cacheKey = `search_${query.toLowerCase().trim()}`;
-
-        // Check cache first
-        const cached = await cacheService.getIfFresh(
-            'anime_search',
-            cacheKey,
-            cacheService.TTL_HOURS.SEARCH
-        );
-        if (cached) {
-            return cached;
+        // Try to use cache if available
+        if (cacheService) {
+            const cacheKey = `search_${query.toLowerCase().trim()}`;
+            try {
+                const cached = await cacheService.getIfFresh(
+                    'anime_search',
+                    cacheKey,
+                    cacheService.TTL_HOURS.SEARCH
+                );
+                if (cached) {
+                    return cached;
+                }
+            } catch (e) {
+                // Cache failed, continue with scraping
+            }
         }
 
-        // Scrape if not cached
+        // Scrape
         const result = await this.scraper.search(query);
 
-        // Save to cache (don't await - fire and forget)
-        cacheService.set('anime_search', cacheKey, result);
+        // Try to save to cache if available
+        if (cacheService) {
+            const cacheKey = `search_${query.toLowerCase().trim()}`;
+            try {
+                cacheService.set('anime_search', cacheKey, result);
+            } catch (e) {
+                // Cache save failed, ignore
+            }
+        }
 
         return result;
     }
 
     /**
-     * Get episodes for an anime - cached for 24 hours
+     * Get episodes for an anime - cached for 24 hours if caching is available
      */
     async getEpisodes(session: string) {
-        // Check cache first
-        const cached = await cacheService.getIfFresh<{ episodes: any[]; lastPage: number }>(
-            'anime_episodes',
-            session,
-            cacheService.TTL_HOURS.EPISODES
-        );
-        if (cached) {
-            return cached;
+        // Try to use cache if available
+        if (cacheService) {
+            try {
+                const cached = await cacheService.getIfFresh<{ episodes: any[]; lastPage: number }>(
+                    'anime_episodes',
+                    session,
+                    cacheService.TTL_HOURS.EPISODES
+                );
+                if (cached) {
+                    return cached;
+                }
+            } catch (e) {
+                // Cache failed, continue with scraping
+            }
         }
 
-        // Scrape if not cached
-        // Fetch first page to see how many pages there are
+        // Scrape
         const firstPage = await this.scraper.getEpisodes(session, 1);
         let allEpisodes = [...firstPage.episodes];
 
@@ -71,36 +96,55 @@ export class ScraperService {
             lastPage: firstPage.lastPage
         };
 
-        // Save to cache
-        cacheService.set('anime_episodes', session, result);
+        // Try to save to cache if available
+        if (cacheService) {
+            try {
+                cacheService.set('anime_episodes', session, result);
+            } catch (e) {
+                // Cache save failed, ignore
+            }
+        }
 
         return result;
     }
 
     /**
-     * Get stream URLs - cached for 1 hour (streams can expire)
+     * Get stream URLs - cached for 1 hour if caching is available
      */
     async getStreams(animeSession: string, epSession: string) {
         const cacheKey = `${animeSession}_${epSession}`;
 
-        // Check cache first
-        const cached = await cacheService.getIfFresh(
-            'anime_streams',
-            cacheKey,
-            cacheService.TTL_HOURS.STREAMS
-        );
-        if (cached) {
-            return cached;
+        // Try to use cache if available
+        if (cacheService) {
+            try {
+                const cached = await cacheService.getIfFresh(
+                    'anime_streams',
+                    cacheKey,
+                    cacheService.TTL_HOURS.STREAMS
+                );
+                if (cached) {
+                    return cached;
+                }
+            } catch (e) {
+                // Cache failed, continue with scraping
+            }
         }
 
-        // Scrape if not cached
+        // Scrape
         const result = await this.scraper.getLinks(animeSession, epSession);
 
-        // Save to cache
-        cacheService.set('anime_streams', cacheKey, result);
+        // Try to save to cache if available
+        if (cacheService) {
+            try {
+                cacheService.set('anime_streams', cacheKey, result);
+            } catch (e) {
+                // Cache save failed, ignore
+            }
+        }
 
         return result;
     }
 }
 
 export const scraperService = new ScraperService();
+
