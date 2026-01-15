@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import WatchPage from '../components/WatchPage';
-import LoadingSpinner from '../components/LoadingSpinner';
+import WatchPageSkeleton from '../components/WatchPageSkeleton';
 import { Anime, Episode, StreamLink } from '../types';
 import { saveWatchProgress } from '../services/watchHistoryService';
 import { animeService } from '../services/api';
@@ -162,11 +162,7 @@ function Watch() {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-miru-bg flex justify-center items-center">
-                <LoadingSpinner size="lg" text="Initializing player..." />
-            </div>
-        );
+        return <WatchPageSkeleton />;
     }
 
     if (error || !anime) {
