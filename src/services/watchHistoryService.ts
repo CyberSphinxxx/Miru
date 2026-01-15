@@ -4,6 +4,7 @@ const WATCH_HISTORY_KEY = 'miru_watch_history';
 const MAX_HISTORY_ITEMS = 20;
 
 export interface WatchHistoryItem {
+    id: number; // AniList ID for navigation
     mal_id: number;
     title: string;
     image_url: string;
@@ -38,6 +39,7 @@ export const saveWatchProgress = (
     const filtered = history.filter(item => item.mal_id !== anime.mal_id);
 
     const newItem: WatchHistoryItem = {
+        id: anime.id || anime.mal_id, // AniList ID for navigation, fallback to mal_id
         mal_id: anime.mal_id,
         title: anime.title,
         image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,

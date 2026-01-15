@@ -402,7 +402,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                             {watchHistory.slice(0, 10).map(item => (
                                 <div
                                     key={item.mal_id}
-                                    onClick={() => navigate(`/watch/${item.mal_id}`)}
+                                    onClick={() => navigate(`/watch/${item.id}`)}
                                     className="flex-shrink-0 w-72 landscape-card group"
                                 >
                                     <img

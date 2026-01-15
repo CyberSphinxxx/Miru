@@ -65,6 +65,7 @@ export async function saveFirebaseWatchProgress(
         const docRef = doc(historyRef, anime.mal_id.toString());
 
         const item: FirebaseWatchHistoryItem = {
+            id: anime.id || anime.mal_id, // AniList ID for navigation
             mal_id: anime.mal_id,
             title: anime.title,
             image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
