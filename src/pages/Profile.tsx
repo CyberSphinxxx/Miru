@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import AnimeCard from '../components/AnimeCard';
 import { Anime } from '../types';
 import { getWatchHistory, clearWatchHistory, removeFromHistory } from '../services/watchHistoryService';
+import { toast } from 'react-hot-toast';
 
 type Tab = 'All' | 'Watching' | 'Completed' | 'Plan to Watch' | 'On Hold' | 'Dropped' | 'History';
 
@@ -23,14 +24,14 @@ function Profile() {
         if (window.confirm('Are you sure you want to clear your entire watch history?')) {
             clearWatchHistory();
             setHistoryUpdate(prev => prev + 1);
+            toast.success('Watch history cleared');
         }
     };
 
     const handleRemoveFromHistory = (animeId: number) => {
-        if (window.confirm('Remove this anime from history?')) {
-            removeFromHistory(animeId);
-            setHistoryUpdate(prev => prev + 1);
-        }
+        removeFromHistory(animeId);
+        setHistoryUpdate(prev => prev + 1);
+        toast.success('Removed from history');
     };
 
     // Calculate stats
