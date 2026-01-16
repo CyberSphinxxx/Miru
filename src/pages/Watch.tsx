@@ -37,6 +37,16 @@ function Watch() {
     // Cache refs
     const sessionCache = useRef(new Map<number, string>());
 
+    // Next Episode Prefetch State
+    const prefetchedEpisodeRef = useRef<{
+        episodeSession: string;
+        streams: StreamLink[];
+    } | null>(null);
+    const prefetchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Prefetch delay: 80% of typical anime episode (~24 min) = ~19 minutes
+    const PREFETCH_DELAY_MS = 19 * 60 * 1000;
+
     // 1. Fetch Anime Info and Episodes
     useEffect(() => {
         const initWatch = async () => {
@@ -181,6 +191,12 @@ function Watch() {
         setSelectedStreamIndex(0);
         setIsAutoQuality(true);
 
+        // Clear any pending prefetch timer
+        if (prefetchTimerRef.current) {
+            clearTimeout(prefetchTimerRef.current);
+            prefetchTimerRef.current = null;
+        }
+
         // Save to watch history
         if (activeAnime) {
             const epNum = typeof episode.episodeNumber === 'string'
@@ -192,6 +208,16 @@ function Watch() {
         try {
             if (!activeSession || !episode.session) {
                 console.error('No session available');
+                setStreamLoading(false);
+                return;
+            }
+
+            // Check if we have prefetched data for this episode
+            const prefetchedData = prefetchedEpisodeRef.current;
+            if (prefetchedData && prefetchedData.episodeSession === episode.session) {
+                console.log('[Prefetch] Using cached stream data for Episode', episode.episodeNumber);
+                setStreams(prefetchedData.streams);
+                prefetchedEpisodeRef.current = null; // Clear cache after use
                 setStreamLoading(false);
                 return;
             }
@@ -223,6 +249,85 @@ function Watch() {
             setStreamLoading(false);
         }
     };
+
+    // Prefetch next episode streams in background
+    const prefetchNextEpisode = async () => {
+        const currentIndex = episodes.findIndex(ep => ep.id === currentEpisode?.id);
+        const hasNext = currentIndex < episodes.length - 1 && currentIndex !== -1;
+
+        if (!hasNext || !scraperSession) {
+            return;
+        }
+
+        const nextEpisode = episodes[currentIndex + 1];
+
+        // Don't prefetch if already cached
+        if (prefetchedEpisodeRef.current?.episodeSession === nextEpisode.session) {
+            return;
+        }
+
+        console.log('[Prefetch] Starting prefetch for Episode', nextEpisode.episodeNumber);
+
+        try {
+            const streamData = await animeService.getStreams(scraperSession, nextEpisode.session);
+
+            if (streamData && streamData.length > 0) {
+                // Deduplicate and map qualities (same logic as loadStream)
+                const qualityMap = new Map<string, StreamLink>();
+                const sortedData = [...streamData].sort(
+                    (a: StreamLink, b: StreamLink) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0)
+                );
+
+                sortedData.forEach((s: StreamLink) => {
+                    const mapped = getMappedQuality(s.quality);
+                    if (!qualityMap.has(mapped)) {
+                        qualityMap.set(mapped, { ...s, quality: mapped });
+                    }
+                });
+
+                const uniqueStreams = Array.from(qualityMap.values());
+
+                // Cache the prefetched data
+                prefetchedEpisodeRef.current = {
+                    episodeSession: nextEpisode.session,
+                    streams: uniqueStreams,
+                };
+
+                console.log('[Prefetch] Successfully cached streams for Episode', nextEpisode.episodeNumber);
+            }
+        } catch (e) {
+            console.warn('[Prefetch] Failed to prefetch next episode:', e);
+            // Silent failure - prefetch is a nice-to-have, not critical
+        }
+    };
+
+    // Start prefetch timer when streams load (trigger at ~80% of episode)
+    useEffect(() => {
+        // Only start timer if we have streams loaded and there's a next episode
+        if (!currentEpisode || streams.length === 0) {
+            return;
+        }
+
+        const currentIndex = episodes.findIndex(ep => ep.id === currentEpisode.id);
+        const hasNext = currentIndex < episodes.length - 1 && currentIndex !== -1;
+
+        if (!hasNext) {
+            return;
+        }
+
+        console.log('[Prefetch] Timer started - will prefetch next episode in ~19 minutes');
+
+        prefetchTimerRef.current = setTimeout(() => {
+            prefetchNextEpisode();
+        }, PREFETCH_DELAY_MS);
+
+        return () => {
+            if (prefetchTimerRef.current) {
+                clearTimeout(prefetchTimerRef.current);
+                prefetchTimerRef.current = null;
+            }
+        };
+    }, [currentEpisode, streams, episodes]);
 
     const handleEpisodeClick = (ep: Episode) => {
         loadStream(ep);
