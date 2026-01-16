@@ -1,14 +1,24 @@
 
 import { AnimePaheScraper } from '../../scraper/animepahe.js';
 
-// Cache service import - wrapped in try-catch to prevent crashes
+// Cache service import - loaded dynamically to prevent crashes
 let cacheService: any = null;
-try {
-    // Dynamically import cache service - if it fails, caching is disabled
-    cacheService = require('../../services/cache.service.js').cacheService;
-} catch (error) {
-    console.warn('Cache service could not be loaded. Caching is disabled.');
-}
+let cacheServiceLoaded = false;
+
+// Async initialization of cache service
+const loadCacheService = async () => {
+    if (cacheServiceLoaded) return;
+    cacheServiceLoaded = true;
+    try {
+        const module = await import('../../services/cache.service.js');
+        cacheService = module.cacheService;
+    } catch (error) {
+        console.warn('Cache service could not be loaded. Caching is disabled.');
+    }
+};
+
+// Initialize cache service immediately
+loadCacheService();
 
 export class ScraperService {
     private scraper: AnimePaheScraper;

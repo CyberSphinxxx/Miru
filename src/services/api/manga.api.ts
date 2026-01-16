@@ -66,7 +66,7 @@ const getCached = (key: string, ttlType: keyof typeof CACHE_TTL = 'default') => 
     if (memoryCache.has(fullKey)) {
         const entry = memoryCache.get(fullKey)!;
         if (Date.now() - entry.timestamp < ttl) {
-            console.log(`[Manga Cache HIT - Memory] ${key}`);
+            // Cache HIT - Memory
             return entry.data;
         }
         memoryCache.delete(fullKey);
@@ -79,7 +79,7 @@ const getCached = (key: string, ttlType: keyof typeof CACHE_TTL = 'default') => 
             const entry = JSON.parse(stored);
             if (Date.now() - entry.timestamp < ttl) {
                 memoryCache.set(fullKey, entry);
-                console.log(`[Manga Cache HIT - SessionStorage] ${key}`);
+                // Cache HIT - SessionStorage
                 return entry.data;
             }
             sessionStorage.removeItem(fullKey);
@@ -99,7 +99,7 @@ const setCache = (key: string, data: any) => {
 
     try {
         sessionStorage.setItem(fullKey, JSON.stringify(entry));
-        console.log(`[Manga Cache SET] ${key}`);
+        // Manga Cache SET
     } catch (e) {
         // sessionStorage might be full - just use memory cache
     }

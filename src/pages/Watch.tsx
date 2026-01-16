@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import WatchPage from '../components/WatchPage';
 import WatchPageSkeleton from '../components/WatchPageSkeleton';
@@ -251,7 +251,7 @@ function Watch() {
     };
 
     // Prefetch next episode streams in background
-    const prefetchNextEpisode = async () => {
+    const prefetchNextEpisode = useCallback(async () => {
         const currentIndex = episodes.findIndex(ep => ep.id === currentEpisode?.id);
         const hasNext = currentIndex < episodes.length - 1 && currentIndex !== -1;
 
@@ -299,7 +299,7 @@ function Watch() {
             console.warn('[Prefetch] Failed to prefetch next episode:', e);
             // Silent failure - prefetch is a nice-to-have, not critical
         }
-    };
+    }, [episodes, currentEpisode, scraperSession]);
 
     // Start prefetch timer when streams load (trigger at ~80% of episode)
     useEffect(() => {
@@ -327,7 +327,7 @@ function Watch() {
                 prefetchTimerRef.current = null;
             }
         };
-    }, [currentEpisode, streams, episodes]);
+    }, [currentEpisode, streams, episodes, prefetchNextEpisode]);
 
     const handleEpisodeClick = (ep: Episode) => {
         loadStream(ep);

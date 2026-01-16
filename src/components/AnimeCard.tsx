@@ -32,6 +32,15 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
         setShowDetails(false);
     };
 
+    // Cleanup timeout on unmount to prevent memory leaks
+    React.useEffect(() => {
+        return () => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+        };
+    }, []);
+
     const handlePlayClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onPlayClick?.();

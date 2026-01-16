@@ -90,7 +90,7 @@ const getCached = (key: string, ttlType: keyof typeof CACHE_TTL_CONFIG = 'defaul
     if (memoryCache.has(fullKey)) {
         const entry = memoryCache.get(fullKey)!;
         if (Date.now() - entry.timestamp < ttl) {
-            console.log(`[Cache HIT - Memory] ${key}`);
+            // Cache HIT - Memory
             return entry.data;
         }
         memoryCache.delete(fullKey);
@@ -104,7 +104,7 @@ const getCached = (key: string, ttlType: keyof typeof CACHE_TTL_CONFIG = 'defaul
             if (Date.now() - entry.timestamp < ttl) {
                 // Restore to memory cache for faster subsequent access
                 memoryCache.set(fullKey, entry);
-                console.log(`[Cache HIT - SessionStorage] ${key}`);
+                // Cache HIT from SessionStorage
                 return entry.data;
             }
             // Expired - clean up
@@ -130,7 +130,7 @@ const setCache = (key: string, data: any) => {
     // Save to sessionStorage for persistence
     try {
         sessionStorage.setItem(fullKey, JSON.stringify(entry));
-        console.log(`[Cache SET] ${key}`);
+        // Cache SET
     } catch (e) {
         // sessionStorage might be full - clear old entries
         try {
@@ -203,16 +203,25 @@ export const animeService = {
 
     // Search anime via AniList
     async searchAnime(query: string, page: number = 1) {
-        const res = await fetch(`${API_BASE}/anilist/search?q=${encodeURIComponent(query)}&page=${page}&limit=18`);
-        const data = await res.json();
-        return {
-            data: data.media?.map(mapAnilistToAnime) || [],
-            pagination: {
-                last_visible_page: data.pageInfo?.lastPage || 1,
-                current_page: data.pageInfo?.currentPage || 1,
-                has_next_page: data.pageInfo?.hasNextPage || false
+        try {
+            const res = await fetch(`${API_BASE}/anilist/search?q=${encodeURIComponent(query)}&page=${page}&limit=18`);
+            if (!res.ok) {
+                console.warn(`Failed to search anime: ${res.statusText}`);
+                return { data: [], pagination: { last_visible_page: 1, current_page: 1, has_next_page: false } };
             }
-        };
+            const data = await res.json();
+            return {
+                data: data.media?.map(mapAnilistToAnime) || [],
+                pagination: {
+                    last_visible_page: data.pageInfo?.lastPage || 1,
+                    current_page: data.pageInfo?.currentPage || 1,
+                    has_next_page: data.pageInfo?.hasNextPage || false
+                }
+            };
+        } catch (error) {
+            console.error('Error searching anime:', error);
+            return { data: [], pagination: { last_visible_page: 1, current_page: 1, has_next_page: false } };
+        }
     },
 
     // Get anime details from AniList
@@ -324,6 +333,10 @@ export const animeService = {
         const cached = getCached(cacheKey, 'genre');
         if (cached) return cached;
 
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
         const fetchPromise = (async () => {
             try {
                 const res = await fetch(`${API_BASE}/anilist/genre/${encodeURIComponent(genre)}?page=${page}&limit=${limit}`);
@@ -346,10 +359,12 @@ export const animeService = {
             } catch (error) {
                 console.error('Error fetching genre:', error);
                 return { data: [], pagination: null };
+            } finally {
+                inFlightRequests.delete(cacheKey);
             }
         })();
 
-        setCache(cacheKey, { data: await fetchPromise, timestamp: Date.now() }); // Cache handling is a bit messy in original, but sticking to pattern
+        inFlightRequests.set(cacheKey, fetchPromise);
         return fetchPromise;
     }
 };
