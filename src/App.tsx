@@ -8,6 +8,8 @@ import LoadingSpinner from './components/LoadingSpinner';
 const Detail = lazy(() => import('./pages/Detail'));
 const Watch = lazy(() => import('./pages/Watch'));
 const Profile = lazy(() => import('./pages/Profile'));
+const MangaHome = lazy(() => import('./pages/MangaHome'));
+const MangaReader = lazy(() => import('./pages/MangaReader'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -33,6 +35,7 @@ function AppContent() {
         if (mode === 'home') navigate('/');
         if (mode === 'trending') navigate('/trending');
         if (mode === 'genres') navigate('/genres');
+        if (mode === 'manga') navigate('/manga');
         if (mode === 'profile') navigate('/profile');
     };
 
@@ -41,6 +44,7 @@ function AppContent() {
         const path = location.pathname;
         if (path === '/trending') return 'trending';
         if (path.startsWith('/genres')) return 'genres';
+        if (path.startsWith('/manga')) return 'manga';
         if (path.startsWith('/anime')) return 'detail';
         if (path.startsWith('/watch')) return 'watch';
         if (path === '/profile') return 'profile';
@@ -61,6 +65,8 @@ function AppContent() {
                     <Route path="/trending" element={<Home viewMode="trending" />} />
                     <Route path="/genres" element={<Home viewMode="genres" />} />
                     <Route path="/genres/:genreId" element={<WrapperGenreHome />} />
+                    <Route path="/manga" element={<MangaHome viewMode="home" />} />
+                    <Route path="/read/:id" element={<MangaReader />} />
                     <Route path="/anime/:id" element={<Detail />} />
                     <Route path="/watch/:id" element={<Watch />} />
                 </Routes>

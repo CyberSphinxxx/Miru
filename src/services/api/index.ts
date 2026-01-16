@@ -16,5 +16,9 @@ export {
 
 export { default } from './anime.api';
 
+// Manga API functions
+export { mangaService } from './manga.api';
+
 // Genre functions
 export { getGenres, getGenreById, getGenreByName } from './genres';
+
