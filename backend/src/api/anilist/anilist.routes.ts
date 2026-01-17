@@ -48,6 +48,24 @@ router.get('/trending', async (req, res) => {
     }
 });
 
+// Get airing schedule
+router.get('/schedule', async (req, res) => {
+    try {
+        const now = Math.floor(Date.now() / 1000);
+        // Default to current week (7 days from now)
+        const startTime = req.query.start ? parseInt(req.query.start as string) : now;
+        const endTime = req.query.end ? parseInt(req.query.end as string) : now + (7 * 24 * 60 * 60);
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+        const data = await anilistService.getAiringSchedule(startTime, endTime, page, perPage);
+        res.json(data);
+    } catch (error) {
+        console.error('Error in schedule route:', error);
+        res.status(500).json({ error: 'Failed to fetch airing schedule' });
+    }
+});
+
 // Get popular this season
 router.get('/popular-this-season', async (req, res) => {
     try {

@@ -4,6 +4,7 @@ import AnimeCard from '../components/AnimeCard';
 import GenreCard from '../components/GenreCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SubNav from '../components/SubNav';
+import AnimeSchedule from '../components/AnimeSchedule';
 import { Anime, Genre } from '../types';
 import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
 import {
@@ -515,6 +516,11 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     </section>
                 )}
 
+                {/* Anime Schedule - Only show on home */}
+                {viewMode === 'home' && !searchQuery && (
+                    <AnimeSchedule />
+                )}
+
                 {/* Genre Selector View */}
                 {viewMode === 'genres' && !selectedGenreId && (
                     <div className="mb-8 animate-fade-in">
@@ -612,8 +618,9 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                     </div>
                 )}
 
-                {/* Anime Grid View */}
-                {(viewMode !== 'genres' || selectedGenreId) && (
+
+                {/* Anime Grid View - Hide on home view (replaced by schedule), show for search/trending/genre */}
+                {((viewMode !== 'genres' || selectedGenreId) && (viewMode !== 'home' || searchQuery)) && (
                     <div className="animate-fade-in">
                         {/* Section Header */}
                         <div className="flex justify-between items-end mb-8">

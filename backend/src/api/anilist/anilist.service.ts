@@ -424,5 +424,56 @@ export const anilistService = {
             console.error('Error fetching anime by genre/tag:', error);
             return { media: [], pageInfo: {} };
         }
+    },
+
+    async getAiringSchedule(startTime: number, endTime: number, page: number = 1, perPage: number = 50) {
+        const query = `
+            query ($airingAt_greater: Int, $airingAt_lesser: Int, $page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                    pageInfo {
+                        total
+                        currentPage
+                        lastPage
+                        hasNextPage
+                    }
+                    airingSchedules(airingAt_greater: $airingAt_greater, airingAt_lesser: $airingAt_lesser, sort: TIME) {
+                        id
+                        airingAt
+                        episode
+                        media {
+                            id
+                            idMal
+                            title {
+                                romaji
+                                english
+                                native
+                            }
+                            coverImage {
+                                large
+                            }
+                            format
+                            status
+                            isAdult
+                        }
+                    }
+                }
+            }
+        `;
+
+        try {
+            const response = await axios.post(ANILIST_API_URL, {
+                query,
+                variables: {
+                    airingAt_greater: startTime,
+                    airingAt_lesser: endTime,
+                    page,
+                    perPage
+                }
+            });
+            return response.data.data.Page;
+        } catch (error) {
+            console.error('Error fetching airing schedule:', error);
+            return { airingSchedules: [], pageInfo: {} };
+        }
     }
 };

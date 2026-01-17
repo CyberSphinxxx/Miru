@@ -366,6 +366,61 @@ export const animeService = {
 
         inFlightRequests.set(cacheKey, fetchPromise);
         return fetchPromise;
+    },
+
+    // Get airing schedule from AniList
+    async getAiringSchedule(startTime?: number, endTime?: number, page: number = 1, limit: number = 50) {
+        const now = Math.floor(Date.now() / 1000);
+        const start = startTime || now;
+        const end = endTime || now + (7 * 24 * 60 * 60); // Default 7 days
+
+        const cacheKey = `schedule-${start}-${end}-${page}-${limit}`;
+        const cached = getCached(cacheKey, 'trending'); // Use 10-minute TTL
+        if (cached) return cached;
+
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/anilist/schedule?start=${start}&end=${end}&page=${page}&limit=${limit}`);
+                if (!res.ok) {
+                    console.warn(`Failed to fetch schedule: ${res.statusText}`);
+                    return { airingSchedules: [], pageInfo: {} };
+                }
+                const data = await res.json();
+
+                // Transform schedule data with anime info
+                const schedules = data.airingSchedules?.map((item: any) => ({
+                    id: item.id,
+                    airingAt: item.airingAt,
+                    episode: item.episode,
+                    media: item.media ? {
+                        id: item.media.id,
+                        idMal: item.media.idMal,
+                        title: item.media.title?.english || item.media.title?.romaji || item.media.title?.native || 'Unknown',
+                        coverImage: item.media.coverImage?.large || '',
+                        format: item.media.format,
+                        status: item.media.status,
+                        isAdult: item.media.isAdult
+                    } : null
+                })).filter((item: any) => item.media && !item.media.isAdult) || [];
+
+                const result = {
+                    schedules,
+                    pageInfo: data.pageInfo || {}
+                };
+
+                if (schedules.length > 0) setCache(cacheKey, result);
+                return result;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
     }
 };
 
