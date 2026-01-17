@@ -33,8 +33,7 @@ function AppContent() {
 
     const handleViewChange = (mode: string) => {
         if (mode === 'home') navigate('/');
-        if (mode === 'trending') navigate('/trending');
-        if (mode === 'genres') navigate('/genres');
+        if (mode === 'anime') navigate('/anime');
         if (mode === 'manga') navigate('/manga');
         if (mode === 'profile') navigate('/profile');
     };
@@ -42,11 +41,10 @@ function AppContent() {
     // Determine current view mode for Navbar highlighting
     const getViewMode = () => {
         const path = location.pathname;
-        if (path === '/trending') return 'trending';
-        if (path.startsWith('/genres')) return 'genres';
-        if (path.startsWith('/manga')) return 'manga';
-        if (path.startsWith('/anime')) return 'detail';
-        if (path.startsWith('/watch')) return 'watch';
+        // All anime-related paths highlight 'Anime' in nav
+        if (path === '/anime' || path === '/trending' || path.startsWith('/genres') || path.startsWith('/anime/')) return 'anime';
+        if (path.startsWith('/manga') || path.startsWith('/read')) return 'manga';
+        if (path.startsWith('/watch')) return 'anime'; // Watch pages are anime-related
         if (path === '/profile') return 'profile';
         return 'home';
     };
@@ -62,6 +60,7 @@ function AppContent() {
                 <Routes>
                     <Route path="/" element={<Home viewMode="home" />} />
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/anime" element={<Home viewMode="anime" />} />
                     <Route path="/trending" element={<Home viewMode="trending" />} />
                     <Route path="/genres" element={<Home viewMode="genres" />} />
                     <Route path="/genres/:genreId" element={<WrapperGenreHome />} />

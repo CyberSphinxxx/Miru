@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/AnimeCard';
 import GenreCard from '../components/GenreCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SubNav from '../components/SubNav';
 import { Anime, Genre } from '../types';
 import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
 import {
@@ -12,7 +13,7 @@ import {
 } from '../services/api';
 
 interface HomeProps {
-    viewMode: 'home' | 'trending' | 'genres';
+    viewMode: 'home' | 'anime' | 'trending' | 'genres';
     selectedGenreId?: string;
 }
 
@@ -383,7 +384,35 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         <div className="pb-12">
             {renderHero()}
 
-            <main className={`container mx-auto px-6 ${viewMode === 'home' && !searchQuery && spotlightAnime.length > 0 ? 'pt-12' : 'pt-28'}`}>
+            {/* Sub-navigation for anime browse pages */}
+            {(viewMode === 'anime' || viewMode === 'trending' || viewMode === 'genres') && (
+                <div className="pt-24">
+                    <SubNav
+                        items={[
+                            {
+                                label: 'Trending',
+                                path: '/trending',
+                                icon: (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.177A7.547 7.547 0 0 1 6.648 6.61a.75.75 0 0 0-1.152.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.545 3.75 3.75 0 0 1 3.255 3.717Z" clipRule="evenodd" />
+                                    </svg>
+                                )
+                            },
+                            {
+                                label: 'Genres',
+                                path: '/genres',
+                                icon: (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M3 6a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3V6ZM3 15.75a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2.25Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3v-2.25Z" clipRule="evenodd" />
+                                    </svg>
+                                )
+                            }
+                        ]}
+                    />
+                </div>
+            )}
+
+            <main className={`container mx-auto px-6 ${viewMode === 'home' && !searchQuery && spotlightAnime.length > 0 ? 'pt-12' : (viewMode === 'anime' || viewMode === 'trending' || viewMode === 'genres') ? 'pt-6' : 'pt-28'}`}>
 
                 {/* Continue Watching Row - Only show on home with history */}
                 {viewMode === 'home' && !searchQuery && watchHistory.length > 0 && (
