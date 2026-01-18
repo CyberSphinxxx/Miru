@@ -2,6 +2,7 @@ import {
     collection,
     doc,
     getDocs,
+    getDoc,
     setDoc,
     deleteDoc,
     query,
@@ -124,13 +125,20 @@ export function subscribeToWatchHistory(
 }
 
 /**
- * Get last watched episode for an anime
+ * Get last watched episode for an anime - optimized single document fetch
  */
 export async function getFirebaseLastWatchedEpisode(mal_id: number): Promise<number | null> {
     try {
-        const history = await getFirebaseWatchHistory();
-        const item = history.find(h => h.mal_id === mal_id);
-        return item ? item.currentEpisode : null;
+        // Direct document fetch instead of querying entire collection
+        const historyRef = getHistoryCollection();
+        const docRef = doc(historyRef, mal_id.toString());
+        const snapshot = await getDoc(docRef);
+
+        if (snapshot.exists()) {
+            const data = snapshot.data() as FirebaseWatchHistoryItem;
+            return data.currentEpisode;
+        }
+        return null;
     } catch {
         return null;
     }

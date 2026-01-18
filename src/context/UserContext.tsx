@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
@@ -232,6 +232,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userData, setUserData] = useState<UserData>(INITIAL_DATA);
     const [loading, setLoading] = useState(true);
 
+    // Debounced Firebase write refs
+    const debouncedSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingDataRef = useRef<UserData | null>(null);
+
     // Load user data based on auth state
     useEffect(() => {
         const loadData = async () => {
@@ -287,22 +291,30 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadData();
     }, [currentUser]);
 
-    // Save data helper
+    // Save data helper with debounced Firebase writes
     const saveData = useCallback(async (newData: UserData) => {
+        // Immediately update local state for responsive UI
         setUserData(newData);
 
         if (currentUser) {
-            // Save to Firestore
-            try {
-                const userDocRef = doc(db, 'users', currentUser.uid);
-                await setDoc(userDocRef, sanitizeForFirestore(newData));
-            } catch (error) {
-                console.error('Error saving to Firestore:', error);
-                // Fallback: save locally
-                setLocalData(newData);
+            // Debounce Firebase writes to batch rapid updates
+            pendingDataRef.current = newData;
+            if (debouncedSaveRef.current) {
+                clearTimeout(debouncedSaveRef.current);
             }
+            debouncedSaveRef.current = setTimeout(async () => {
+                if (!pendingDataRef.current) return;
+                try {
+                    const userDocRef = doc(db, 'users', currentUser.uid);
+                    await setDoc(userDocRef, sanitizeForFirestore(pendingDataRef.current));
+                } catch (error) {
+                    console.error('Error saving to Firestore:', error);
+                    // Fallback: save locally
+                    setLocalData(pendingDataRef.current!);
+                }
+            }, 500); // 500ms debounce delay
         } else {
-            // Guest Mode: Save to localStorage
+            // Guest Mode: Save to localStorage immediately
             setLocalData(newData);
         }
     }, [currentUser]);

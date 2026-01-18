@@ -54,6 +54,8 @@ const CACHE_TTL = {
     top: 10 * 60 * 1000,         // 10 minutes  
     details: 30 * 60 * 1000,     // 30 minutes
     search: 5 * 60 * 1000,       // 5 minutes
+    chapters: 30 * 60 * 1000,    // 30 minutes (chapters rarely change)
+    pages: 10 * 60 * 1000,       // 10 minutes (chapter pages)
 };
 
 const memoryCache = new Map<string, { data: any, timestamp: number }>();
@@ -225,43 +227,67 @@ export const mangaService = {
     },
 
     // ============================================================================
-    // MANGA SCRAPER METHODS (MangaKatana)
+    // MANGA SCRAPER METHODS (MangaKatana) - with caching
     // ============================================================================
 
     /**
-     * Search manga on MangaKatana scraper
+     * Search manga on MangaKatana scraper - cached for 5 minutes
      */
     async searchMangaScraper(query: string) {
+        const cacheKey = `scraper-search-${query.toLowerCase().trim()}`;
+        const cached = getCached(cacheKey, 'search');
+        if (cached) return cached;
+
         const res = await fetch(`${API_BASE}/manga/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
-        return data.data || [];
+        const result = data.data || [];
+        if (result.length > 0) setCache(cacheKey, result);
+        return result;
     },
 
     /**
-     * Get manga details from MangaKatana
+     * Get manga details from MangaKatana - cached for 30 minutes
      */
     async getMangaDetails(mangaId: string) {
+        const cacheKey = `scraper-details-${mangaId}`;
+        const cached = getCached(cacheKey, 'details');
+        if (cached) return cached;
+
         const res = await fetch(`${API_BASE}/manga/details/${encodeURIComponent(mangaId)}`);
         const data = await res.json();
-        return data.data || null;
+        const result = data.data || null;
+        if (result) setCache(cacheKey, result);
+        return result;
     },
 
     /**
-     * Get chapter list from MangaKatana
+     * Get chapter list from MangaKatana - cached for 30 minutes
      */
     async getChapters(mangaId: string) {
+        const cacheKey = `scraper-chapters-${mangaId}`;
+        const cached = getCached(cacheKey, 'chapters');
+        if (cached) return cached;
+
         const res = await fetch(`${API_BASE}/manga/chapters/${encodeURIComponent(mangaId)}`);
         const data = await res.json();
-        return data.chapters || [];
+        const result = data.chapters || [];
+        if (result.length > 0) setCache(cacheKey, result);
+        return result;
     },
 
     /**
-     * Get chapter pages from MangaKatana
+     * Get chapter pages from MangaKatana - cached for 10 minutes
      */
     async getChapterPages(chapterUrl: string) {
+        const cacheKey = `scraper-pages-${chapterUrl}`;
+        const cached = getCached(cacheKey, 'pages');
+        if (cached) return cached;
+
         const res = await fetch(`${API_BASE}/manga/pages?url=${encodeURIComponent(chapterUrl)}`);
         const data = await res.json();
-        return data.pages || [];
+        const result = data.pages || [];
+        if (result.length > 0) setCache(cacheKey, result);
+        return result;
     }
 };
 

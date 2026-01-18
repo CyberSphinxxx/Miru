@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Navbar, { SearchType } from './components/Navbar';
 import Home from './pages/Home';
 import LoadingSpinner from './components/LoadingSpinner';
+import { animeService } from './services/api';
 
 // Lazy load heavy pages for better initial load time
 const Detail = lazy(() => import('./pages/Detail'));
@@ -24,6 +25,24 @@ const PageLoader = () => (
 function AppContent() {
     const location = useLocation();
     const navigate = useNavigate();
+
+    // Cache prewarming: prefetch trending data during idle time
+    useEffect(() => {
+        const prewarm = () => {
+            // Silently prefetch trending anime to warm the cache
+            animeService.getTrendingAnime(1, 10).catch(() => {
+                // Ignore errors - this is just prewarming
+            });
+        };
+
+        // Use requestIdleCallback if available (non-blocking)
+        if ('requestIdleCallback' in window) {
+            (window as any).requestIdleCallback(prewarm);
+        } else {
+            // Fallback: use setTimeout with a delay
+            setTimeout(prewarm, 1000);
+        }
+    }, []);
 
     const handleSearch = (query: string, type: SearchType = 'all') => {
         if (query.trim()) {
