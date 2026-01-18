@@ -234,24 +234,25 @@ function MangaReader() {
         }
     }, [chapters, loadChapterByIndex]);
 
-    // Chapter navigation
+    // Chapter navigation (works with reversed display order)
+    // Since display is reversed (ch1 at top), prev = higher index in original array
     const goToPrevChapter = () => {
-        if (currentChapterIndex > 0) {
-            loadChapterByIndex(currentChapterIndex - 1);
-        }
-    };
-
-    const goToNextChapter = () => {
         if (currentChapterIndex < chapters.length - 1) {
             loadChapterByIndex(currentChapterIndex + 1);
         }
     };
 
-    // Filter chapters by search
+    const goToNextChapter = () => {
+        if (currentChapterIndex > 0) {
+            loadChapterByIndex(currentChapterIndex - 1);
+        }
+    };
+
+    // Filter and reverse chapters for display (ch1 at top, latest at bottom)
     const filteredChapters = chapters.filter(chapter => {
         if (!chapterSearchQuery) return true;
         return chapter.title.toLowerCase().includes(chapterSearchQuery.toLowerCase());
-    });
+    }).slice().reverse();
 
     // Zoom controls
     const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 10, 200));
@@ -424,7 +425,7 @@ function MangaReader() {
                     <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
                         <button
                             onClick={goToPrevChapter}
-                            disabled={currentChapterIndex <= 0}
+                            disabled={currentChapterIndex >= chapters.length - 1}
                             className="p-2 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title="Previous Chapter (←)"
                         >
@@ -432,12 +433,12 @@ function MangaReader() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                             </svg>
                         </button>
-                        <span className="px-3 text-sm font-medium min-w-[80px] text-center">
-                            {currentChapterIndex + 1} / {chapters.length}
+                        <span className="px-3 text-sm font-medium min-w-[100px] text-center truncate">
+                            {currentChapter?.title?.match(/Chapter\s*\d+|Ch\.?\s*\d+|[\d.]+/i)?.[0] || currentChapter?.title?.slice(0, 12) || 'Select'}
                         </span>
                         <button
                             onClick={goToNextChapter}
-                            disabled={currentChapterIndex >= chapters.length - 1}
+                            disabled={currentChapterIndex <= 0}
                             className="p-2 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             title="Next Chapter (→)"
                         >
@@ -718,7 +719,7 @@ function MangaReader() {
                                 <div className="flex gap-4">
                                     <button
                                         onClick={goToPrevChapter}
-                                        disabled={currentChapterIndex <= 0}
+                                        disabled={currentChapterIndex >= chapters.length - 1}
                                         className="px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -728,7 +729,7 @@ function MangaReader() {
                                     </button>
                                     <button
                                         onClick={goToNextChapter}
-                                        disabled={currentChapterIndex >= chapters.length - 1}
+                                        disabled={currentChapterIndex <= 0}
                                         className="px-6 py-3 rounded-xl bg-miru-primary hover:bg-miru-primary/80 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium"
                                     >
                                         Next Chapter
