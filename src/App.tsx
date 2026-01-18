@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import Navbar, { SearchType } from './components/Navbar';
 import Home from './pages/Home';
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -11,6 +11,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const MangaHome = lazy(() => import('./pages/MangaHome'));
 const MangaDetail = lazy(() => import('./pages/MangaDetail'));
 const MangaReader = lazy(() => import('./pages/MangaReader'));
+const SearchResults = lazy(() => import('./pages/SearchResults'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -24,9 +25,9 @@ function AppContent() {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const handleSearch = (query: string) => {
+    const handleSearch = (query: string, type: SearchType = 'all') => {
         if (query.trim()) {
-            navigate(`/?q=${encodeURIComponent(query)}`);
+            navigate(`/search?q=${encodeURIComponent(query)}&type=${type}`);
         } else {
             navigate('/');
         }
@@ -60,6 +61,7 @@ function AppContent() {
             <Suspense fallback={<PageLoader />}>
                 <Routes>
                     <Route path="/" element={<Home viewMode="home" />} />
+                    <Route path="/search" element={<SearchResults />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/anime" element={<Home viewMode="anime" />} />
                     <Route path="/trending" element={<Home viewMode="trending" />} />

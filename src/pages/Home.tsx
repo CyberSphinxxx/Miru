@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/AnimeCard';
+import MangaCard from '../components/MangaCard';
 import GenreCard from '../components/GenreCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SubNav from '../components/SubNav';
 import AnimeSchedule from '../components/AnimeSchedule';
 import { Anime, Genre } from '../types';
+import { Manga } from '../types/manga';
 import { getWatchHistory, WatchHistoryItem } from '../services/watchHistoryService';
+import { getReadHistory, ReadHistoryItem } from '../services/readHistoryService';
 import {
     animeService,
+    mangaService,
     getPopularAnime,
     getGenres
 } from '../services/api';
+
+// Mixed media spotlight item type
+type SpotlightItem = {
+    type: 'anime' | 'manga';
+    data: Anime | Manga;
+};
 
 interface HomeProps {
     viewMode: 'home' | 'anime' | 'trending' | 'genres';
@@ -25,8 +35,8 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
     // Data state
     const [animeList, setAnimeList] = useState<Anime[]>([]);
-    // Spotlight Carousel State
-    const [spotlightAnime, setSpotlightAnime] = useState<Anime[]>([]);
+    // Mixed Media Spotlight Carousel State
+    const [spotlightMedia, setSpotlightMedia] = useState<SpotlightItem[]>([]);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -44,7 +54,10 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     // New state for homepage redesign
     const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]);
     const [trendingError, setTrendingError] = useState(false);
+    const [trendingManga, setTrendingManga] = useState<Manga[]>([]);
+    const [trendingMangaError, setTrendingMangaError] = useState(false);
     const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
+    const [readHistory, setReadHistory] = useState<ReadHistoryItem[]>([]);
 
     // Reset page when view/search changes
     useEffect(() => {
@@ -74,6 +87,12 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         setWatchHistory(history);
     }, []);
 
+    // Load read history for Continue Reading row
+    useEffect(() => {
+        const history = getReadHistory();
+        setReadHistory(history);
+    }, []);
+
     // Fetch trending anime for the Trending row (home view only)
     useEffect(() => {
         const fetchTrending = async () => {
@@ -88,6 +107,22 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
             }
         };
         fetchTrending();
+    }, [viewMode, searchQuery]);
+
+    // Fetch trending manga for the home page
+    useEffect(() => {
+        const fetchTrendingManga = async () => {
+            if (viewMode !== 'home' || searchQuery) return;
+            setTrendingMangaError(false);
+            try {
+                const result = await mangaService.getTrendingManga(1, 10);
+                setTrendingManga(result.data);
+            } catch (err) {
+                console.error('Failed to fetch trending manga', err);
+                setTrendingMangaError(true);
+            }
+        };
+        fetchTrendingManga();
     }, [viewMode, searchQuery]);
 
     // Fetch Anime Data
@@ -134,12 +169,6 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 if (result.pagination?.last_visible_page) {
                     setLastVisiblePage(result.pagination.last_visible_page);
                 }
-
-                // Set spotlight from top results if on home and not searching
-                if (viewMode === 'home' && !searchQuery && currentPage === 1 && result.data.length > 0) {
-                    // Take top 5 for spotlight
-                    setSpotlightAnime(result.data.slice(0, 5));
-                }
             } catch (err) {
                 if (!isMounted) return;
                 console.error(err);
@@ -158,26 +187,57 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         };
     }, [viewMode, selectedGenreId, searchQuery, currentPage, genres]);
 
+    // Build mixed media spotlight from trending anime and manga
+    useEffect(() => {
+        if (viewMode !== 'home' || searchQuery) return;
+
+        // Wait for both anime and manga data
+        if (trendingAnime.length === 0 && trendingManga.length === 0) return;
+
+        // Interleave top anime and manga (Netflix-style mixed carousel)
+        const mixed: SpotlightItem[] = [];
+        const animeSlice = trendingAnime.slice(0, 5);
+        const mangaSlice = trendingManga.slice(0, 5);
+        const maxPairs = Math.min(animeSlice.length, mangaSlice.length, 4);
+
+        // Alternate between anime and manga
+        for (let i = 0; i < maxPairs; i++) {
+            if (animeSlice[i]) {
+                mixed.push({ type: 'anime', data: animeSlice[i] });
+            }
+            if (mangaSlice[i]) {
+                mixed.push({ type: 'manga', data: mangaSlice[i] });
+            }
+        }
+
+        // Fill remaining slots if one array has more items
+        if (animeSlice.length > maxPairs) {
+            mixed.push({ type: 'anime', data: animeSlice[maxPairs] });
+        }
+
+        setSpotlightMedia(mixed);
+    }, [viewMode, searchQuery, trendingAnime, trendingManga]);
+
     // Auto-slide effect
     useEffect(() => {
-        if (!isAutoPlaying || spotlightAnime.length === 0) return;
+        if (!isAutoPlaying || spotlightMedia.length === 0) return;
 
         const interval = setInterval(() => {
-            setCurrentSlide(prev => (prev + 1) % spotlightAnime.length);
+            setCurrentSlide(prev => (prev + 1) % spotlightMedia.length);
         }, 5000); // 5 seconds per slide
 
         return () => clearInterval(interval);
-    }, [isAutoPlaying, spotlightAnime.length]);
+    }, [isAutoPlaying, spotlightMedia.length]);
 
     const nextSlide = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setCurrentSlide(prev => (prev + 1) % spotlightAnime.length);
+        setCurrentSlide(prev => (prev + 1) % spotlightMedia.length);
         setIsAutoPlaying(false); // Pause on user interaction
     };
 
     const prevSlide = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setCurrentSlide(prev => (prev - 1 + spotlightAnime.length) % spotlightAnime.length);
+        setCurrentSlide(prev => (prev - 1 + spotlightMedia.length) % spotlightMedia.length);
         setIsAutoPlaying(false);
     };
 
@@ -214,131 +274,165 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         return 'Discover the most popular anime';
     };
 
-    // Render Hero Section (Carousel)
+    // Render Hero Section (Mixed Media Carousel)
     const renderHero = () => {
-        if (viewMode !== 'home' || searchQuery || spotlightAnime.length === 0) return null;
-
-
+        if (viewMode !== 'home' || searchQuery || spotlightMedia.length === 0) return null;
 
         return (
             <section className="relative h-[70vh] min-h-[450px] overflow-hidden group">
                 {/* Carousel Slides */}
-                {spotlightAnime.map((anime, index) => {
-                    // Priority: Banner image (HD) > YouTube thumbnail > Poster
-                    const heroImage = anime.images.jpg.banner_image
-                        || (anime.trailer?.youtube_id
-                            ? `https://img.youtube.com/vi/${anime.trailer.youtube_id}/maxresdefault.jpg`
-                            : anime.images.jpg.large_image_url);
+                {spotlightMedia.map((item, index) => {
+                    const isAnime = item.type === 'anime';
+                    const media = item.data;
 
-                    return (<div
-                        key={anime.mal_id}
-                        className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-                    >
-                        {/* Background Image */}
+                    // Get hero image
+                    const heroImage = media.images.jpg.banner_image
+                        || ((media as Anime).trailer?.youtube_id
+                            ? `https://img.youtube.com/vi/${(media as Anime).trailer?.youtube_id}/maxresdefault.jpg`
+                            : media.images.jpg.large_image_url);
+
+                    return (
                         <div
-                            className="absolute inset-0 transition-transform duration-[10000ms] ease-linear"
-                            style={{
-                                backgroundImage: `url(${heroImage})`,
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center 30%',
-                                transform: index === currentSlide ? 'scale(1.02)' : 'scale(1)'
-                            }}
-                        />
+                            key={`${item.type}-${media.mal_id}`}
+                            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                        >
+                            {/* Background Image */}
+                            <div
+                                className="absolute inset-0 transition-transform duration-[10000ms] ease-linear"
+                                style={{
+                                    backgroundImage: `url(${heroImage})`,
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center 30%',
+                                    transform: index === currentSlide ? 'scale(1.02)' : 'scale(1)'
+                                }}
+                            />
 
-                        {/* Primary Left Gradient - Strong fade for content area */}
-                        <div
-                            className="absolute inset-0"
-                            style={{
-                                background: 'linear-gradient(90deg, #050505 0%, #050505 20%, rgba(5,5,5,0.95) 35%, rgba(5,5,5,0.6) 55%, transparent 75%)'
-                            }}
-                        />
+                            {/* Primary Left Gradient - Strong fade for content area */}
+                            <div
+                                className="absolute inset-0"
+                                style={{
+                                    background: 'linear-gradient(90deg, #050505 0%, #050505 20%, rgba(5,5,5,0.95) 35%, rgba(5,5,5,0.6) 55%, transparent 75%)'
+                                }}
+                            />
 
-                        {/* Bottom Fade */}
-                        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-miru-bg via-miru-bg/80 to-transparent" />
+                            {/* Bottom Fade */}
+                            <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-miru-bg via-miru-bg/80 to-transparent" />
 
-                        {/* Top Subtle Vignette */}
-                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-miru-bg/40 to-transparent" />
+                            {/* Top Subtle Vignette */}
+                            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-miru-bg/40 to-transparent" />
 
-                        {/* Color Overlay for Vibe */}
-                        <div className="absolute inset-0 bg-purple-900/10 mix-blend-multiply" />
+                            {/* Color Overlay for Vibe */}
+                            <div className="absolute inset-0 bg-purple-900/10 mix-blend-multiply" />
 
-                        {/* Content */}
-                        <div className="relative z-10 h-full flex items-end pb-16">
-                            <div className="container mx-auto px-6">
-                                <div className="max-w-2xl animate-fade-in-up">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <span className="px-3 py-1 rounded-md bg-miru-accent text-xs font-bold text-white shadow-lg shadow-miru-accent/50">
-                                            #{index + 1} Spotlight
-                                        </span>
-                                        <span className="px-2 py-1 rounded-md bg-white/10 backdrop-blur-md text-xs font-medium text-white border border-white/10">
-                                            {anime.status}
-                                        </span>
-                                    </div>
-
-                                    <h1 className="text-5xl md:text-6xl font-black leading-tight mb-4 drop-shadow-2xl line-clamp-2">
-                                        {anime.title}
-                                    </h1>
-
-                                    {/* Metadata */}
-                                    <div className="flex items-center gap-4 text-sm text-gray-300 mb-6 font-medium">
-                                        <span className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-lg backdrop-blur-sm border border-white/5">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-yellow-400">
-                                                <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                                            </svg>
-                                            <span className="font-bold text-yellow-400">{anime.score}</span>
-                                        </span>
-                                        <span className="w-1 h-1 rounded-full bg-gray-500" />
-                                        <span>{anime.type}</span>
-                                        {anime.episodes && (
-                                            <>
-                                                <span className="w-1 h-1 rounded-full bg-gray-500" />
-                                                <span>{anime.episodes} eps</span>
-                                            </>
-                                        )}
-                                        <span className="px-2 py-0.5 rounded bg-white/10 text-xs border border-white/10">HD</span>
-                                    </div>
-
-                                    {/* Genre Pills */}
-                                    {anime.genres && anime.genres.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 mb-8">
-                                            {anime.genres.slice(0, 4).map(genre => (
-                                                <span key={genre.mal_id} className="genre-pill hover:bg-white/20 cursor-default">
-                                                    {genre.name}
-                                                </span>
-                                            ))}
+                            {/* Content */}
+                            <div className="relative z-10 h-full flex items-end pb-16">
+                                <div className="container mx-auto px-6">
+                                    <div className="max-w-2xl animate-fade-in-up">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            {/* Media Type Badge */}
+                                            <span className={`px-3 py-1 rounded-md text-xs font-bold text-white shadow-lg flex items-center gap-1.5 ${isAnime ? 'bg-miru-primary shadow-miru-primary/50' : 'bg-emerald-500 shadow-emerald-500/50'
+                                                }`}>
+                                                {isAnime ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                                                        <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm14.024-.983a1.125 1.125 0 0 1 0 1.966l-5.603 3.113A1.125 1.125 0 0 1 9 15.113V8.887c0-.857.921-1.4 1.671-.983l5.603 3.113Z" clipRule="evenodd" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                                                        <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                                                    </svg>
+                                                )}
+                                                {isAnime ? 'ANIME' : 'MANGA'}
+                                            </span>
+                                            <span className="px-3 py-1 rounded-md bg-miru-accent text-xs font-bold text-white shadow-lg shadow-miru-accent/50">
+                                                #{index + 1} Spotlight
+                                            </span>
+                                            <span className="px-2 py-1 rounded-md bg-white/10 backdrop-blur-md text-xs font-medium text-white border border-white/10">
+                                                {media.status}
+                                            </span>
                                         </div>
-                                    )}
 
-                                    {/* Description */}
-                                    <p className="text-gray-300 text-base mb-8 line-clamp-3 leading-relaxed drop-shadow-md" style={{ maxWidth: '600px' }}>
-                                        {anime.synopsis}
-                                    </p>
+                                        <h1 className="text-5xl md:text-6xl font-black leading-tight mb-4 drop-shadow-2xl line-clamp-2">
+                                            {media.title}
+                                        </h1>
 
-                                    {/* Action Buttons */}
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={(e) => handleWatchNow(e, anime)}
-                                            className="flex items-center gap-3 px-8 py-4 rounded-full bg-miru-accent hover:bg-miru-accent/90 text-white font-bold transition-all hover:scale-105 hover:shadow-[0_0_30px_-5px_var(--miru-accent)] group/btn"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 group-hover/btn:scale-110 transition-transform">
-                                                <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                                            </svg>
-                                            Watch Now
-                                        </button>
-                                        <button
-                                            onClick={() => handleAnimeClick(anime)}
-                                            className="flex items-center gap-2 px-6 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white font-medium hover:bg-white/10 transition-all hover:border-white/20"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-                                            </svg>
-                                            More Info
-                                        </button>
+                                        {/* Metadata */}
+                                        <div className="flex items-center gap-4 text-sm text-gray-300 mb-6 font-medium">
+                                            <span className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-lg backdrop-blur-sm border border-white/5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-yellow-400">
+                                                    <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                                </svg>
+                                                <span className="font-bold text-yellow-400">{media.score}</span>
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-gray-500" />
+                                            <span>{media.type}</span>
+                                            {isAnime && (media as Anime).episodes && (
+                                                <>
+                                                    <span className="w-1 h-1 rounded-full bg-gray-500" />
+                                                    <span>{(media as Anime).episodes} eps</span>
+                                                </>
+                                            )}
+                                            {!isAnime && (media as Manga).chapters && (
+                                                <>
+                                                    <span className="w-1 h-1 rounded-full bg-gray-500" />
+                                                    <span>{(media as Manga).chapters} chapters</span>
+                                                </>
+                                            )}
+                                            <span className="px-2 py-0.5 rounded bg-white/10 text-xs border border-white/10">{isAnime ? 'HD' : 'HQ'}</span>
+                                        </div>
+
+                                        {/* Genre Pills */}
+                                        {media.genres && media.genres.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mb-8">
+                                                {media.genres.slice(0, 4).map((genre: { mal_id: number; name: string }) => (
+                                                    <span key={genre.mal_id} className="genre-pill hover:bg-white/20 cursor-default">
+                                                        {genre.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Description */}
+                                        <p className="text-gray-300 text-base mb-8 line-clamp-3 leading-relaxed drop-shadow-md" style={{ maxWidth: '600px' }}>
+                                            {media.synopsis}
+                                        </p>
+
+                                        {/* Action Buttons - Type-aware */}
+                                        <div className="flex items-center gap-4">
+                                            {isAnime ? (
+                                                <button
+                                                    onClick={(e) => handleWatchNow(e, media as Anime)}
+                                                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-miru-accent hover:bg-miru-accent/90 text-white font-bold transition-all hover:scale-105 hover:shadow-[0_0_30px_-5px_var(--miru-accent)] group/btn"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 group-hover/btn:scale-110 transition-transform">
+                                                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                                                    </svg>
+                                                    Watch Now
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => navigate(`/read/${encodeURIComponent(media.title)}`)}
+                                                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold transition-all hover:scale-105 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)] group/btn"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 group-hover/btn:scale-110 transition-transform">
+                                                        <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                                                    </svg>
+                                                    Read Now
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => isAnime ? handleAnimeClick(media as Anime) : navigate(`/manga/${media.id || media.mal_id}`)}
+                                                className="flex items-center gap-2 px-6 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white font-medium hover:bg-white/10 transition-all hover:border-white/20"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                                                </svg>
+                                                More Info
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
                     );
                 })}
 
@@ -362,7 +456,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
                 {/* Carousel Indicators */}
                 <div className="absolute bottom-6 right-6 z-20 flex gap-2">
-                    {spotlightAnime.map((_, index) => (
+                    {spotlightMedia.map((item, index) => (
                         <button
                             key={index}
                             onClick={(e) => {
@@ -371,7 +465,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 setIsAutoPlaying(false);
                             }}
                             className={`h-1.5 rounded-full transition-all duration-300 ${index === currentSlide
-                                ? 'w-8 bg-miru-accent shadow-[0_0_10px_var(--miru-accent)]'
+                                ? `w-8 ${item.type === 'anime' ? 'bg-miru-primary shadow-[0_0_10px_var(--miru-primary)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'}`
                                 : 'w-2 bg-white/20 hover:bg-white/40'
                                 }`}
                         />
@@ -413,7 +507,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 </div>
             )}
 
-            <main className={`container mx-auto px-6 ${viewMode === 'home' && !searchQuery && spotlightAnime.length > 0 ? 'pt-12' : (viewMode === 'anime' || viewMode === 'trending' || viewMode === 'genres') ? 'pt-6' : 'pt-28'}`}>
+            <main className={`container mx-auto px-6 ${viewMode === 'home' && !searchQuery && spotlightMedia.length > 0 ? 'pt-12' : (viewMode === 'anime' || viewMode === 'trending' || viewMode === 'genres') ? 'pt-6' : 'pt-28'}`}>
 
                 {/* Continue Watching Row - Only show on home with history */}
                 {viewMode === 'home' && !searchQuery && watchHistory.length > 0 && (
@@ -508,6 +602,117 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                             anime={anime}
                                             onClick={() => handleAnimeClick(anime)}
                                             onPlayClick={() => navigate(`/watch/${anime.id || anime.mal_id}`)}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )}
+
+                {/* Continue Reading Row - Only show on home with read history */}
+                {viewMode === 'home' && !searchQuery && readHistory.length > 0 && (
+                    <section className="mb-12 animate-fade-in">
+                        <div className="content-row-header">
+                            <h2 className="content-row-title flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-emerald-400">
+                                    <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                                </svg>
+                                Continue Reading
+                            </h2>
+                        </div>
+                        <div className="horizontal-scroll">
+                            {readHistory.slice(0, 10).map(item => (
+                                <div
+                                    key={item.mal_id}
+                                    onClick={() => navigate(`/read/${encodeURIComponent(item.title)}`)}
+                                    className="flex-shrink-0 w-72 landscape-card group"
+                                >
+                                    <img
+                                        src={item.image_url}
+                                        alt={item.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                                    <div className="absolute inset-x-0 bottom-0 p-4">
+                                        <h3 className="font-bold text-white text-sm line-clamp-1 mb-1 drop-shadow-lg">{item.title}</h3>
+                                        <div className="flex items-center gap-2 text-xs text-gray-300">
+                                            <span>Ch. {item.currentChapter}</span>
+                                            {item.chapters && <span className="text-gray-500">/ {item.chapters}</span>}
+                                        </div>
+                                        {/* Progress bar */}
+                                        <div className="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                                                style={{ width: `${item.progress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Play overlay */}
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-sm">
+                                        <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/50 group-hover:scale-110 transition-transform">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-white">
+                                                <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Trending Manga Row - Only show on home */}
+                {viewMode === 'home' && !searchQuery && trendingManga.length > 0 && (
+                    <section className="mb-12 animate-fade-in">
+                        <div className="content-row-header">
+                            <h2 className="content-row-title flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-emerald-400">
+                                    <path d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+                                    <path d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" />
+                                </svg>
+                                Trending Manga
+                            </h2>
+                            <button
+                                onClick={() => navigate('/manga')}
+                                className="view-all-btn"
+                            >
+                                View All
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                </svg>
+                            </button>
+                        </div>
+                        {trendingMangaError ? (
+                            <div className="flex items-center gap-4 py-8 px-4 rounded-xl bg-white/5 border border-white/10">
+                                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-orange-500">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm text-gray-400">Failed to load trending manga. The API might be temporarily unavailable.</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setTrendingMangaError(false);
+                                        mangaService.getTrendingManga(1, 10)
+                                            .then((result: { data: Manga[] }) => setTrendingManga(result.data))
+                                            .catch(() => setTrendingMangaError(true));
+                                    }}
+                                    className="px-4 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors text-sm font-medium"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="horizontal-scroll gap-4 py-4">
+                                {trendingManga.slice(0, 10).map(manga => (
+                                    <div key={manga.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                                        <MangaCard
+                                            manga={manga}
+                                            onClick={() => navigate(`/manga/${manga.id || manga.mal_id}`)}
+                                            onReadClick={() => navigate(`/read/${encodeURIComponent(manga.title)}`)}
                                         />
                                     </div>
                                 ))}

@@ -4,8 +4,10 @@ import LoginModal from './LoginModal';
 
 export type ViewMode = 'home' | 'anime' | 'manga' | 'detail' | 'watch' | 'profile';
 
+export type SearchType = 'all' | 'anime' | 'manga';
+
 interface NavbarProps {
-    onSearch: (query: string) => void;
+    onSearch: (query: string, type?: SearchType) => void;
     viewMode: ViewMode;
     onViewChange: (view: ViewMode) => void;
 }
@@ -15,12 +17,46 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [searchType, setSearchType] = useState<SearchType>('all');
+    const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
     const { currentUser } = useAuth();
+
+    const searchTypeOptions: { value: SearchType; label: string; icon: React.ReactNode }[] = [
+        {
+            value: 'all', label: 'All', icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                    <path fillRule="evenodd" d="M3 6a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3V6ZM3 15.75a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2.25Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3v-2.25Z" clipRule="evenodd" />
+                </svg>
+            )
+        },
+        {
+            value: 'anime', label: 'Anime', icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm14.024-.983a1.125 1.125 0 0 1 0 1.966l-5.603 3.113A1.125 1.125 0 0 1 9 15.113V8.887c0-.857.921-1.4 1.671-.983l5.603 3.113Z" clipRule="evenodd" />
+                </svg>
+            )
+        },
+        {
+            value: 'manga', label: 'Manga', icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                    <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                </svg>
+            )
+        },
+    ];
+
+    const getSearchPlaceholder = () => {
+        switch (searchType) {
+            case 'anime': return 'Search anime...';
+            case 'manga': return 'Search manga...';
+            default: return 'Search anime & manga...';
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            onSearch(searchQuery.trim());
+            onSearch(searchQuery.trim(), searchType);
             setIsMobileMenuOpen(false);
         }
     };
@@ -114,37 +150,93 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                         {/* Search + User Actions */}
                         <div className="flex items-center gap-2 sm:gap-4 flex-1 md:flex-none justify-end">
                             {/* Search - Compact on mobile */}
-                            <form onSubmit={handleSubmit} className="flex-1 max-w-[140px] sm:max-w-sm">
-                                <div className={`relative transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
-                                    <input
-                                        type="text"
-                                        placeholder="Search anime..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        onFocus={() => setIsSearchFocused(true)}
-                                        onBlur={() => setIsSearchFocused(false)}
-                                        className={`w-full rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 pl-9 sm:pl-11 pr-3 sm:pr-16 text-xs sm:text-sm text-white placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
-                                            ? 'bg-white/15 border border-purple-500 ring-1 ring-purple-500 shadow-lg shadow-purple-500/20'
-                                            : 'bg-white/10 border border-white/10 hover:border-white/20'
-                                            }`}
-                                    />
-                                    {/* Search Icon */}
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        strokeWidth={2}
-                                        stroke="currentColor"
-                                        className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-300 ${isSearchFocused ? 'text-purple-400' : 'text-gray-500'
-                                            }`}
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                                    </svg>
-                                    {/* Keyboard Shortcut Hint - Hidden on mobile */}
-                                    <div className={`absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 transition-opacity duration-300 ${isSearchFocused ? 'opacity-0' : 'opacity-100'}`}>
-                                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-white/10 rounded border border-white/10">
-                                            ⌘K
-                                        </kbd>
+                            <form onSubmit={handleSubmit} className="flex-1 max-w-[180px] sm:max-w-md relative">
+                                <div className={`flex items-center transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
+                                    {/* Search Type Selector */}
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSearchTypeDropdown(!showSearchTypeDropdown)}
+                                            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-l-xl text-xs sm:text-sm font-medium transition-all duration-300 border-r-0 ${isSearchFocused
+                                                ? 'bg-white/15 border border-purple-500 text-white'
+                                                : 'bg-white/10 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white'
+                                                }`}
+                                        >
+                                            {searchTypeOptions.find(o => o.value === searchType)?.icon}
+                                            <span className="hidden sm:inline">{searchTypeOptions.find(o => o.value === searchType)?.label}</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60">
+                                                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                                            </svg>
+                                        </button>
+
+                                        {/* Dropdown */}
+                                        {showSearchTypeDropdown && (
+                                            <div
+                                                className="absolute top-full left-0 mt-1 w-32 rounded-xl bg-[#111] border border-white/10 shadow-xl z-50 overflow-hidden animate-fade-in"
+                                                onMouseLeave={() => setShowSearchTypeDropdown(false)}
+                                            >
+                                                {searchTypeOptions.map(option => (
+                                                    <button
+                                                        key={option.value}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSearchType(option.value);
+                                                            setShowSearchTypeDropdown(false);
+                                                        }}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${searchType === option.value
+                                                            ? 'bg-purple-500/20 text-purple-400'
+                                                            : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                                            }`}
+                                                    >
+                                                        {option.icon}
+                                                        {option.label}
+                                                        {searchType === option.value && (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-auto">
+                                                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                                            </svg>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Search Input */}
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            placeholder={getSearchPlaceholder()}
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onFocus={() => setIsSearchFocused(true)}
+                                            onBlur={() => {
+                                                setIsSearchFocused(false);
+                                                // Delay closing dropdown to allow clicks
+                                                setTimeout(() => setShowSearchTypeDropdown(false), 200);
+                                            }}
+                                            className={`w-full rounded-r-xl px-3 sm:px-4 py-2 sm:py-2.5 pl-8 sm:pl-10 pr-3 sm:pr-14 text-xs sm:text-sm text-white placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
+                                                ? 'bg-white/15 border border-purple-500 ring-1 ring-purple-500 shadow-lg shadow-purple-500/20 border-l-0'
+                                                : 'bg-white/10 border border-white/10 hover:border-white/20 border-l-0'
+                                                }`}
+                                        />
+                                        {/* Search Icon */}
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth={2}
+                                            stroke="currentColor"
+                                            className={`absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-300 ${isSearchFocused ? 'text-purple-400' : 'text-gray-500'
+                                                }`}
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                        </svg>
+                                        {/* Keyboard Shortcut Hint - Hidden on mobile */}
+                                        <div className={`absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 transition-opacity duration-300 ${isSearchFocused ? 'opacity-0' : 'opacity-100'}`}>
+                                            <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-white/10 rounded border border-white/10">
+                                                ⌘K
+                                            </kbd>
+                                        </div>
                                     </div>
                                 </div>
                             </form>
