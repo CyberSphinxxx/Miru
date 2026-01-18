@@ -95,23 +95,31 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
 
             setChaptersLoading(true);
             try {
-                // Check if we have prefetched data
+                // Check if we have prefetched data (from previous visits)
                 const prefetchKey = `manga_prefetch_${manga.id || manga.mal_id}`;
                 const cached = sessionStorage.getItem(prefetchKey);
 
                 if (cached) {
                     const data = JSON.parse(cached);
-                    setChapters(data.chapters || []);
-                    setChaptersLoading(false);
-                    return;
+                    // Check if cache is still valid (30 minutes)
+                    if (Date.now() - data.timestamp < 30 * 60 * 1000 && data.chapters?.length > 0) {
+                        console.log('[Chapters] Using cached chapters:', data.chapters.length);
+                        setChapters(data.chapters || []);
+                        setChaptersLoading(false);
+                        // Preload Chapter 1 pages in background
+                        preloadFirstChapter(data.chapters, data.mangaId);
+                        return;
+                    }
                 }
 
                 // Search for manga on scraper
                 const searchTitle = manga.title_english || manga.title_romaji || manga.title;
+                console.log('[Chapters] Searching for:', searchTitle);
                 const searchRes = await mangaService.searchMangaScraper(searchTitle);
 
                 if (searchRes && searchRes.length > 0) {
-                    const chapterList = await mangaService.getChapters(searchRes[0].id);
+                    const scraperId = searchRes[0].id;
+                    const chapterList = await mangaService.getChapters(scraperId);
                     const mappedChapters: MangaChapter[] = chapterList.map((ch: any, index: number) => ({
                         id: ch.id || `ch-${index}`,
                         title: ch.title || `Chapter ${index + 1}`,
@@ -120,18 +128,55 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
                         uploadDate: ch.uploadDate
                     }));
                     setChapters(mappedChapters);
+                    console.log('[Chapters] Loaded', mappedChapters.length, 'chapters');
 
-                    // Cache for later
-                    sessionStorage.setItem(prefetchKey, JSON.stringify({
-                        mangaId: searchRes[0].id,
+                    // Cache for later (both detail page and reader)
+                    const cacheData = {
+                        mangaId: scraperId,
                         chapters: mappedChapters,
                         timestamp: Date.now()
-                    }));
+                    };
+                    sessionStorage.setItem(prefetchKey, JSON.stringify(cacheData));
+
+                    // Preload Chapter 1 pages in background for instant "Read Now"
+                    preloadFirstChapter(mappedChapters, scraperId);
+                } else {
+                    console.log('[Chapters] No manga found on scraper');
                 }
             } catch (e) {
                 console.error('Failed to fetch chapters:', e);
             } finally {
                 setChaptersLoading(false);
+            }
+        };
+
+        // Preload first chapter pages for instant loading when clicking "Read Now"
+        const preloadFirstChapter = async (chapterList: MangaChapter[], mangaId: string) => {
+            if (chapterList.length === 0) return;
+
+            // First chapter is usually at the end of the list (chapter 1)
+            const firstChapter = chapterList[chapterList.length - 1];
+            const cacheKey = `chapter_pages_${firstChapter.id}`;
+
+            // Check if already cached
+            if (sessionStorage.getItem(cacheKey)) {
+                console.log('[Preload] Chapter 1 pages already cached');
+                return;
+            }
+
+            try {
+                console.log('[Preload] Preloading Chapter 1 pages...');
+                const pages = await mangaService.getChapterPages(firstChapter.url);
+                sessionStorage.setItem(cacheKey, JSON.stringify({
+                    pages,
+                    mangaId,
+                    chapterId: firstChapter.id,
+                    timestamp: Date.now()
+                }));
+                console.log('[Preload] Cached', pages.length, 'pages for Chapter 1');
+            } catch (e) {
+                // Silent failure - reader will fetch normally
+                console.warn('[Preload] Failed to preload chapter 1:', e);
             }
         };
 

@@ -75,7 +75,7 @@ function MangaReader() {
     const mangaTitle = id ? decodeURIComponent(id) : '';
     const initialChapter = searchParams.get('ch');
 
-    // Search for manga on MangaKatana
+    // Search for manga on MangaKatana (or use cached data from details page)
     useEffect(() => {
         if (!mangaTitle) return;
 
@@ -101,27 +101,61 @@ function MangaReader() {
         searchManga();
     }, [mangaTitle]);
 
-    // Load chapters when manga is selected
+    // Load chapters when manga is selected (check cache first)
     useEffect(() => {
         if (!selectedManga) return;
 
         const loadChapters = async () => {
             setChaptersLoading(true);
             try {
-                const chapterList = await mangaService.getChapters(selectedManga.id);
-                setChapters(chapterList);
-
-                // Auto-load chapter from URL param or first chapter
-                if (chapterList.length > 0) {
-                    let targetIndex = 0;
-                    if (initialChapter) {
-                        const chNum = parseInt(initialChapter);
-                        const foundIndex = chapterList.findIndex((ch: Chapter) =>
-                            ch.title.includes(String(chNum)) || ch.id.includes(String(chNum))
-                        );
-                        if (foundIndex !== -1) targetIndex = foundIndex;
+                // Check for cached chapters from MangaDetailPage
+                // Try multiple cache keys since we might not know the manga ID
+                let cachedChapters = null;
+                const storageKeys = Object.keys(sessionStorage);
+                for (const key of storageKeys) {
+                    if (key.startsWith('manga_prefetch_')) {
+                        try {
+                            const data = JSON.parse(sessionStorage.getItem(key) || '');
+                            if (data.mangaId === selectedManga.id && data.chapters?.length > 0) {
+                                cachedChapters = data.chapters;
+                                console.log('[Reader] Using cached chapters:', cachedChapters.length);
+                                break;
+                            }
+                        } catch (e) { /* ignore */ }
                     }
-                    loadChapterByIndex(targetIndex, chapterList);
+                }
+
+                if (cachedChapters) {
+                    setChapters(cachedChapters);
+                    // Auto-load chapter from URL param or first chapter
+                    if (cachedChapters.length > 0) {
+                        let targetIndex = 0;
+                        if (initialChapter) {
+                            const chNum = parseInt(initialChapter);
+                            const foundIndex = cachedChapters.findIndex((ch: Chapter) =>
+                                ch.title.includes(String(chNum)) || ch.id.includes(String(chNum))
+                            );
+                            if (foundIndex !== -1) targetIndex = foundIndex;
+                        }
+                        loadChapterByIndex(targetIndex, cachedChapters);
+                    }
+                } else {
+                    // Fetch from API
+                    const chapterList = await mangaService.getChapters(selectedManga.id);
+                    setChapters(chapterList);
+
+                    // Auto-load chapter from URL param or first chapter
+                    if (chapterList.length > 0) {
+                        let targetIndex = 0;
+                        if (initialChapter) {
+                            const chNum = parseInt(initialChapter);
+                            const foundIndex = chapterList.findIndex((ch: Chapter) =>
+                                ch.title.includes(String(chNum)) || ch.id.includes(String(chNum))
+                            );
+                            if (foundIndex !== -1) targetIndex = foundIndex;
+                        }
+                        loadChapterByIndex(targetIndex, chapterList);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to load chapters:', err);
@@ -133,7 +167,7 @@ function MangaReader() {
         loadChapters();
     }, [selectedManga]);
 
-    // Load chapter by index
+    // Load chapter by index (check for preloaded pages first)
     const loadChapterByIndex = useCallback(async (index: number, chapterList?: Chapter[]) => {
         const list = chapterList || chapters;
         if (index < 0 || index >= list.length) return;
@@ -146,8 +180,37 @@ function MangaReader() {
         setCurrentPage(1);
 
         try {
+            // Check for preloaded pages from MangaDetailPage
+            const cacheKey = `chapter_pages_${chapter.id}`;
+            const cached = sessionStorage.getItem(cacheKey);
+
+            if (cached) {
+                try {
+                    const data = JSON.parse(cached);
+                    // Check if cache is valid (15 minutes)
+                    if (Date.now() - data.timestamp < 15 * 60 * 1000 && data.pages?.length > 0) {
+                        console.log('[Reader] Using preloaded pages:', data.pages.length);
+                        setPages(data.pages);
+                        setPagesLoading(false);
+                        if (readingAreaRef.current) {
+                            readingAreaRef.current.scrollTop = 0;
+                        }
+                        return;
+                    }
+                } catch (e) { /* ignore parse errors */ }
+            }
+
+            // Fetch from API
             const pageList = await mangaService.getChapterPages(chapter.url);
             setPages(pageList);
+
+            // Cache for future use
+            sessionStorage.setItem(cacheKey, JSON.stringify({
+                pages: pageList,
+                chapterId: chapter.id,
+                timestamp: Date.now()
+            }));
+
             // Scroll to top when chapter changes
             if (readingAreaRef.current) {
                 readingAreaRef.current.scrollTop = 0;

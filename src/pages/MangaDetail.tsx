@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MangaDetailPage from '../components/MangaDetailPage';
 import DetailPageSkeleton from '../components/DetailPageSkeleton';
@@ -18,9 +18,6 @@ function MangaDetail() {
     const [recommendations, setRecommendations] = useState<Manga[]>([]);
     const [extrasLoading, setExtrasLoading] = useState(true);
 
-    // Track if we've started scraper fetch
-    const scraperFetchStarted = useRef(false);
-
     // Fetch manga basic info from AniList
     useEffect(() => {
         const fetchMangaBasicInfo = async () => {
@@ -30,7 +27,6 @@ function MangaDetail() {
                 setLoading(true);
                 setExtrasLoading(true);
                 setError(null);
-                scraperFetchStarted.current = false;
 
                 // Get manga details from AniList
                 const result = await mangaService.getMangaById(Number(id));
@@ -45,12 +41,7 @@ function MangaDetail() {
 
                     // IMMEDIATELY show content, mark initial load done
                     setLoading(false);
-
-                    // Background prefetch for reader page
-                    if (!scraperFetchStarted.current) {
-                        scraperFetchStarted.current = true;
-                        prefetchReaderData(mangaData.title, Number(id));
-                    }
+                    // Chapter fetching is now handled by MangaDetailPage to avoid race conditions
 
                 } else {
                     setError('Manga not found');
@@ -67,41 +58,6 @@ function MangaDetail() {
 
         fetchMangaBasicInfo();
     }, [id]);
-
-    // Background prefetch function - stores data in sessionStorage for Reader page
-    const prefetchReaderData = async (title: string, mangaId: number) => {
-        try {
-            console.log('[Prefetch] Starting background prefetch for manga:', title);
-
-            // Search for manga on scraper
-            const searchRes = await mangaService.searchMangaScraper(title);
-            if (searchRes && searchRes.length > 0) {
-                const scraperId = searchRes[0].id;
-
-                // Get chapters
-                const chapterList = await mangaService.getChapters(scraperId);
-                const chapters = (chapterList || []).map((ch: any, index: number) => ({
-                    id: ch.id || `ch-${index}`,
-                    title: ch.title || `Chapter ${index + 1}`,
-                    url: ch.url,
-                    chapterNumber: ch.chapterNumber || ch.number || index + 1,
-                    uploadDate: ch.uploadDate
-                }));
-
-                // Cache data for Reader page
-                const cacheData = {
-                    mangaId: scraperId,
-                    chapters,
-                    timestamp: Date.now()
-                };
-                sessionStorage.setItem(`manga_prefetch_${mangaId}`, JSON.stringify(cacheData));
-                console.log('[Prefetch] Cached', chapters.length, 'chapters for manga', mangaId);
-            }
-        } catch (e) {
-            // Prefetch failed silently - Reader page will fetch normally
-            console.warn('[Prefetch] Background prefetch failed:', e);
-        }
-    };
 
     const handleBack = () => {
         navigate('/manga');
