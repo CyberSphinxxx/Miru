@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Genre } from '../types';
 import { getGenreCoverImage, getGenreGradient, DEFAULT_IMAGE } from '../services/api/genreImages';
 import { animeService } from '../services/api';
@@ -126,4 +126,5 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
     );
 }
 
-export default GenreCard;
+export default React.memo(GenreCard);
+

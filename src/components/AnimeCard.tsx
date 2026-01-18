@@ -238,4 +238,5 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
     );
 };
 
-export default AnimeCard;
+export default React.memo(AnimeCard);
+

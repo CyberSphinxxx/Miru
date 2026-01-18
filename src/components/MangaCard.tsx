@@ -40,6 +40,15 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick, onReadClick, onDe
         onReadClick?.();
     };
 
+    // Cleanup timeout on unmount to prevent memory leaks
+    React.useEffect(() => {
+        return () => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+        };
+    }, []);
+
     return (
         <div
             ref={cardRef}
@@ -242,4 +251,5 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick, onReadClick, onDe
     );
 };
 
-export default MangaCard;
+export default React.memo(MangaCard);
+

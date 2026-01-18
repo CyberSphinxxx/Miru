@@ -56,8 +56,8 @@ const QuickAddDropdown: React.FC<QuickAddDropdownProps> = ({ anime, className = 
             <button
                 onClick={handleToggle}
                 className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all shadow-lg shrink-0 ${currentStatus
-                        ? 'bg-miru-primary/30 border-miru-primary text-miru-primary'
-                        : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+                    ? 'bg-miru-primary/30 border-miru-primary text-miru-primary'
+                    : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
                     }`}
                 title={currentStatus ? statuses.find(s => s.key === currentStatus)?.label : 'Add to list'}
             >
@@ -82,8 +82,8 @@ const QuickAddDropdown: React.FC<QuickAddDropdownProps> = ({ anime, className = 
                             key={status.key}
                             onClick={(e) => handleStatusChange(e, status.key)}
                             className={`w-full px-3 py-2 text-left text-xs transition-colors flex items-center gap-2 ${currentStatus === status.key
-                                    ? 'text-miru-primary bg-miru-primary/10 font-bold'
-                                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                                ? 'text-miru-primary bg-miru-primary/10 font-bold'
+                                : 'text-gray-300 hover:text-white hover:bg-white/10'
                                 }`}
                         >
                             <span className={`w-2 h-2 rounded-full ${status.color}`}></span>
@@ -116,4 +116,5 @@ const QuickAddDropdown: React.FC<QuickAddDropdownProps> = ({ anime, className = 
     );
 };
 
-export default QuickAddDropdown;
+export default React.memo(QuickAddDropdown);
+
