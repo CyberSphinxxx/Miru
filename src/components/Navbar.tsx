@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import LoginModal from './LoginModal';
+import NotificationDropdown from './NotificationDropdown';
 
 export type ViewMode = 'home' | 'anime' | 'manga' | 'detail' | 'watch' | 'profile';
 
@@ -19,7 +21,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchType, setSearchType] = useState<SearchType>('all');
     const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
     const { currentUser } = useAuth();
+    const { unreadCount } = useNotifications();
 
     const searchTypeOptions: { value: SearchType; label: string; icon: React.ReactNode }[] = [
         {
@@ -244,13 +248,31 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                             {/* User Actions - Hidden on mobile, shown on md+ */}
                             <div className="hidden md:flex items-center gap-3">
                                 {/* Notification Bell */}
-                                <button className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all duration-300 group">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                                    </svg>
-                                    {/* Notification Dot */}
-                                    <span className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
-                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowNotifications(!showNotifications)}
+                                        className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all duration-300 group"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                                        </svg>
+                                        {/* Notification Badge */}
+                                        {unreadCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-xs font-bold bg-purple-500 text-white rounded-full">
+                                                {unreadCount > 9 ? '9+' : unreadCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <NotificationDropdown
+                                        isOpen={showNotifications}
+                                        onClose={() => setShowNotifications(false)}
+                                        onNavigate={(url) => {
+                                            if (url.startsWith('/watch/')) {
+                                                window.location.href = url;
+                                            }
+                                        }}
+                                    />
+                                </div>
 
                                 {/* Avatar / Sign In */}
                                 {currentUser ? (
