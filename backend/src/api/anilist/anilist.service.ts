@@ -366,7 +366,7 @@ export const anilistService = {
     async getMangaById(id: number) {
         const query = `
             query ($id: Int) {
-                Media(idMal: $id, type: MANGA) {
+                Media(id: $id, type: MANGA) {
                     ${MEDIA_FIELDS}
                 }
             }
