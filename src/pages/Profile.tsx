@@ -58,22 +58,48 @@ function Profile() {
         toast.success('Removed from history');
     };
 
-    // ============= ANIME STATS =============
-    const totalAnime = Object.values(userData.library).reduce((acc, list) => acc + list.length, 0);
-    const animeWatchingCount = userData.library.watching.length;
-    const animeCompletedCount = userData.library.completed.length;
-    const animePlanToWatchCount = userData.library.plan_to_watch.length;
-    const animeOnHoldCount = userData.library.on_hold.length;
-    const animeDroppedCount = userData.library.dropped.length;
+    // ============= ANIME STATS ============= (memoized to ensure updates when library changes)
+    const animeStatsData = useMemo(() => {
+        const totalAnime = Object.values(userData.library).reduce((acc, list) => acc + list.length, 0);
+        const watchingCount = userData.library.watching.length;
+        const completedCount = userData.library.completed.length;
+        const planToWatchCount = userData.library.plan_to_watch.length;
+        const onHoldCount = userData.library.on_hold.length;
+        const droppedCount = userData.library.dropped.length;
 
-    const totalEpisodes = Object.values(userData.library).flat().reduce((acc, entry) => {
-        return acc + (entry.anime.episodes || 0);
-    }, 0);
+        const totalEpisodes = Object.values(userData.library).flat().reduce((acc, entry) => {
+            return acc + (entry.anime.episodes || 0);
+        }, 0);
 
-    const daysWasted = ((totalEpisodes * 24) / 60 / 24).toFixed(1);
+        const daysWasted = ((totalEpisodes * 24) / 60 / 24).toFixed(1);
 
-    const allAnimeScores = Object.values(userData.library).flat().map(e => e.anime.score).filter(s => s > 0);
-    const animeMeanScore = allAnimeScores.length > 0 ? (allAnimeScores.reduce((a, b) => a + b, 0) / allAnimeScores.length).toFixed(1) : '—';
+        const allScores = Object.values(userData.library).flat().map(e => e.anime.score).filter(s => s > 0);
+        const meanScore = allScores.length > 0 ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1) : '—';
+
+        return {
+            totalAnime,
+            watchingCount,
+            completedCount,
+            planToWatchCount,
+            onHoldCount,
+            droppedCount,
+            totalEpisodes,
+            daysWasted,
+            meanScore
+        };
+    }, [userData.library]);
+
+    const {
+        totalAnime,
+        watchingCount: animeWatchingCount,
+        completedCount: animeCompletedCount,
+        planToWatchCount: animePlanToWatchCount,
+        onHoldCount: animeOnHoldCount,
+        droppedCount: animeDroppedCount,
+        totalEpisodes,
+        daysWasted,
+        meanScore: animeMeanScore
+    } = animeStatsData;
 
     // ============= MANGA STATS (from library + read history) =============
     const mangaLibrary = userData.mangaLibrary || { reading: [], completed: [], plan_to_read: [], on_hold: [], dropped: [] };
