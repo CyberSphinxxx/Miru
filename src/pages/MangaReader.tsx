@@ -66,6 +66,7 @@ function MangaReader() {
     const [showControls, setShowControls] = useState(true);
     const [readingMode, setReadingMode] = useState<'vertical' | 'single'>('vertical');
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [chapterViewMode, setChapterViewMode] = useState<'list' | 'grid'>('list');
 
     // Refs
     const readingAreaRef = useRef<HTMLDivElement>(null);
@@ -127,9 +128,10 @@ function MangaReader() {
 
                 if (cachedChapters) {
                     setChapters(cachedChapters);
-                    // Auto-load chapter from URL param or first chapter
+                    // Auto-load chapter from URL param or first chapter (chapter 1 = last in list)
                     if (cachedChapters.length > 0) {
-                        let targetIndex = 0;
+                        // Default to chapter 1 (last in list since newest is first)
+                        let targetIndex = cachedChapters.length - 1;
                         if (initialChapter) {
                             const chNum = parseInt(initialChapter);
                             const foundIndex = cachedChapters.findIndex((ch: Chapter) =>
@@ -144,9 +146,10 @@ function MangaReader() {
                     const chapterList = await mangaService.getChapters(selectedManga.id);
                     setChapters(chapterList);
 
-                    // Auto-load chapter from URL param or first chapter
+                    // Auto-load chapter from URL param or first chapter (chapter 1 = last in list)
                     if (chapterList.length > 0) {
-                        let targetIndex = 0;
+                        // Default to chapter 1 (last in list since newest is first)
+                        let targetIndex = chapterList.length - 1;
                         if (initialChapter) {
                             const chNum = parseInt(initialChapter);
                             const foundIndex = chapterList.findIndex((ch: Chapter) =>
@@ -531,9 +534,30 @@ function MangaReader() {
                                 </svg>
                                 <h3 className="font-bold text-white">Chapters</h3>
                             </div>
-                            <span className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded-md">
-                                {chapters.length}
-                            </span>
+                            <div className="flex items-center gap-1">
+                                {/* List/Grid Toggle */}
+                                <button
+                                    onClick={() => setChapterViewMode('list')}
+                                    className={`p-1.5 rounded transition-colors ${chapterViewMode === 'list' ? 'bg-miru-primary text-black' : 'bg-white/5 hover:bg-white/10 text-gray-400'}`}
+                                    title="List View"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => setChapterViewMode('grid')}
+                                    className={`p-1.5 rounded transition-colors ${chapterViewMode === 'grid' ? 'bg-miru-primary text-black' : 'bg-white/5 hover:bg-white/10 text-gray-400'}`}
+                                    title="Grid View"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                                    </svg>
+                                </button>
+                                <span className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded-md ml-1">
+                                    {chapters.length}
+                                </span>
+                            </div>
                         </div>
                         <input
                             type="text"
@@ -551,31 +575,56 @@ function MangaReader() {
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-miru-primary"></div>
                             </div>
                         ) : filteredChapters.length > 0 ? (
-                            <div>
-                                {filteredChapters.map((chapter) => {
-                                    const isActive = currentChapter?.id === chapter.id;
-                                    return (
-                                        <button
-                                            key={chapter.id}
-                                            onClick={() => loadChapter(chapter)}
-                                            className={`w-full text-left px-4 py-3 transition-all border-l-2 hover:bg-white/5 ${isActive
-                                                ? 'bg-miru-primary/10 border-miru-primary text-white'
-                                                : 'border-transparent text-gray-400 hover:text-white'
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                {isActive && (
-                                                    <div className="w-2 h-2 rounded-full bg-miru-primary animate-pulse"></div>
+                            chapterViewMode === 'grid' ? (
+                                /* Grid View - Compact numbered buttons */
+                                <div className="p-3 grid grid-cols-5 gap-2">
+                                    {filteredChapters.map((chapter) => {
+                                        const isActive = currentChapter?.id === chapter.id;
+                                        // Extract chapter number from title
+                                        const chapterNum = chapter.title.match(/\d+/)?.[0] || '?';
+                                        return (
+                                            <button
+                                                key={chapter.id}
+                                                onClick={() => loadChapter(chapter)}
+                                                className={`aspect-square flex items-center justify-center rounded-lg transition-all duration-200 text-sm font-bold border ${isActive
+                                                    ? 'bg-miru-primary text-black border-miru-primary shadow-lg shadow-miru-primary/20'
+                                                    : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-white/5 hover:border-miru-primary/50'
+                                                    }`}
+                                                title={chapter.title}
+                                            >
+                                                {chapterNum}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                /* List View - Detailed with titles */
+                                <div>
+                                    {filteredChapters.map((chapter) => {
+                                        const isActive = currentChapter?.id === chapter.id;
+                                        return (
+                                            <button
+                                                key={chapter.id}
+                                                onClick={() => loadChapter(chapter)}
+                                                className={`w-full text-left px-4 py-3 transition-all border-l-2 hover:bg-white/5 ${isActive
+                                                    ? 'bg-miru-primary/10 border-miru-primary text-white'
+                                                    : 'border-transparent text-gray-400 hover:text-white'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {isActive && (
+                                                        <div className="w-2 h-2 rounded-full bg-miru-primary animate-pulse"></div>
+                                                    )}
+                                                    <span className="text-sm font-medium truncate flex-1">{chapter.title}</span>
+                                                </div>
+                                                {chapter.uploadDate && (
+                                                    <div className="text-xs text-gray-500 mt-1 ml-4">{chapter.uploadDate}</div>
                                                 )}
-                                                <span className="text-sm font-medium truncate flex-1">{chapter.title}</span>
-                                            </div>
-                                            {chapter.uploadDate && (
-                                                <div className="text-xs text-gray-500 mt-1 ml-4">{chapter.uploadDate}</div>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )
                         ) : (
                             <div className="p-8 text-center text-gray-500">
                                 {chapters.length === 0 ? 'No chapters found' : 'No matching chapters'}
@@ -716,8 +765,12 @@ function MangaReader() {
                 </div>
             )}
 
-            {/* Custom scrollbar styles */}
+            {/* Custom scrollbar and scroll behavior styles */}
             <style>{`
+                .custom-scrollbar {
+                    scroll-behavior: smooth;
+                    overscroll-behavior: contain;
+                }
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 8px;
                 }
@@ -730,6 +783,11 @@ function MangaReader() {
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
                     background: rgba(255, 255, 255, 0.2);
+                }
+                .manga-reader-scroll {
+                    scroll-behavior: smooth;
+                    overscroll-behavior: contain;
+                    -webkit-overflow-scrolling: touch;
                 }
             `}</style>
         </div>
