@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Manga, MangaChapter } from '../types/manga';
 import { mangaService } from '../services/api';
+import MangaStatusButton from './MangaStatusButton';
 
 interface MangaDetailPageProps {
     manga: Manga;
@@ -255,6 +256,8 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
                                 </svg>
                                 Read Now
                             </button>
+
+                            <MangaStatusButton manga={manga} />
                         </div>
                     </div>
 

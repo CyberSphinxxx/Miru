@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { Anime } from '../types';
+import { Manga } from '../types/manga';
 
 // ============================================================================
 // Types
@@ -15,6 +16,7 @@ export interface HistoryItem {
     lastWatched: string; // ISO date string
 }
 
+// Anime Library Types
 export type LibraryStatus = 'watching' | 'completed' | 'plan_to_watch' | 'on_hold' | 'dropped';
 
 export interface LibraryEntry {
@@ -30,18 +32,40 @@ export interface Library {
     dropped: LibraryEntry[];
 }
 
+// Manga Library Types
+export type MangaLibraryStatus = 'reading' | 'completed' | 'plan_to_read' | 'on_hold' | 'dropped';
+
+export interface MangaLibraryEntry {
+    manga: Manga;
+    addedAt: string;
+}
+
+export interface MangaLibrary {
+    reading: MangaLibraryEntry[];
+    completed: MangaLibraryEntry[];
+    plan_to_read: MangaLibraryEntry[];
+    on_hold: MangaLibraryEntry[];
+    dropped: MangaLibraryEntry[];
+}
+
 export interface UserData {
     history: HistoryItem[];
     library: Library;
+    mangaLibrary: MangaLibrary;
 }
 
 interface UserContextType {
     userData: UserData;
     loading: boolean;
+    // Anime
     updateHistory: (animeId: number, episodeId: string, timestamp: number) => void;
     updateStatus: (anime: Anime, newStatus: LibraryStatus) => void;
     getAnimeStatus: (animeId: number) => LibraryStatus | null;
     removeFromLibrary: (animeId: number) => void;
+    // Manga
+    updateMangaStatus: (manga: Manga, newStatus: MangaLibraryStatus) => void;
+    getMangaStatus: (mangaId: number) => MangaLibraryStatus | null;
+    removeFromMangaLibrary: (mangaId: number) => void;
 }
 
 // ============================================================================
@@ -56,6 +80,13 @@ const INITIAL_DATA: UserData = {
         watching: [],
         completed: [],
         plan_to_watch: [],
+        on_hold: [],
+        dropped: [],
+    },
+    mangaLibrary: {
+        reading: [],
+        completed: [],
+        plan_to_read: [],
         on_hold: [],
         dropped: [],
     },
@@ -124,9 +155,45 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
         });
     });
 
+    // Also merge manga library in same pattern
+    const mergedMangaLibrary: MangaLibrary = {
+        reading: [],
+        completed: [],
+        plan_to_read: [],
+        on_hold: [],
+        dropped: [],
+    };
+
+    const seenMangaIds = new Set<number>();
+
+    // Process cloud manga library first
+    if (cloud.mangaLibrary) {
+        (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
+            (cloud.mangaLibrary[status] || []).forEach(entry => {
+                if (!seenMangaIds.has(entry.manga.mal_id)) {
+                    mergedMangaLibrary[status].push(entry);
+                    seenMangaIds.add(entry.manga.mal_id);
+                }
+            });
+        });
+    }
+
+    // Add local manga items not in cloud
+    if (local.mangaLibrary) {
+        (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
+            (local.mangaLibrary[status] || []).forEach(entry => {
+                if (!seenMangaIds.has(entry.manga.mal_id)) {
+                    mergedMangaLibrary[status].push(entry);
+                    seenMangaIds.add(entry.manga.mal_id);
+                }
+            });
+        });
+    }
+
     return {
         history: Array.from(historyMap.values()),
         library: mergedLibrary,
+        mangaLibrary: mergedMangaLibrary,
     };
 };
 
@@ -361,6 +428,74 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
     }, [userData.library]);
 
+    // ========== MANGA LIBRARY FUNCTIONS ==========
+
+    /**
+     * Adds or moves a manga to a specific list.
+     */
+    const updateMangaStatus = useCallback((manga: Manga, newStatus: MangaLibraryStatus) => {
+        setUserData(prev => {
+            const newMangaLibrary = { ...(prev.mangaLibrary || INITIAL_DATA.mangaLibrary) };
+            const mangaId = manga.mal_id;
+
+            // Remove from ALL lists
+            (Object.keys(newMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
+                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.mal_id !== mangaId);
+            });
+
+            // Add to the new list
+            newMangaLibrary[newStatus].push({
+                manga,
+                addedAt: new Date().toISOString()
+            });
+
+            const newData = {
+                ...prev,
+                mangaLibrary: newMangaLibrary
+            };
+
+            saveData(newData);
+            return newData;
+        });
+    }, [saveData]);
+
+    /**
+     * Removes a manga from the library entirely.
+     */
+    const removeFromMangaLibrary = useCallback((mangaId: number) => {
+        setUserData(prev => {
+            const newMangaLibrary = { ...(prev.mangaLibrary || INITIAL_DATA.mangaLibrary) };
+
+            (Object.keys(newMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
+                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.mal_id !== mangaId);
+            });
+
+            const newData = {
+                ...prev,
+                mangaLibrary: newMangaLibrary
+            };
+
+            saveData(newData);
+            return newData;
+        });
+    }, [saveData]);
+
+    /**
+     * Returns the current status of a manga.
+     */
+    const getMangaStatus = useCallback((mangaId: number): MangaLibraryStatus | null => {
+        const mangaLibrary = userData.mangaLibrary || INITIAL_DATA.mangaLibrary;
+        const statuses = Object.keys(mangaLibrary) as MangaLibraryStatus[];
+
+        for (const status of statuses) {
+            if ((mangaLibrary[status] || []).some(entry => entry.manga.mal_id === mangaId)) {
+                return status;
+            }
+        }
+
+        return null;
+    }, [userData.mangaLibrary]);
+
     return (
         <UserContext.Provider value={{
             userData,
@@ -368,7 +503,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             updateHistory,
             updateStatus,
             getAnimeStatus,
-            removeFromLibrary
+            removeFromLibrary,
+            updateMangaStatus,
+            getMangaStatus,
+            removeFromMangaLibrary
         }}>
             {children}
         </UserContext.Provider>

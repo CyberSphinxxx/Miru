@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLocalUser, LibraryStatus, LibraryEntry } from '../context/UserContext';
+import { useLocalUser, LibraryStatus, LibraryEntry, MangaLibraryStatus, MangaLibraryEntry } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
 import AnimeCard from '../components/AnimeCard';
 import MangaCard from '../components/MangaCard';
@@ -75,11 +75,22 @@ function Profile() {
     const allAnimeScores = Object.values(userData.library).flat().map(e => e.anime.score).filter(s => s > 0);
     const animeMeanScore = allAnimeScores.length > 0 ? (allAnimeScores.reduce((a, b) => a + b, 0) / allAnimeScores.length).toFixed(1) : '—';
 
-    // ============= MANGA STATS (from read history) =============
-    const totalManga = readHistory.length;
+    // ============= MANGA STATS (from library + read history) =============
+    const mangaLibrary = userData.mangaLibrary || { reading: [], completed: [], plan_to_read: [], on_hold: [], dropped: [] };
+    const mangaLibraryTotal = Object.values(mangaLibrary).reduce((acc, list) => acc + (list?.length || 0), 0);
+    const mangaReadingCount = mangaLibrary.reading?.length || 0;
+    const mangaCompletedCount = mangaLibrary.completed?.length || 0;
+    const mangaPlanToReadCount = mangaLibrary.plan_to_read?.length || 0;
+    const mangaOnHoldCount = mangaLibrary.on_hold?.length || 0;
+    const mangaDroppedCount = mangaLibrary.dropped?.length || 0;
+
+    const totalManga = mangaLibraryTotal + readHistory.length;
     const totalChaptersRead = readHistory.reduce((acc, item) => acc + (item.currentChapter || 0), 0);
     const totalVolumes = readHistory.reduce((acc, item) => acc + (item.volumes || 0), 0);
-    const allMangaScores = readHistory.map(e => e.score || 0).filter(s => s > 0);
+    const allMangaScores = [
+        ...readHistory.map(e => e.score || 0),
+        ...Object.values(mangaLibrary).flat().filter(Boolean).map((e: MangaLibraryEntry) => e.manga?.score || 0)
+    ].filter(s => s > 0);
     const mangaMeanScore = allMangaScores.length > 0 ? (allMangaScores.reduce((a, b) => a + b, 0) / allMangaScores.length).toFixed(1) : '—';
 
     // ============= GET CURRENT LIST =============
@@ -119,8 +130,8 @@ function Profile() {
     };
 
     const getCurrentMangaList = (): Manga[] => {
-        if (mangaTab === 'History' || mangaTab === 'All') {
-            // For now, manga list only shows history
+        if (mangaTab === 'History') {
+            // Show read history
             return readHistory.map(item => ({
                 mal_id: item.mal_id,
                 id: item.id,
@@ -137,8 +148,26 @@ function Profile() {
                 title_japanese: item.title_japanese,
             } as Manga));
         }
-        // Other tabs empty for now (no manga library system yet)
-        return [];
+
+        if (mangaTab === 'All') {
+            // Show all manga from library
+            const allManga: Manga[] = [];
+            Object.values(mangaLibrary).forEach((list: MangaLibraryEntry[]) => {
+                (list || []).forEach((entry) => allManga.push(entry.manga));
+            });
+            return allManga;
+        }
+
+        // Map tab names to library keys
+        const tabToKey: Record<string, MangaLibraryStatus> = {
+            'Reading': 'reading',
+            'Completed': 'completed',
+            'Plan to Read': 'plan_to_read',
+            'On Hold': 'on_hold',
+            'Dropped': 'dropped'
+        };
+        const key = tabToKey[mangaTab] as MangaLibraryStatus;
+        return (mangaLibrary[key] || []).map(entry => entry.manga);
     };
 
     const currentAnimeList = getCurrentAnimeList();
@@ -164,13 +193,13 @@ function Profile() {
     ];
 
     const mangaTabs: { label: MangaTab; count: number }[] = [
-        { label: 'All', count: totalManga },
+        { label: 'All', count: mangaLibraryTotal },
         { label: 'History', count: readHistory.length },
-        { label: 'Reading', count: 0 },
-        { label: 'Completed', count: 0 },
-        { label: 'Plan to Read', count: 0 },
-        { label: 'On Hold', count: 0 },
-        { label: 'Dropped', count: 0 },
+        { label: 'Reading', count: mangaReadingCount },
+        { label: 'Completed', count: mangaCompletedCount },
+        { label: 'Plan to Read', count: mangaPlanToReadCount },
+        { label: 'On Hold', count: mangaOnHoldCount },
+        { label: 'Dropped', count: mangaDroppedCount },
     ];
 
     // ============= STATS CONFIG =============
