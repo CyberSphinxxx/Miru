@@ -65,9 +65,10 @@ function MangaReader() {
     const [zoomLevel, setZoomLevel] = useState(100);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [showControls, setShowControls] = useState(true);
-    const [readingMode, setReadingMode] = useState<'vertical' | 'single'>('vertical');
+    const [readingMode, setReadingMode] = useState<'long-strip' | 'long-strip-gaps' | 'paged-ltr' | 'paged-rtl' | 'paged-vertical'>('long-strip');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [chapterViewMode, setChapterViewMode] = useState<'list' | 'grid'>('list');
+    const [showSettings, setShowSettings] = useState(false);
 
     // Refs
     const readingAreaRef = useRef<HTMLDivElement>(null);
@@ -254,10 +255,19 @@ function MangaReader() {
         return chapter.title.toLowerCase().includes(chapterSearchQuery.toLowerCase());
     }).slice().reverse();
 
-    // Zoom controls
-    const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 10, 200));
-    const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 10, 50));
+    // Zoom controls - increased range (25% to 300%)
+    const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 10, 300));
+    const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 10, 25));
     const handleZoomReset = () => setZoomLevel(100);
+
+    // Reading mode options
+    const readingModes = [
+        { id: 'long-strip' as const, label: 'Long Strip', icon: '📜' },
+        { id: 'long-strip-gaps' as const, label: 'Long Strip (Gaps)', icon: '📄' },
+        { id: 'paged-ltr' as const, label: 'Paged (L→R)', icon: '➡️' },
+        { id: 'paged-rtl' as const, label: 'Paged (R→L)', icon: '⬅️' },
+        { id: 'paged-vertical' as const, label: 'Paged (Vertical)', icon: '⬇️' },
+    ];
 
     // Fullscreen toggle
     const toggleFullscreen = () => {
@@ -451,26 +461,53 @@ function MangaReader() {
 
                 {/* Right Controls */}
                 <div className="flex items-center gap-2">
-                    {/* Reading Mode Toggle */}
-                    <div className="hidden sm:flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                    {/* Settings Button */}
+                    <div className="relative">
                         <button
-                            onClick={() => setReadingMode('vertical')}
-                            className={`p-2 rounded-md transition-colors ${readingMode === 'vertical' ? 'bg-miru-primary text-black' : 'hover:bg-white/10'}`}
-                            title="Vertical Scroll"
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-miru-primary text-black' : 'bg-white/5 hover:bg-white/10'}`}
+                            title="Reading Settings"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                             </svg>
                         </button>
-                        <button
-                            onClick={() => setReadingMode('single')}
-                            className={`p-2 rounded-md transition-colors ${readingMode === 'single' ? 'bg-miru-primary text-black' : 'hover:bg-white/10'}`}
-                            title="Single Page"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                            </svg>
-                        </button>
+
+                        {/* Settings Dropdown */}
+                        {showSettings && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSettings(false)} />
+                                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-[#111] border border-white/10 shadow-xl z-50 overflow-hidden animate-fade-in">
+                                    <div className="px-3 py-2 border-b border-white/10 bg-white/5">
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase">Reading Mode</h4>
+                                    </div>
+                                    <div className="p-2">
+                                        {readingModes.map((mode) => (
+                                            <button
+                                                key={mode.id}
+                                                onClick={() => {
+                                                    setReadingMode(mode.id);
+                                                    setShowSettings(false);
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm transition-colors ${readingMode === mode.id
+                                                    ? 'bg-miru-primary/20 text-miru-primary'
+                                                    : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                                                    }`}
+                                            >
+                                                <span className="text-base">{mode.icon}</span>
+                                                {mode.label}
+                                                {readingMode === mode.id && (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-auto">
+                                                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Zoom Controls */}
@@ -689,27 +726,99 @@ function MangaReader() {
                         </div>
                     ) : pages.length > 0 ? (
                         <>
-                            {readingMode === 'vertical' ? (
-                                <div className="flex flex-col items-center py-4">
-                                    {pages.map((page) => (
+                            {/* Long Strip Modes (vertical scroll) */}
+                            {(readingMode === 'long-strip' || readingMode === 'long-strip-gaps') && (
+                                <div className={`flex flex-col items-center py-4 ${readingMode === 'long-strip-gaps' ? 'gap-4' : ''}`}>
+                                    {pages.map((page, index) => (
                                         <img
                                             key={page.pageNumber}
                                             src={page.imageUrl}
                                             alt={`Page ${page.pageNumber}`}
                                             className="block transition-all duration-200 max-w-full"
                                             style={{ width: `${zoomLevel}%` }}
-                                            loading="lazy"
+                                            loading={index < 5 ? 'eager' : 'lazy'}
+                                            decoding="async"
                                         />
                                     ))}
                                 </div>
-                            ) : (
-                                <div className="flex items-center justify-center min-h-full py-4">
-                                    <img
-                                        src={pages[currentPage - 1]?.imageUrl}
-                                        alt={`Page ${currentPage}`}
-                                        className="block transition-all duration-200 max-h-full"
-                                        style={{ width: `${zoomLevel}%`, maxWidth: '100%' }}
-                                    />
+                            )}
+
+                            {/* Paged Modes (single page view) */}
+                            {(readingMode === 'paged-ltr' || readingMode === 'paged-rtl' || readingMode === 'paged-vertical') && (
+                                <div className="flex flex-col items-center justify-center min-h-full py-4 px-4">
+                                    {/* Page navigation for paged modes */}
+                                    <div className="flex items-center gap-4 w-full max-w-4xl">
+                                        {/* Previous page button (left side for LTR, right side for RTL) */}
+                                        {readingMode !== 'paged-rtl' && (
+                                            <button
+                                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                                disabled={currentPage <= 1}
+                                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                        {readingMode === 'paged-rtl' && (
+                                            <button
+                                                onClick={() => setCurrentPage(p => Math.min(pages.length, p + 1))}
+                                                disabled={currentPage >= pages.length}
+                                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                                </svg>
+                                            </button>
+                                        )}
+
+                                        {/* Current page image */}
+                                        <div className="flex-1 flex justify-center">
+                                            <img
+                                                src={pages[currentPage - 1]?.imageUrl}
+                                                alt={`Page ${currentPage}`}
+                                                className="block transition-all duration-200 max-h-[80vh]"
+                                                style={{ width: `${zoomLevel}%`, maxWidth: '100%' }}
+                                                loading="eager"
+                                                decoding="async"
+                                            />
+                                        </div>
+
+                                        {/* Next page button (right side for LTR, left side for RTL) */}
+                                        {readingMode !== 'paged-rtl' && (
+                                            <button
+                                                onClick={() => setCurrentPage(p => Math.min(pages.length, p + 1))}
+                                                disabled={currentPage >= pages.length}
+                                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                        {readingMode === 'paged-rtl' && (
+                                            <button
+                                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                                disabled={currentPage <= 1}
+                                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Page indicator */}
+                                    <div className="mt-4 text-sm text-gray-400">
+                                        Page {currentPage} / {pages.length}
+                                    </div>
+
+                                    {/* Preload adjacent pages for smooth navigation */}
+                                    <div className="hidden">
+                                        {currentPage > 1 && <img src={pages[currentPage - 2]?.imageUrl} alt="" />}
+                                        {currentPage < pages.length && <img src={pages[currentPage]?.imageUrl} alt="" />}
+                                    </div>
                                 </div>
                             )}
 
