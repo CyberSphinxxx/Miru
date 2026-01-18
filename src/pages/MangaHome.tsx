@@ -119,7 +119,12 @@ function MangaHome({ viewMode }: MangaHomeProps) {
     };
 
     const handleMangaClick = (manga: Manga) => {
-        // Navigate to manga reader with the title as URL param
+        // Navigate to manga details page
+        navigate(`/manga/${manga.id || manga.mal_id}`);
+    };
+
+    const handleReadClick = (manga: Manga) => {
+        // Navigate directly to manga reader
         navigate(`/read/${encodeURIComponent(manga.title)}`);
     };
 
@@ -344,6 +349,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
                                         <MangaCard
                                             manga={manga}
                                             onClick={() => handleMangaClick(manga)}
+                                            onReadClick={() => handleReadClick(manga)}
                                         />
                                     </div>
                                 ))}
@@ -393,6 +399,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
                                             rank: viewMode === 'home' ? ((currentPage - 1) * 24 + index + 1) : undefined
                                         }}
                                         onClick={() => handleMangaClick(manga)}
+                                        onReadClick={() => handleReadClick(manga)}
                                     />
                                 ))}
                             </div>

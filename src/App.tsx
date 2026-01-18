@@ -9,6 +9,7 @@ const Detail = lazy(() => import('./pages/Detail'));
 const Watch = lazy(() => import('./pages/Watch'));
 const Profile = lazy(() => import('./pages/Profile'));
 const MangaHome = lazy(() => import('./pages/MangaHome'));
+const MangaDetail = lazy(() => import('./pages/MangaDetail'));
 const MangaReader = lazy(() => import('./pages/MangaReader'));
 
 // Loading fallback component
@@ -65,6 +66,7 @@ function AppContent() {
                     <Route path="/genres" element={<Home viewMode="genres" />} />
                     <Route path="/genres/:genreId" element={<WrapperGenreHome />} />
                     <Route path="/manga" element={<MangaHome viewMode="home" />} />
+                    <Route path="/manga/:id" element={<MangaDetail />} />
                     <Route path="/read/:id" element={<MangaReader />} />
                     <Route path="/anime/:id" element={<Detail />} />
                     <Route path="/watch/:id" element={<Watch />} />
