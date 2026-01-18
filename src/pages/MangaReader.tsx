@@ -54,6 +54,7 @@ function MangaReader() {
     const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(-1);
     const [chaptersLoading, setChaptersLoading] = useState(false);
     const [chapterSearchQuery, setChapterSearchQuery] = useState('');
+    const [chapterPage, setChapterPage] = useState(1);
 
     // Pages state
     const [pages, setPages] = useState<Page[]>([]);
@@ -569,62 +570,104 @@ function MangaReader() {
                     </div>
 
                     {/* Chapter List */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                         {chaptersLoading ? (
                             <div className="flex justify-center p-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-miru-primary"></div>
                             </div>
                         ) : filteredChapters.length > 0 ? (
-                            chapterViewMode === 'grid' ? (
-                                /* Grid View - Compact numbered buttons */
-                                <div className="p-3 grid grid-cols-5 gap-2">
-                                    {filteredChapters.map((chapter) => {
-                                        const isActive = currentChapter?.id === chapter.id;
-                                        // Extract chapter number from title
-                                        const chapterNum = chapter.title.match(/\d+/)?.[0] || '?';
-                                        return (
-                                            <button
-                                                key={chapter.id}
-                                                onClick={() => loadChapter(chapter)}
-                                                className={`aspect-square flex items-center justify-center rounded-lg transition-all duration-200 text-sm font-bold border ${isActive
-                                                    ? 'bg-miru-primary text-black border-miru-primary shadow-lg shadow-miru-primary/20'
-                                                    : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-white/5 hover:border-miru-primary/50'
-                                                    }`}
-                                                title={chapter.title}
-                                            >
-                                                {chapterNum}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                /* List View - Detailed with titles */
-                                <div>
-                                    {filteredChapters.map((chapter) => {
-                                        const isActive = currentChapter?.id === chapter.id;
-                                        return (
-                                            <button
-                                                key={chapter.id}
-                                                onClick={() => loadChapter(chapter)}
-                                                className={`w-full text-left px-4 py-3 transition-all border-l-2 hover:bg-white/5 ${isActive
-                                                    ? 'bg-miru-primary/10 border-miru-primary text-white'
-                                                    : 'border-transparent text-gray-400 hover:text-white'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    {isActive && (
-                                                        <div className="w-2 h-2 rounded-full bg-miru-primary animate-pulse"></div>
-                                                    )}
-                                                    <span className="text-sm font-medium truncate flex-1">{chapter.title}</span>
+                            (() => {
+                                const ITEMS_PER_PAGE = chapterViewMode === 'grid' ? 100 : 50;
+                                const totalPages = Math.ceil(filteredChapters.length / ITEMS_PER_PAGE);
+                                const startIdx = (chapterPage - 1) * ITEMS_PER_PAGE;
+                                const paginatedChapters = filteredChapters.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+                                return (
+                                    <>
+                                        {/* Paginated Chapter List */}
+                                        <div className="flex-1">
+                                            {chapterViewMode === 'grid' ? (
+                                                /* Grid View - Compact numbered buttons */
+                                                <div className="p-3 grid grid-cols-5 gap-2">
+                                                    {paginatedChapters.map((chapter) => {
+                                                        const isActive = currentChapter?.id === chapter.id;
+                                                        const chapterNum = chapter.title.match(/\d+/)?.[0] || '?';
+                                                        return (
+                                                            <button
+                                                                key={chapter.id}
+                                                                onClick={() => loadChapter(chapter)}
+                                                                className={`aspect-square flex items-center justify-center rounded-lg transition-all duration-200 text-sm font-bold border ${isActive
+                                                                    ? 'bg-miru-primary text-black border-miru-primary shadow-lg shadow-miru-primary/20'
+                                                                    : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-white/5 hover:border-miru-primary/50'
+                                                                    }`}
+                                                                title={chapter.title}
+                                                            >
+                                                                {chapterNum}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
-                                                {chapter.uploadDate && (
-                                                    <div className="text-xs text-gray-500 mt-1 ml-4">{chapter.uploadDate}</div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )
+                                            ) : (
+                                                /* List View - Detailed with titles */
+                                                <div>
+                                                    {paginatedChapters.map((chapter) => {
+                                                        const isActive = currentChapter?.id === chapter.id;
+                                                        return (
+                                                            <button
+                                                                key={chapter.id}
+                                                                onClick={() => loadChapter(chapter)}
+                                                                className={`w-full text-left px-4 py-3 transition-all border-l-2 hover:bg-white/5 ${isActive
+                                                                    ? 'bg-miru-primary/10 border-miru-primary text-white'
+                                                                    : 'border-transparent text-gray-400 hover:text-white'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    {isActive && (
+                                                                        <div className="w-2 h-2 rounded-full bg-miru-primary animate-pulse"></div>
+                                                                    )}
+                                                                    <span className="text-sm font-medium truncate flex-1">{chapter.title}</span>
+                                                                </div>
+                                                                {chapter.uploadDate && (
+                                                                    <div className="text-xs text-gray-500 mt-1 ml-4">{chapter.uploadDate}</div>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Pagination Controls */}
+                                        {totalPages > 1 && (
+                                            <div className="p-3 border-t border-white/5 bg-[#0a0a0a]">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <button
+                                                        onClick={() => setChapterPage(p => Math.max(1, p - 1))}
+                                                        disabled={chapterPage <= 1}
+                                                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                                        </svg>
+                                                    </button>
+                                                    <span className="text-xs text-gray-400">
+                                                        Page <span className="text-white font-bold">{chapterPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+                                                    </span>
+                                                    <button
+                                                        onClick={() => setChapterPage(p => Math.min(totalPages, p + 1))}
+                                                        disabled={chapterPage >= totalPages}
+                                                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()
                         ) : (
                             <div className="p-8 text-center text-gray-500">
                                 {chapters.length === 0 ? 'No chapters found' : 'No matching chapters'}
