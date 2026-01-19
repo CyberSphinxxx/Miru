@@ -123,32 +123,34 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                             WebkitBackdropFilter: 'blur(12px)',
                         }}
                     >
-                        {/* Logo */}
-                        <button
-                            onClick={() => onViewChange('home')}
-                            className="flex items-center gap-2 sm:gap-3 group flex-shrink-0"
-                        >
-                            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-miru-primary to-miru-accent flex items-center justify-center shadow-lg group-hover:shadow-miru-primary/30 transition-shadow duration-300">
-                                <img src="/miru-icon.svg" alt="Miru Logo" className="w-full h-full object-contain" />
-                            </div>
-                            <span className="text-xl sm:text-2xl font-black tracking-tight text-gradient hidden xs:block">MIRU</span>
-                        </button>
+                        <div className="flex items-center gap-6">
+                            {/* Logo */}
+                            <button
+                                onClick={() => onViewChange('home')}
+                                className="flex items-center gap-2 sm:gap-3 group flex-shrink-0"
+                            >
+                                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-miru-primary to-miru-accent flex items-center justify-center shadow-lg group-hover:shadow-miru-primary/30 transition-shadow duration-300">
+                                    <img src="/miru-icon.svg" alt="Miru Logo" className="w-full h-full object-contain" />
+                                </div>
+                                <span className="text-xl sm:text-2xl font-black tracking-tight text-gradient hidden xs:block">MIRU</span>
+                            </button>
 
-                        {/* Desktop Navigation - Hidden on mobile */}
-                        <div className="hidden md:flex items-center gap-8">
-                            {navItems.map(item => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => onViewChange(item.id)}
-                                    className={`flex items-center gap-2 px-2 py-2 text-sm font-medium transition-all duration-300 ${viewMode === item.id
-                                        ? 'nav-active-glow text-white'
-                                        : 'text-gray-400 hover:text-white'
-                                        }`}
-                                >
-                                    {item.icon}
-                                    {item.label}
-                                </button>
-                            ))}
+                            {/* Desktop Navigation - Hidden on mobile */}
+                            <div className="hidden md:flex items-center gap-6">
+                                {navItems.map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => onViewChange(item.id)}
+                                        className={`flex items-center gap-2 px-2 py-2 text-sm font-medium transition-all duration-300 ${viewMode === item.id
+                                            ? 'nav-active-glow text-white'
+                                            : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        {item.icon}
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Search + User Actions */}
