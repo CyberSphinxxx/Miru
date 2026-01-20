@@ -226,10 +226,19 @@ export const animeService = {
 
     // Get anime details from AniList
     async getAnimeDetails(id: number) {
+        const cacheKey = `details-${id}`;
+        const cached = getCached(cacheKey, 'details');
+        if (cached) return { data: cached };
+
         const res = await fetch(`${API_BASE}/anilist/anime/${id}`);
         const data = await res.json();
+
         if (!data || data.error) return { data: null };
-        return { data: mapAnilistToAnime(data) };
+
+        const mapped = mapAnilistToAnime(data);
+        setCache(cacheKey, mapped);
+
+        return { data: mapped };
     },
 
     // Search anime on scraper (AnimePahe)
