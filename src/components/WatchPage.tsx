@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Anime, Episode, StreamLink } from '../types';
 import LoadingSpinner from './LoadingSpinner';
+import VideoPlayer from './VideoPlayer';
 
 interface WatchPageProps {
     anime: Anime;
@@ -16,6 +17,8 @@ interface WatchPageProps {
     onQualityChange: (index: number) => void;
     onAutoQuality: () => void;
     externalUrl?: string | null;
+    initialTime?: number;
+    onTimeUpdate?: (time: number) => void;
 }
 
 const WatchPage: React.FC<WatchPageProps> = ({
@@ -32,6 +35,8 @@ const WatchPage: React.FC<WatchPageProps> = ({
     onQualityChange,
     onAutoQuality,
     externalUrl,
+    initialTime,
+    onTimeUpdate,
 }) => {
     const currentStream = streams[selectedStreamIndex];
     const [cinemaMode, setCinemaMode] = useState(false);
@@ -285,13 +290,30 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                 </div>
                             ) : streams.length > 0 && currentStream ? (
                                 <div className="absolute inset-0">
-                                    <iframe
-                                        key={currentStream.url}
-                                        src={currentStream.url}
-                                        className="w-full h-full border-0"
-                                        allowFullScreen
-                                        allow="autoplay; fullscreen"
-                                    />
+                                    {/* Check if direct stream (HLS/MP4) or Embed */}
+                                    {currentStream.url.includes('.m3u8') || currentStream.url.includes('.mp4') || currentStream.isHls ? (
+                                        <VideoPlayer
+                                            key={currentStream.url} // Re-mount on url change
+                                            src={currentStream.url}
+                                            isHls={currentStream.isHls || currentStream.url.includes('.m3u8')}
+                                            initialTime={initialTime}
+                                            onTimeUpdate={onTimeUpdate}
+                                            onEnded={() => {
+                                                // Optional: Auto-next logic could go here
+                                                const nextBtn = document.querySelector('.nav-btn.next') as HTMLButtonElement;
+                                                if (nextBtn && !nextBtn.disabled) nextBtn.click();
+                                            }}
+                                            autoPlay={true}
+                                        />
+                                    ) : (
+                                        <iframe
+                                            key={currentStream.url}
+                                            src={currentStream.url}
+                                            className="w-full h-full border-0"
+                                            allowFullScreen
+                                            allow="autoplay; fullscreen"
+                                        />
+                                    )}
                                 </div>
                             ) : externalUrl ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900 p-4">

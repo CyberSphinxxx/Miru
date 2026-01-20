@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import WatchPage from '../components/WatchPage';
 import WatchPageSkeleton from '../components/WatchPageSkeleton';
@@ -11,7 +11,7 @@ function Watch() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const { updateStatus, getAnimeStatus } = useLocalUser();
+    const { updateStatus, getAnimeStatus, userData, updateHistory, loading: userLoading } = useLocalUser();
 
     // State
     const [anime, setAnime] = useState<Anime | null>(location.state?.anime || null);
@@ -34,6 +34,8 @@ function Watch() {
 
     // 5-minute timer ref for auto-adding to Watching
     const watchTimerRef = useRef<NodeJS.Timeout | null>(null);
+    // Timer for throttling history updates
+    const lastSaveTimeRef = useRef<number>(0);
 
     // Cache refs
     const sessionCache = useRef(new Map<number, string>());
@@ -47,6 +49,25 @@ function Watch() {
 
     // Prefetch delay: 80% of typical anime episode (~24 min) = ~19 minutes
     const PREFETCH_DELAY_MS = 19 * 60 * 1000;
+
+    // Derived State
+    const initialTime = useMemo(() => {
+        if (!anime || !currentEpisode) return 0;
+        const item = userData.history.find(h => h.animeId === anime.mal_id && h.episodeId === currentEpisode.session);
+        return item ? item.timestamp : 0;
+    }, [anime, currentEpisode, userData.history]);
+
+    // Handle Time Update (Throttled)
+    const handleTimeUpdate = useCallback((time: number) => {
+        if (!anime || !currentEpisode) return;
+
+        const now = Date.now();
+        // Save every 5 seconds
+        if (now - lastSaveTimeRef.current > 5000) {
+            updateHistory(anime.mal_id, currentEpisode.session, time);
+            lastSaveTimeRef.current = now;
+        }
+    }, [anime, currentEpisode, updateHistory]);
 
     // 1. Fetch Anime Info and Episodes
     useEffect(() => {
@@ -87,13 +108,7 @@ function Watch() {
                             setScraperSession(session);
                             sessionCache.current.set(Number(id), session);
                             setEpisodes(episodes);
-
-                            // Auto-load first episode
-                            if (episodes.length > 0 && currentAnime) {
-                                loadStream(episodes[0], session, currentAnime);
-                            }
-
-                            // Clean up cache
+                            // Cleanup cache
                             sessionStorage.removeItem(prefetchKey);
 
                             setLoading(false);
@@ -126,11 +141,6 @@ function Watch() {
                     }));
 
                     setEpisodes(eps);
-
-                    // Auto-load first episode
-                    if (eps.length > 0 && currentAnime) {
-                        loadStream(eps[0], session, currentAnime);
-                    }
                 } else {
                     setError('No episodes found');
                 }
@@ -144,6 +154,24 @@ function Watch() {
         };
         initWatch();
     }, [id]);
+
+    // Auto-select episode based on history
+    useEffect(() => {
+        if (episodes.length > 0 && !currentEpisode && !streamLoading && !userLoading && anime) {
+            const historyItem = userData.history.find(h => h.animeId === anime.mal_id);
+            if (historyItem) {
+                const ep = episodes.find(e => e.session === historyItem.episodeId);
+                if (ep) {
+                    console.log('[Watch] Resuming from history:', ep.episodeNumber);
+                    loadStream(ep);
+                    return;
+                }
+            }
+            // Fallback to first episode
+            console.log('[Watch] No history, playing first episode');
+            loadStream(episodes[0]);
+        }
+    }, [episodes, currentEpisode, streamLoading, userLoading, userData.history, anime]);
 
     // 5-minute timer to auto-add to "Watching" list
     useEffect(() => {
@@ -197,6 +225,8 @@ function Watch() {
         setExternalUrl(null);
         setSelectedStreamIndex(0);
         setIsAutoQuality(true);
+        // Reset save time when loading new episode
+        lastSaveTimeRef.current = 0;
 
         // Clear any pending prefetch timer
         if (prefetchTimerRef.current) {
@@ -376,8 +406,11 @@ function Watch() {
             onQualityChange={(idx) => { setSelectedStreamIndex(idx); setIsAutoQuality(false); }}
             onAutoQuality={() => { setIsAutoQuality(true); setSelectedStreamIndex(0); }}
             externalUrl={externalUrl}
+            initialTime={initialTime}
+            onTimeUpdate={handleTimeUpdate}
         />
     );
+
 }
 
 export default Watch;
