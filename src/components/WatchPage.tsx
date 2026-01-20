@@ -276,9 +276,9 @@ const WatchPage: React.FC<WatchPageProps> = ({
                 {/* Main Content - Flex Row on desktop, column on mobile */}
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                     {/* Left: Player Area */}
-                    <div className={`flex-1 flex flex-col relative ${cinemaMode ? 'z-50' : ''}`}>
+                    <div className={`flex-1 flex flex-col relative overflow-y-auto custom-scrollbar ${cinemaMode ? 'z-50' : ''}`}>
                         {/* Video Player */}
-                        <div className="flex-1 bg-black relative min-h-[200px] sm:min-h-[300px]">
+                        <div className="w-full aspect-video bg-black relative flex-shrink-0">
                             {streamLoading ? (
                                 <div className="w-full h-full flex items-center justify-center">
                                     <LoadingSpinner size="lg" text="Loading stream..." />
@@ -442,6 +442,73 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                     <span className="hidden sm:inline">Report Issue</span>
                                     <span className="sm:hidden">Report</span>
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* Details Section */}
+                        <div className="bg-miru-surface/50 backdrop-blur-sm border-t border-white/5 px-4 sm:px-6 py-8 space-y-8 pb-12">
+                            {/* Badges & Genres */}
+                            <div className="space-y-4">
+                                {/* Badges */}
+                                <div className="flex flex-wrap items-center gap-3 text-sm">
+                                    <span className="bg-miru-primary text-black px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                        </svg>
+                                        {anime.score || 'N/A'}
+                                    </span>
+                                    <span className="bg-white/10 text-white px-2.5 py-1 rounded text-xs font-bold">
+                                        {episodes.length} eps
+                                    </span>
+                                    <span className="px-2.5 py-1 bg-white/10 rounded text-gray-300 text-xs uppercase">
+                                        {anime.type}
+                                    </span>
+                                    {anime.status && (
+                                        <span className="px-2.5 py-1 bg-white/10 rounded text-gray-300 text-xs">
+                                            {anime.status}
+                                        </span>
+                                    )}
+                                    {anime.year && (
+                                        <span className="px-2.5 py-1 bg-white/10 rounded text-gray-300 text-xs">
+                                            {anime.year}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Genres */}
+                                <div className="flex flex-wrap gap-2">
+                                    {anime.genres?.map(genre => (
+                                        <span key={genre.mal_id} className="px-3 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
+                                            {genre.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Synopsis */}
+                            <div className="text-gray-300 leading-relaxed text-sm sm:text-base">
+                                <h3 className="text-white font-bold mb-3 text-lg">Synopsis</h3>
+                                <p className="opacity-90">{anime.synopsis || 'No synopsis available.'}</p>
+                            </div>
+
+                            {/* Info Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-white/5 rounded-2xl border border-white/5">
+                                <div>
+                                    <h4 className="text-gray-500 text-xs font-bold uppercase mb-1">Studios</h4>
+                                    <p className="font-medium text-sm text-white">{anime.studios?.map(s => s.name).join(', ') || 'Unknown'}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-gray-500 text-xs font-bold uppercase mb-1">Source</h4>
+                                    <p className="font-medium text-sm text-white">{anime.source || '-'}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-gray-500 text-xs font-bold uppercase mb-1">Season</h4>
+                                    <p className="font-medium text-sm text-white capitalize">{anime.season} {anime.year}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-gray-500 text-xs font-bold uppercase mb-1">Duration</h4>
+                                    <p className="font-medium text-sm text-white">{anime.duration || 'Unknown'}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
