@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import VideoModal from './VideoModal';
 import StatusButton from './StatusButton';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation, Episode } from '../types';
@@ -98,6 +99,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
     const [activeTab, setActiveTab] = useState<'summary' | 'relations'>('summary');
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [episodesLoading, setEpisodesLoading] = useState(true);
+    const navigate = useNavigate();
 
     // Fetch episodes when anime changes
     useEffect(() => {
@@ -165,7 +167,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
 
     const handleEpisodeClick = (ep: Episode) => {
         // Navigate to watch page with episode
-        window.location.href = `/watch/${anime.id || anime.mal_id}?ep=${ep.episodeNumber}`;
+        navigate(`/watch/${anime.id || anime.mal_id}?ep=${ep.episodeNumber}`, { state: { anime } });
     };
 
     // Get banner image - fallback to cover if no banner

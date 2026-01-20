@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import WatchPage from '../components/WatchPage';
 import WatchPageSkeleton from '../components/WatchPageSkeleton';
 import { Anime, Episode, StreamLink } from '../types';
@@ -10,10 +10,11 @@ import { useLocalUser } from '../context/UserContext';
 function Watch() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { updateStatus, getAnimeStatus } = useLocalUser();
 
     // State
-    const [anime, setAnime] = useState<Anime | null>(null);
+    const [anime, setAnime] = useState<Anime | null>(location.state?.anime || null);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
     const [streams, setStreams] = useState<StreamLink[]>([]);
@@ -22,7 +23,7 @@ function Watch() {
     const [addedToWatching, setAddedToWatching] = useState(false);
 
     // UI State
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!location.state?.anime);
     const [epLoading, setEpLoading] = useState(true);
     const [streamLoading, setStreamLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -52,19 +53,24 @@ function Watch() {
         const initWatch = async () => {
             if (!id) return;
             try {
-                setLoading(true);
+                if (!anime) {
+                    setLoading(true);
+                }
                 setEpLoading(true);
 
-                // First try to get anime details
-                const animeResult = await animeService.getAnimeDetails(Number(id));
+                let currentAnime = anime;
 
-                if (!animeResult.data) {
-                    setError('Anime not found');
-                    setLoading(false);
-                    return;
+                // If we don't have anime data from state, fetch it
+                if (!currentAnime) {
+                    const animeResult = await animeService.getAnimeDetails(Number(id));
+                    if (!animeResult.data) {
+                        setError('Anime not found');
+                        setLoading(false);
+                        return;
+                    }
+                    currentAnime = animeResult.data;
+                    setAnime(currentAnime);
                 }
-
-                setAnime(animeResult.data);
 
                 // Check for prefetched data from Detail page (background prefetch)
                 const prefetchKey = `watch_prefetch_${id}`;
@@ -83,8 +89,8 @@ function Watch() {
                             setEpisodes(episodes);
 
                             // Auto-load first episode
-                            if (episodes.length > 0) {
-                                loadStream(episodes[0], session, animeResult.data);
+                            if (episodes.length > 0 && currentAnime) {
+                                loadStream(episodes[0], session, currentAnime);
                             }
 
                             // Clean up cache
@@ -101,7 +107,8 @@ function Watch() {
 
                 // No valid cache - fetch normally from scraper
                 console.log('[Watch] No prefetch cache, fetching from scraper');
-                const searchResults = await animeService.searchScraper(animeResult.data.title);
+                if (!currentAnime) return;
+                const searchResults = await animeService.searchScraper(currentAnime.title);
 
                 if (searchResults && searchResults.length > 0) {
                     const session = searchResults[0].session;
@@ -121,8 +128,8 @@ function Watch() {
                     setEpisodes(eps);
 
                     // Auto-load first episode
-                    if (eps.length > 0) {
-                        loadStream(eps[0], session, animeResult.data);
+                    if (eps.length > 0 && currentAnime) {
+                        loadStream(eps[0], session, currentAnime);
                     }
                 } else {
                     setError('No episodes found');

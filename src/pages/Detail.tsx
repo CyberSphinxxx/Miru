@@ -173,7 +173,7 @@ function Detail() {
 
     const handleWatchClick = () => {
         if (anime) {
-            navigate(`/watch/${anime.id || anime.mal_id}`);
+            navigate(`/watch/${anime.id || anime.mal_id}`, { state: { anime } });
         }
     };
 
