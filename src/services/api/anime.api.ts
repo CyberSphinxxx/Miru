@@ -74,6 +74,7 @@ const CACHE_TTL_CONFIG = {
     details: 30 * 60 * 1000,     // 30 minutes
     genre: 5 * 60 * 1000,        // 5 minutes
     search: 5 * 60 * 1000,       // 5 minutes
+    streams: 4 * 60 * 60 * 1000, // 4 hours - matches backend TTL for episode streams
 };
 
 // In-memory cache for instant access (falls back to sessionStorage)
@@ -253,10 +254,40 @@ export const animeService = {
         return res.json();
     },
 
-    // Get stream links from scraper
+    // Get stream links from scraper - cached for 4 hours
     async getStreams(animeSession: string, episodeSession: string) {
-        const res = await fetch(`${API_BASE}/scraper/streams?anime_session=${animeSession}&ep_session=${episodeSession}`);
-        return res.json();
+        const cacheKey = `streams-${animeSession}-${episodeSession}`;
+
+        // Check cache first
+        const cached = getCached(cacheKey, 'streams');
+        if (cached) {
+            console.log('[Client Cache] Stream HIT:', cacheKey);
+            return cached;
+        }
+
+        // Prevent duplicate in-flight requests
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/scraper/streams?anime_session=${animeSession}&ep_session=${episodeSession}`);
+                const data = await res.json();
+
+                // Cache successful responses
+                if (data && data.length > 0) {
+                    setCache(cacheKey, data);
+                }
+
+                return data;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
     },
 
     // Get trending anime from AniList

@@ -2,7 +2,10 @@ import { db } from '../config/firebase.config.js';
 
 /**
  * Cache Service for Firestore-based caching
- * Implements the "Scrape-and-Save" strategy
+ * Implements the "Read-Through" caching strategy with:
+ * - In-memory cache layer for instant access
+ * - Firestore persistence for durability
+ * - Async write-back for non-blocking responses
  * 
  * Note: Uses Date instead of firebase Timestamp for Vercel compatibility
  */
@@ -16,8 +19,62 @@ interface CachedData<T> {
 const TTL_HOURS = {
     SEARCH: 6,      // Search results: 6 hours
     EPISODES: 24,   // Episode lists: 24 hours  
-    STREAMS: 1      // Stream URLs: 1 hour (they can change)
+    STREAMS: 4      // Stream URLs: 4 hours (extended for better caching)
 };
+
+// ============================================================================
+// IN-MEMORY CACHE LAYER
+// Provides instant access for repeated requests within a session
+// ============================================================================
+
+interface MemoryCacheEntry {
+    data: any;
+    cachedAt: number;
+}
+
+const memoryCache = new Map<string, MemoryCacheEntry>();
+const MEMORY_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const MAX_MEMORY_ENTRIES = 100; // Limit memory usage
+
+/**
+ * Get data from in-memory cache (instant access)
+ */
+function getFromMemory<T>(key: string): T | null {
+    const entry = memoryCache.get(key);
+    if (!entry) return null;
+
+    // Check if expired
+    if (Date.now() - entry.cachedAt > MEMORY_TTL_MS) {
+        memoryCache.delete(key);
+        return null;
+    }
+
+    console.log(`[Cache] Memory HIT: ${key}`);
+    return entry.data as T;
+}
+
+/**
+ * Store data in in-memory cache
+ */
+function setToMemory<T>(key: string, data: T): void {
+    // Evict oldest entries if at capacity
+    if (memoryCache.size >= MAX_MEMORY_ENTRIES) {
+        const firstKey = memoryCache.keys().next().value;
+        if (firstKey) memoryCache.delete(firstKey);
+    }
+
+    memoryCache.set(key, {
+        data,
+        cachedAt: Date.now()
+    });
+}
+
+/**
+ * Clear in-memory cache (for testing or memory pressure)
+ */
+function clearMemory(): void {
+    memoryCache.clear();
+}
 
 /**
  * Get cached data from Firestore
@@ -107,18 +164,36 @@ async function getIfFresh<T>(collection: string, docId: string, ttlHours: number
     }
 
     if (isExpired(cached.cachedAt, ttlHours)) {
-        console.log(`Cache expired: ${collection}/${docId}`);
+        console.log(`[Cache] Firestore EXPIRED: ${collection}/${docId}`);
         return null;
     }
 
-    console.log(`Cache hit: ${collection}/${docId}`);
+    console.log(`[Cache] Firestore HIT: ${collection}/${docId}`);
     return cached.data;
 }
 
+/**
+ * Async write-back - writes to Firestore in background without blocking
+ * Used for the "return first, cache second" pattern
+ */
+function setAsync<T>(collection: string, docId: string, data: T): void {
+    // Fire and forget - don't await
+    set(collection, docId, data).catch(err => {
+        console.error(`[Cache] Async write failed [${collection}/${docId}]:`, err);
+    });
+}
+
 export const cacheService = {
+    // Firestore operations
     get,
     set,
+    setAsync,
     isExpired,
     getIfFresh,
+    // In-memory operations
+    getFromMemory,
+    setToMemory,
+    clearMemory,
+    // Constants
     TTL_HOURS
 };

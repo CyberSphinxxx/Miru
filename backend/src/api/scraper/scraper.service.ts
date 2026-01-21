@@ -119,12 +119,23 @@ export class ScraperService {
     }
 
     /**
-     * Get stream URLs - cached for 1 hour if caching is available
+     * Get stream URLs - Uses multi-tier caching:
+     * 1. In-memory cache (instant, 30 min TTL)
+     * 2. Firestore cache (fast, 4 hour TTL)
+     * 3. Scraper (slow, ~5-10s)
      */
     async getStreams(animeSession: string, epSession: string) {
         const cacheKey = `${animeSession}_${epSession}`;
 
-        // Try to use cache if available
+        // Step 1: Check in-memory cache (instant - ~0ms)
+        if (cacheService) {
+            const memCached = cacheService.getFromMemory(cacheKey);
+            if (memCached) {
+                return memCached;
+            }
+        }
+
+        // Step 2: Check Firestore cache (fast - ~50-200ms)
         if (cacheService) {
             try {
                 const cached = await cacheService.getIfFresh(
@@ -133,23 +144,25 @@ export class ScraperService {
                     cacheService.TTL_HOURS.STREAMS
                 );
                 if (cached) {
+                    // Populate memory cache for subsequent requests
+                    cacheService.setToMemory(cacheKey, cached);
                     return cached;
                 }
             } catch (e) {
-                // Cache failed, continue with scraping
+                console.warn('[Cache] Firestore check failed, falling back to scraper');
             }
         }
 
-        // Scrape
+        // Step 3: Cache miss - scrape (slow - ~5-10s)
+        console.log(`[Scraper] Cache MISS - Scraping: ${cacheKey}`);
         const result = await this.scraper.getLinks(animeSession, epSession);
 
-        // Try to save to cache if available
-        if (cacheService) {
-            try {
-                cacheService.set('anime_streams', cacheKey, result);
-            } catch (e) {
-                // Cache save failed, ignore
-            }
+        // Step 4: Return immediately, cache asynchronously (non-blocking)
+        if (cacheService && result && result.length > 0) {
+            // Memory cache (instant for next request)
+            cacheService.setToMemory(cacheKey, result);
+            // Firestore cache (async - doesn't block response)
+            cacheService.setAsync('anime_streams', cacheKey, result);
         }
 
         return result;
