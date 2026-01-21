@@ -10,6 +10,7 @@ interface MangaDetailPageProps {
     onBack: () => void;
     onReadClick: () => void;
     onRelatedClick: (manga: Manga) => void;
+    onChapterClick?: (chapterNumber: string | number) => void;
 }
 
 // Chapter Grid Component (similar to anime EpisodeList)
@@ -83,6 +84,7 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
     onBack,
     onReadClick,
     onRelatedClick,
+    onChapterClick,
     loading,
 }) => {
     const [activeTab, setActiveTab] = useState<'summary' | 'relations'>('summary');
@@ -200,8 +202,10 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
     };
 
     const handleChapterClick = (chapter: MangaChapter) => {
-        // Navigate to manga reader with chapter
-        window.location.href = `/read/${encodeURIComponent(manga.title)}?ch=${chapter.chapterNumber}`;
+        // Navigate to manga reader with chapter using provided callback
+        if (onChapterClick) {
+            onChapterClick(chapter.chapterNumber);
+        }
     };
 
     // Get banner image - fallback to cover if no banner

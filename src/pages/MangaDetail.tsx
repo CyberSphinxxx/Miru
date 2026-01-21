@@ -74,6 +74,12 @@ function MangaDetail() {
         window.scrollTo(0, 0);
     };
 
+    const handleChapterClick = (chapterNumber: string | number) => {
+        if (manga) {
+            navigate(`/read/${encodeURIComponent(manga.title)}?ch=${chapterNumber}`);
+        }
+    };
+
     if (loading) {
         return <DetailPageSkeleton />;
     }
@@ -100,6 +106,7 @@ function MangaDetail() {
             onBack={handleBack}
             onReadClick={handleReadClick}
             onRelatedClick={handleRelatedClick}
+            onChapterClick={handleChapterClick}
         />
     );
 }
