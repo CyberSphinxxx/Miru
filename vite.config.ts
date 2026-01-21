@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
     plugins: [react()],
-    base: './', // Important for Electron - use relative paths
+    base: '/', // Use absolute paths for Vercel SPA routing
     server: {
         port: 5173,
         // Don't auto-open browser when running in Electron
@@ -11,7 +11,6 @@ export default defineConfig({
     },
     build: {
         outDir: 'dist',
-        // Ensure assets use relative paths for Electron
         assetsDir: 'assets',
     }
 });
