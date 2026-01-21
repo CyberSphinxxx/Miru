@@ -16,6 +16,7 @@ interface WatchPageProps {
     onEpisodeClick: (episode: Episode) => void;
     onQualityChange: (index: number) => void;
     onAutoQuality: () => void;
+    onNextEpisode?: () => void;
     externalUrl?: string | null;
     initialTime?: number;
     onTimeUpdate?: (time: number) => void;
@@ -37,6 +38,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
     externalUrl,
     initialTime,
     onTimeUpdate,
+    onNextEpisode,
 }) => {
     const currentStream = streams[selectedStreamIndex];
     const [cinemaMode, setCinemaMode] = useState(false);
@@ -299,9 +301,11 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                             initialTime={initialTime}
                                             onTimeUpdate={onTimeUpdate}
                                             onEnded={() => {
-                                                // Optional: Auto-next logic could go here
-                                                const nextBtn = document.querySelector('.nav-btn.next') as HTMLButtonElement;
-                                                if (nextBtn && !nextBtn.disabled) nextBtn.click();
+                                                // Auto-play next episode
+                                                if (hasNext && onNextEpisode) {
+                                                    console.log('[Watch] Episode ended, auto-playing next');
+                                                    onNextEpisode();
+                                                }
                                             }}
                                             autoPlay={true}
                                         />

@@ -370,6 +370,18 @@ function Watch() {
         loadStream(ep);
     };
 
+    // Handle auto-play next episode
+    const handleNextEpisode = useCallback(() => {
+        const currentIndex = episodes.findIndex(ep => ep.id === currentEpisode?.id);
+        const hasNext = currentIndex < episodes.length - 1 && currentIndex !== -1;
+
+        if (hasNext) {
+            const nextEp = episodes[currentIndex + 1];
+            console.log('[Watch] Auto-playing next episode:', nextEp.episodeNumber);
+            loadStream(nextEp);
+        }
+    }, [episodes, currentEpisode]);
+
     const handleBack = () => {
         if (id) {
             navigate(`/anime/${id}`);
@@ -405,6 +417,7 @@ function Watch() {
             onEpisodeClick={handleEpisodeClick}
             onQualityChange={(idx) => { setSelectedStreamIndex(idx); setIsAutoQuality(false); }}
             onAutoQuality={() => { setIsAutoQuality(true); setSelectedStreamIndex(0); }}
+            onNextEpisode={handleNextEpisode}
             externalUrl={externalUrl}
             initialTime={initialTime}
             onTimeUpdate={handleTimeUpdate}
