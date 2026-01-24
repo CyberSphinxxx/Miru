@@ -52,31 +52,31 @@ export async function addToWatchlist(anime: Anime): Promise<void> {
 /**
  * Remove from watchlist in appropriate storage
  */
-export async function removeFromWatchlist(mal_id: number): Promise<void> {
+export async function removeFromWatchlist(id: number): Promise<void> {
     if (isAuthenticated()) {
-        await firebaseWatchlist.removeFromFirebaseWatchlist(mal_id);
+        await firebaseWatchlist.removeFromFirebaseWatchlist(id);
     } else {
-        localWatchlist.removeFromWatchlist(mal_id);
+        localWatchlist.removeFromWatchlist(id);
     }
 }
 
 /**
  * Check if anime is in watchlist
  */
-export async function isInWatchlist(mal_id: number): Promise<boolean> {
+export async function isInWatchlist(id: number): Promise<boolean> {
     if (isAuthenticated()) {
-        return firebaseWatchlist.isInFirebaseWatchlist(mal_id);
+        return firebaseWatchlist.isInFirebaseWatchlist(id);
     }
-    return localWatchlist.isInWatchlist(mal_id);
+    return localWatchlist.isInWatchlist(id);
 }
 
 /**
  * Toggle watchlist status
  */
 export async function toggleWatchlist(anime: Anime): Promise<boolean> {
-    const inList = await isInWatchlist(anime.mal_id);
+    const inList = await isInWatchlist(anime.id);
     if (inList) {
-        await removeFromWatchlist(anime.mal_id);
+        await removeFromWatchlist(anime.id);
         return false;
     } else {
         await addToWatchlist(anime);
@@ -116,22 +116,22 @@ export async function saveWatchProgress(
 /**
  * Remove from watch history
  */
-export async function removeFromHistory(mal_id: number): Promise<void> {
+export async function removeFromHistory(id: number): Promise<void> {
     if (isAuthenticated()) {
-        await firebaseHistory.removeFromFirebaseHistory(mal_id);
+        await firebaseHistory.removeFromFirebaseHistory(id);
     } else {
-        localHistory.removeFromHistory(mal_id);
+        localHistory.removeFromHistory(id);
     }
 }
 
 /**
  * Get last watched episode
  */
-export async function getLastWatchedEpisode(mal_id: number): Promise<number | null> {
+export async function getLastWatchedEpisode(id: number): Promise<number | null> {
     if (isAuthenticated()) {
-        return firebaseHistory.getFirebaseLastWatchedEpisode(mal_id);
+        return firebaseHistory.getFirebaseLastWatchedEpisode(id);
     }
-    return localHistory.getLastWatchedEpisode(mal_id);
+    return localHistory.getLastWatchedEpisode(id);
 }
 
 // ============================================
@@ -162,3 +162,4 @@ export async function migrateLocalDataToCloud(): Promise<void> {
         console.error('Failed to migrate local data:', error);
     }
 }
+
