@@ -63,11 +63,10 @@ export async function saveFirebaseWatchProgress(
 ): Promise<void> {
     try {
         const historyRef = getHistoryCollection();
-        const docRef = doc(historyRef, anime.mal_id.toString());
+        const docRef = doc(historyRef, anime.id.toString());
 
         const item: FirebaseWatchHistoryItem = {
-            id: anime.id || anime.mal_id, // AniList ID for navigation
-            mal_id: anime.mal_id,
+            id: anime.id,
             title: anime.title,
             image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
             type: anime.type || 'TV',
@@ -87,10 +86,10 @@ export async function saveFirebaseWatchProgress(
 /**
  * Remove an item from Firebase watch history
  */
-export async function removeFromFirebaseHistory(mal_id: number): Promise<void> {
+export async function removeFromFirebaseHistory(id: number): Promise<void> {
     try {
         const historyRef = getHistoryCollection();
-        const docRef = doc(historyRef, mal_id.toString());
+        const docRef = doc(historyRef, id.toString());
         await deleteDoc(docRef);
     } catch (error) {
         console.error('Failed to remove from Firebase history:', error);
@@ -127,11 +126,11 @@ export function subscribeToWatchHistory(
 /**
  * Get last watched episode for an anime - optimized single document fetch
  */
-export async function getFirebaseLastWatchedEpisode(mal_id: number): Promise<number | null> {
+export async function getFirebaseLastWatchedEpisode(id: number): Promise<number | null> {
     try {
         // Direct document fetch instead of querying entire collection
         const historyRef = getHistoryCollection();
-        const docRef = doc(historyRef, mal_id.toString());
+        const docRef = doc(historyRef, id.toString());
         const snapshot = await getDoc(docRef);
 
         if (snapshot.exists()) {
@@ -159,14 +158,14 @@ export async function migrateLocalWatchHistory(localItems: WatchHistoryItem[]): 
 
         // Only migrate items that don't exist or have newer timestamps
         for (const item of localItems) {
-            const existingItem = existingItems.find(e => e.mal_id === item.mal_id);
+            const existingItem = existingItems.find(e => e.id === item.id);
 
             // Skip if Firebase has newer data
             if (existingItem && new Date(existingItem.lastWatched) > new Date(item.lastWatched)) {
                 continue;
             }
 
-            const docRef = doc(historyRef, item.mal_id.toString());
+            const docRef = doc(historyRef, item.id.toString());
             const firebaseItem: FirebaseWatchHistoryItem = {
                 ...item,
                 lastWatched: Timestamp.fromDate(new Date(item.lastWatched)),
@@ -179,3 +178,4 @@ export async function migrateLocalWatchHistory(localItems: WatchHistoryItem[]): 
         console.error('Failed to migrate local watch history:', error);
     }
 }
+
