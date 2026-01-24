@@ -5,7 +5,6 @@ const MAX_HISTORY_ITEMS = 20;
 
 export interface WatchHistoryItem {
     id: number; // AniList ID for navigation
-    mal_id: number;
     title: string;
     image_url: string;
     type: string;
@@ -15,7 +14,7 @@ export interface WatchHistoryItem {
     lastWatched: string;
     // Extra details for card display
     synopsis?: string;
-    genres?: { mal_id: number; name: string }[];
+    genres?: { id: number; name: string }[];
     score?: number;
     status?: string;
     rank?: number;
@@ -43,11 +42,10 @@ export const saveWatchProgress = (
     const history = getWatchHistory();
 
     // Remove existing entry for this anime if present
-    const filtered = history.filter(item => item.mal_id !== anime.mal_id);
+    const filtered = history.filter(item => item.id !== anime.id);
 
     const newItem: WatchHistoryItem = {
-        id: anime.id || anime.mal_id, // AniList ID for navigation, fallback to mal_id
-        mal_id: anime.mal_id,
+        id: anime.id,
         title: anime.title,
         image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
         type: anime.type || 'TV',
@@ -73,9 +71,9 @@ export const saveWatchProgress = (
     localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(trimmed));
 };
 
-export const removeFromHistory = (mal_id: number): void => {
+export const removeFromHistory = (id: number): void => {
     const history = getWatchHistory();
-    const filtered = history.filter(item => item.mal_id !== mal_id);
+    const filtered = history.filter(item => item.id !== id);
     localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(filtered));
 };
 
@@ -83,8 +81,9 @@ export const clearWatchHistory = (): void => {
     localStorage.removeItem(WATCH_HISTORY_KEY);
 };
 
-export const getLastWatchedEpisode = (mal_id: number): number | null => {
+export const getLastWatchedEpisode = (id: number): number | null => {
     const history = getWatchHistory();
-    const item = history.find(h => h.mal_id === mal_id);
+    const item = history.find(h => h.id === id);
     return item ? item.currentEpisode : null;
 };
+
