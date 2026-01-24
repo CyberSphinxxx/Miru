@@ -70,7 +70,7 @@ function MangaDetail() {
     };
 
     const handleRelatedClick = (relatedManga: Manga) => {
-        navigate(`/manga/${relatedManga.mal_id}`);
+        navigate(`/manga/${relatedManga.id}`);
         window.scrollTo(0, 0);
     };
 
@@ -112,3 +112,4 @@ function MangaDetail() {
 }
 
 export default MangaDetail;
+
