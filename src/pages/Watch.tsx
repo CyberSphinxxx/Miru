@@ -53,7 +53,7 @@ function Watch() {
     // Derived State
     const initialTime = useMemo(() => {
         if (!anime || !currentEpisode) return 0;
-        const item = userData.history.find(h => h.animeId === anime.mal_id && h.episodeId === currentEpisode.session);
+        const item = userData.history.find(h => h.animeId === anime.id && h.episodeId === currentEpisode.session);
         return item ? item.timestamp : 0;
     }, [anime, currentEpisode, userData.history]);
 
@@ -64,7 +64,7 @@ function Watch() {
         const now = Date.now();
         // Save every 5 seconds
         if (now - lastSaveTimeRef.current > 5000) {
-            updateHistory(anime.mal_id, currentEpisode.session, time);
+            updateHistory(anime.id, currentEpisode.session, time);
             lastSaveTimeRef.current = now;
         }
     }, [anime, currentEpisode, updateHistory]);
@@ -158,7 +158,7 @@ function Watch() {
     // Auto-select episode based on history
     useEffect(() => {
         if (episodes.length > 0 && !currentEpisode && !streamLoading && !userLoading && anime) {
-            const historyItem = userData.history.find(h => h.animeId === anime.mal_id);
+            const historyItem = userData.history.find(h => h.animeId === anime.id);
             if (historyItem) {
                 const ep = episodes.find(e => e.session === historyItem.episodeId);
                 if (ep) {
@@ -184,7 +184,7 @@ function Watch() {
         if (!anime) return;
 
         // Check if anime is already in any library list
-        const status = getAnimeStatus(anime.mal_id || anime.id || 0);
+        const status = getAnimeStatus(anime.id || 0);
         if (status) {
             // Already in library, don't auto-add
             setAddedToWatching(true);
@@ -427,3 +427,5 @@ function Watch() {
 }
 
 export default Watch;
+
+
