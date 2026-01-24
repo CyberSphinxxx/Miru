@@ -46,7 +46,7 @@ function Detail() {
                     // Extract characters from AniList response
                     setCharacters(animeData.characters?.edges?.map((c: any) => ({
                         character: {
-                            mal_id: c.node.id,
+                            id: c.node.id,
                             name: c.node.name.full,
                             images: { jpg: { image_url: c.node.image?.large || '' } },
                             url: ''
@@ -54,7 +54,7 @@ function Detail() {
                         role: c.role,
                         voice_actors: c.voiceActors?.map((va: any) => ({
                             person: {
-                                mal_id: va.id,
+                                id: va.id,
                                 name: va.name.full,
                                 images: { jpg: { image_url: va.image?.large || '' } },
                                 url: ''
@@ -68,7 +68,7 @@ function Detail() {
                         ?.filter((r: any) => r.mediaRecommendation?.id && r.mediaRecommendation?.coverImage?.large)
                         ?.map((r: any) => ({
                             entry: {
-                                mal_id: r.mediaRecommendation?.id,
+                                id: r.mediaRecommendation?.id,
                                 title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
                                 images: {
                                     jpg: {
@@ -173,12 +173,12 @@ function Detail() {
 
     const handleWatchClick = () => {
         if (anime) {
-            navigate(`/watch/${anime.id || anime.mal_id}`, { state: { anime } });
+            navigate(`/watch/${anime.id}`, { state: { anime } });
         }
     };
 
     const handleRelatedClick = (relatedAnime: Anime) => {
-        navigate(`/anime/${relatedAnime.mal_id}`);
+        navigate(`/anime/${relatedAnime.id}`);
         window.scrollTo(0, 0);
     };
 
@@ -217,4 +217,6 @@ function Detail() {
 }
 
 export default Detail;
+
+
 
