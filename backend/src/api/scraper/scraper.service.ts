@@ -34,10 +34,14 @@ export class ScraperService {
      * Search for anime
      * Uses HiAnime as primary for better server support
      */
+    /**
+     * Search for anime
+     * Prioritizes AnimePahe (proven working) then appends HiAnime (other sources)
+     */
     async search(query: string) {
         // Try to use cache if available
         if (cacheService) {
-            const cacheKey = `search_v2_${query.toLowerCase().trim()}`;
+            const cacheKey = `search_v3_${query.toLowerCase().trim()}`;
             try {
                 const cached = await cacheService.getIfFresh(
                     'anime_search',
@@ -52,34 +56,45 @@ export class ScraperService {
             }
         }
 
-        // Scrape using HiAnime
-        console.log(`[Scraper] Searching for "${query}" on HiAnime...`);
-        let result = await this.hiAnime.search(query);
+        console.log(`[Scraper] Searching for "${query}" on AnimePahe and HiAnime...`);
 
-        // Fallback to AnimePahe if HiAnime fails or returns nothing
-        if (!result || result.length === 0) {
-            console.log(`[Scraper] HiAnime returned no results, trying AnimePahe...`);
-            try {
-                const paheResult = await this.animePahe.search(query);
-                if (paheResult.length > 0) {
-                    result = paheResult;
-                }
-            } catch (e) {
-                console.error('[Scraper] AnimePahe fallback failed', e);
-            }
+        // Run both scrapers in parallel
+        const [paheResult, hiResult] = await Promise.allSettled([
+            this.animePahe.search(query),
+            this.hiAnime.search(query)
+        ]);
+
+        let results: any[] = [];
+
+        // Process AnimePahe (Default/Primary)
+        if (paheResult.status === 'fulfilled' && paheResult.value.length > 0) {
+            results = [...results, ...paheResult.value];
+        } else {
+            console.warn('[Scraper] AnimePahe search failed or empty');
+        }
+
+        // Process HiAnime (Secondary/Other Sources)
+        if (hiResult.status === 'fulfilled' && hiResult.value.length > 0) {
+            // Deduplicate? Or just append? 
+            // Titles might match, but IDs are different.
+            // Let's append them so user can choose "HiAnime" version if they want Server Switching
+            // We could mark them in the UI, but for now just appending is "other sources"
+            results = [...results, ...hiResult.value];
+        } else {
+            console.warn('[Scraper] HiAnime search failed or empty');
         }
 
         // Try to save to cache if available
-        if (cacheService) {
-            const cacheKey = `search_v2_${query.toLowerCase().trim()}`;
+        if (cacheService && results.length > 0) {
+            const cacheKey = `search_v3_${query.toLowerCase().trim()}`;
             try {
-                cacheService.set('anime_search', cacheKey, result);
+                cacheService.set('anime_search', cacheKey, results);
             } catch (e) {
                 // Cache save failed, ignore
             }
         }
 
-        return result;
+        return results;
     }
 
     /**

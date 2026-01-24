@@ -405,7 +405,8 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                                 src={currentStream.url}
                                                 className="w-full h-full border-0"
                                                 allowFullScreen
-                                                allow="autoplay; fullscreen"
+                                                allow="autoplay; fullscreen; picture-in-picture"
+                                                referrerPolicy="origin"
                                             />
                                         )}
 

@@ -127,10 +127,10 @@ export class HiAnimeScraper {
                 }
             });
 
-            return { episodes: episodes.reverse(), lastPage: 1 }; // Reverse because they often come oldest first? Or check sort. 
-            // Usually they come in a list, we trust the list order or sort by number.
-            // Let's ensure they are sorted by number
-            // episodes.sort((a, b) => a.episodeNumber - b.episodeNumber);
+            // Sort episodes by number ascending (1 -> N)
+            episodes.sort((a, b) => a.episodeNumber - b.episodeNumber);
+
+            return { episodes, lastPage: 1 };
 
         } catch (error) {
             console.error('HiAnime Episodes Error:', error);
