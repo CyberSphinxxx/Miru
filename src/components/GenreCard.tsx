@@ -115,12 +115,14 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
                     {genre.name}
                 </h3>
 
-                {/* Anime Count Badge */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                    <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-xs text-gray-300 border border-white/10 font-medium">
-                        {genre.count.toLocaleString()} anime
-                    </span>
-                </div>
+                {/* Anime Count Badge - Only show if we have a count */}
+                {genre.count > 0 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                        <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-xs text-gray-300 border border-white/10 font-medium">
+                            {genre.count.toLocaleString()} anime
+                        </span>
+                    </div>
+                )}
             </div>
         </button>
     );

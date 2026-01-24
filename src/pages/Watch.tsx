@@ -30,7 +30,7 @@ function Watch() {
 
     // Player State
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
-    const [isAutoQuality, setIsAutoQuality] = useState(true);
+    const [isAutoQuality, setIsAutoQuality] = useState(false); // Default to Manual (Highest)
 
     // 5-minute timer ref for auto-adding to Watching
     const watchTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,6 +56,15 @@ function Watch() {
         const item = userData.history.find(h => h.animeId === anime.id && h.episodeId === currentEpisode.session);
         return item ? item.timestamp : 0;
     }, [anime, currentEpisode, userData.history]);
+
+    const watchedEpisodes = useMemo(() => {
+        if (!anime) return new Set<string>();
+        return new Set(
+            userData.history
+                .filter(h => h.animeId === anime.id)
+                .map(h => h.episodeId)
+        );
+    }, [anime, userData.history]);
 
     // Handle Time Update (Throttled)
     const handleTimeUpdate = useCallback((time: number) => {
@@ -210,9 +219,9 @@ function Watch() {
 
     const getMappedQuality = (q: string): string => {
         const res = parseInt(q);
-        if (res >= 1000) return '1080P';
-        if (res >= 600) return '720P';
-        return '360P';
+        if (res >= 1000) return '1080';
+        if (res >= 600) return '720';
+        return '360';
     };
 
     const loadStream = async (episode: Episode, session?: string, animeOverride?: Anime) => {
@@ -224,7 +233,7 @@ function Watch() {
         setStreams([]);
         setExternalUrl(null);
         setSelectedStreamIndex(0);
-        setIsAutoQuality(true);
+        setIsAutoQuality(false); // Reset to manual/highest
         // Reset save time when loading new episode
         lastSaveTimeRef.current = 0;
 
@@ -421,6 +430,7 @@ function Watch() {
             externalUrl={externalUrl}
             initialTime={initialTime}
             onTimeUpdate={handleTimeUpdate}
+            watchedEpisodes={watchedEpisodes}
         />
     );
 

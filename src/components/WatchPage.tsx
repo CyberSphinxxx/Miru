@@ -20,6 +20,7 @@ interface WatchPageProps {
     externalUrl?: string | null;
     initialTime?: number;
     onTimeUpdate?: (time: number) => void;
+    watchedEpisodes?: Set<string>;
 }
 
 const WatchPage: React.FC<WatchPageProps> = ({
@@ -39,6 +40,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
     initialTime,
     onTimeUpdate,
     onNextEpisode,
+    watchedEpisodes = new Set(),
 }) => {
     const currentStream = streams[selectedStreamIndex];
     const [cinemaMode, setCinemaMode] = useState(false);
@@ -61,6 +63,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
     const [countdown, setCountdown] = useState(5);
     const [isAutoNextEnabled, setIsAutoNextEnabled] = useState(() => {
         const saved = localStorage.getItem('miru_auto_next');
+        // Default to TRUE unless explicitly set to false
         return saved !== null ? JSON.parse(saved) : true;
     });
 
@@ -218,58 +221,98 @@ const WatchPage: React.FC<WatchPageProps> = ({
                         /* Compact Grid Layout for 50+ episodes */
                         <div className="h-full overflow-y-auto custom-scrollbar">
                             <div className="episode-grid">
-                                {filteredEpisodes.map((ep) => (
-                                    <button
-                                        key={ep.id}
-                                        onClick={() => onEpisodeClick(ep)}
-                                        className={`episode-grid-item ${currentEpisode?.id === ep.id ? 'active' : ''}`}
-                                        title={ep.title || `Episode ${ep.episodeNumber}`}
-                                    >
-                                        {ep.episodeNumber}
-                                    </button>
-                                ))}
+                                {filteredEpisodes.map((ep) => {
+                                    const isWatched = watchedEpisodes?.has(ep.session);
+                                    return (
+                                        <button
+                                            key={ep.id}
+                                            onClick={() => onEpisodeClick(ep)}
+                                            className={`episode-grid-item ${currentEpisode?.id === ep.id ? 'active' : ''} ${isWatched && currentEpisode?.id !== ep.id ? 'opacity-50' : ''} relative overflow-hidden`}
+                                            title={ep.title || `Episode ${ep.episodeNumber}`}
+                                        >
+                                            {ep.episodeNumber}
+                                            {isWatched && currentEpisode?.id !== ep.id && (
+                                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white/70">
+                                                        <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     ) : (
                         /* List Layout for fewer episodes */
                         <div className="h-full overflow-y-auto custom-scrollbar">
                             <div className="p-2 space-y-1">
-                                {filteredEpisodes.map((ep) => (
-                                    <button
-                                        key={ep.id}
-                                        onClick={() => onEpisodeClick(ep)}
-                                        className={`w-full p-2 sm:p-3 rounded-lg text-left transition-all group relative overflow-hidden flex items-center gap-2 sm:gap-3 ${currentEpisode?.id === ep.id
-                                            ? 'episode-active'
-                                            : 'bg-white/[0.03] hover:bg-white/[0.06]'
-                                            }`}
-                                    >
-                                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-xs sm:text-sm font-bold transition-all ${currentEpisode?.id === ep.id
-                                            ? 'bg-miru-primary text-white'
-                                            : 'bg-white/5 text-gray-400 group-hover:bg-white/10 group-hover:text-white'
-                                            }`}>
-                                            {ep.episodeNumber}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-xs sm:text-sm font-medium truncate ${currentEpisode?.id === ep.id ? 'text-white' : 'text-gray-300'
-                                                }`}>
-                                                {ep.title || `Episode ${ep.episodeNumber}`}
-                                            </p>
-                                            {ep.duration && (
-                                                <p className="text-xs text-gray-500 mt-0.5">{ep.duration}</p>
-                                            )}
-                                        </div>
-                                        {currentEpisode?.id === ep.id && (
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-xs text-miru-primary font-medium hidden sm:block">Playing</span>
-                                                <div className="flex gap-0.5">
-                                                    <div className="w-0.5 h-3 bg-miru-primary rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-                                                    <div className="w-0.5 h-3 bg-miru-primary rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-                                                    <div className="w-0.5 h-3 bg-miru-primary rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                                <div className="p-2 space-y-1">
+                                    {filteredEpisodes.map((ep) => {
+                                        const isWatched = watchedEpisodes?.has(ep.session);
+                                        return (
+                                            <button
+                                                key={ep.id}
+                                                onClick={() => onEpisodeClick(ep)}
+                                                className={`w-full p-2 sm:p-3 rounded-lg text-left transition-all group relative overflow-hidden flex items-center gap-2 sm:gap-3 ${currentEpisode?.id === ep.id
+                                                    ? 'episode-active'
+                                                    : isWatched
+                                                        ? 'bg-white/[0.03] hover:bg-white/[0.06] opacity-70 hover:opacity-100' // Dim watched episodes
+                                                        : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                                                    }`}
+                                            >
+                                                <div className="relative">
+                                                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-xs sm:text-sm font-bold transition-all ${currentEpisode?.id === ep.id
+                                                        ? 'bg-miru-primary text-white'
+                                                        : isWatched
+                                                            ? 'bg-white/5 text-gray-500 group-hover:bg-white/10 group-hover:text-white'
+                                                            : 'bg-white/5 text-gray-400 group-hover:bg-white/10 group-hover:text-white'
+                                                        }`}>
+                                                        {isWatched && currentEpisode?.id !== ep.id ? (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                                                <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                                                            </svg>
+                                                        ) : (
+                                                            ep.episodeNumber
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className={`text-xs sm:text-sm font-medium truncate ${currentEpisode?.id === ep.id ? 'text-white' : isWatched ? 'text-gray-400' : 'text-gray-300'
+                                                            }`}>
+                                                            {ep.title || `Episode ${ep.episodeNumber}`}
+                                                        </p>
+                                                        {isWatched && currentEpisode?.id !== ep.id && (
+                                                            <span className="text-[10px] uppercase font-bold text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">
+                                                                Watched
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {ep.duration && (
+                                                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                                                <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" clipRule="evenodd" />
+                                                            </svg>
+                                                            {Math.round(parseInt(ep.duration) / 60)}m
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                {currentEpisode?.id === ep.id && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xs text-miru-primary font-medium hidden sm:block">Playing</span>
+                                                        <div className="flex gap-0.5">
+                                                            <div className="w-0.5 h-3 bg-miru-primary rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                                                            <div className="w-0.5 h-3 bg-miru-primary rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                                                            <div className="w-0.5 h-3 bg-miru-primary rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     )
@@ -331,168 +374,170 @@ const WatchPage: React.FC<WatchPageProps> = ({
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                     {/* Left: Player Area */}
                     <div className={`flex-1 flex flex-col relative overflow-y-auto custom-scrollbar ${cinemaMode ? 'z-50' : ''}`}>
-                        {/* Video Player */}
-                        <div className="w-full aspect-video bg-black relative flex-shrink-0">
-                            {streamLoading ? (
-                                <div className="w-full h-full flex items-center justify-center">
-                                    <LoadingSpinner size="lg" text="Loading stream..." />
-                                </div>
-                            ) : streams.length > 0 && currentStream ? (
-                                <div className="absolute inset-0">
-                                    {/* Check if direct stream (HLS/MP4) or Embed */}
-                                    {currentStream.url.includes('.m3u8') || currentStream.url.includes('.mp4') || currentStream.isHls ? (
-                                        <VideoPlayer
-                                            key={currentStream.url} // Re-mount on url change
-                                            src={currentStream.url}
-                                            isHls={currentStream.isHls || currentStream.url.includes('.m3u8')}
-                                            initialTime={initialTime}
-                                            onTimeUpdate={onTimeUpdate}
-                                            onEnded={() => {
-                                                // Trigger auto-next overlay instead of immediate play
-                                                if (hasNext) {
-                                                    setShowAutoNext(true);
-                                                }
-                                            }}
-                                            autoPlay={true}
-                                        />
-                                    ) : (
-                                        <iframe
-                                            key={currentStream.url}
-                                            src={currentStream.url}
-                                            className="w-full h-full border-0"
-                                            allowFullScreen
-                                            allow="autoplay; fullscreen"
-                                        />
-                                    )}
+                        {/* Video Player Container - Constrained */}
+                        <div className="w-full bg-black relative flex-shrink-0 flex justify-center">
+                            <div className="w-full max-w-[1400px] aspect-video relative">
+                                {streamLoading ? (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <LoadingSpinner size="lg" text="Loading stream..." />
+                                    </div>
+                                ) : streams.length > 0 && currentStream ? (
+                                    <div className="absolute inset-0">
+                                        {/* Check if direct stream (HLS/MP4) or Embed */}
+                                        {currentStream.url.includes('.m3u8') || currentStream.url.includes('.mp4') || currentStream.isHls ? (
+                                            <VideoPlayer
+                                                key={currentStream.url} // Re-mount on url change
+                                                src={currentStream.url}
+                                                isHls={currentStream.isHls || currentStream.url.includes('.m3u8')}
+                                                initialTime={initialTime}
+                                                onTimeUpdate={onTimeUpdate}
+                                                onEnded={() => {
+                                                    // Trigger auto-next overlay instead of immediate play
+                                                    if (hasNext) {
+                                                        setShowAutoNext(true);
+                                                    }
+                                                }}
+                                                autoPlay={true}
+                                            />
+                                        ) : (
+                                            <iframe
+                                                key={currentStream.url}
+                                                src={currentStream.url}
+                                                className="w-full h-full border-0"
+                                                allowFullScreen
+                                                allow="autoplay; fullscreen"
+                                            />
+                                        )}
 
-                                    {/* Auto Next Overlay */}
-                                    {showAutoNext && hasNext && (
-                                        <div className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden">
-                                            {/* Background Image (Next Episode) */}
-                                            {episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image ? (
-                                                <div
-                                                    className="absolute inset-0 bg-cover bg-center opacity-40 blur-xl scale-110"
-                                                    style={{ backgroundImage: `url(${episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image})` }}
-                                                />
-                                            ) : (
-                                                // Fallback gradient if no image
-                                                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-90" />
-                                            )}
+                                        {/* Auto Next Overlay */}
+                                        {showAutoNext && hasNext && (
+                                            <div className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden">
+                                                {/* Background Image (Next Episode) */}
+                                                {episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image ? (
+                                                    <div
+                                                        className="absolute inset-0 bg-cover bg-center opacity-40 blur-xl scale-110"
+                                                        style={{ backgroundImage: `url(${episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image})` }}
+                                                    />
+                                                ) : (
+                                                    // Fallback gradient if no image
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-90" />
+                                                )}
 
-                                            {/* Dark overlay for readability */}
-                                            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                                                {/* Dark overlay for readability */}
+                                                <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
 
-                                            {/* Content */}
-                                            <div className="relative z-10 w-full max-w-2xl px-8 flex flex-col md:flex-row items-center gap-8 md:gap-12 animate-in fade-in zoom-in-95 duration-500">
+                                                {/* Content */}
+                                                <div className="relative z-10 w-full max-w-2xl px-8 flex flex-col md:flex-row items-center gap-8 md:gap-12 animate-in fade-in zoom-in-95 duration-500">
 
-                                                {/* Left: Thumbnail & Countdown */}
-                                                <div className="relative group shrink-0 w-full md:w-auto flex justify-center">
-                                                    <div className="relative w-64 aspect-video rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-black/50">
-                                                        {episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image ? (
-                                                            <img
-                                                                src={episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image}
-                                                                alt="Next Episode"
-                                                                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center bg-white/5">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-white/20">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-                                                                </svg>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Countdown Overlay on Thumbnail */}
-                                                        {isAutoNextEnabled && (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-                                                                <div className="relative w-16 h-16 flex items-center justify-center">
-                                                                    <svg className="w-full h-full -rotate-90 transform drop-shadow-lg" viewBox="0 0 36 36">
-                                                                        <path
-                                                                            className="text-white/20"
-                                                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                                            fill="none"
-                                                                            stroke="currentColor"
-                                                                            strokeWidth="3"
-                                                                        />
-                                                                        <path
-                                                                            className="text-miru-primary transition-all duration-1000 ease-linear"
-                                                                            strokeDasharray={`${(countdown / 5) * 100}, 100`}
-                                                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                                            fill="none"
-                                                                            stroke="currentColor"
-                                                                            strokeWidth="3"
-                                                                        />
+                                                    {/* Left: Thumbnail & Countdown */}
+                                                    <div className="relative group shrink-0 w-full md:w-auto flex justify-center">
+                                                        <div className="relative w-64 aspect-video rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-black/50">
+                                                            {episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image ? (
+                                                                <img
+                                                                    src={episodes[currentEpisodeIndex + 1]?.snapshot || episodes[currentEpisodeIndex + 1]?.image}
+                                                                    alt="Next Episode"
+                                                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center bg-white/5">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-white/20">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
                                                                     </svg>
-                                                                    <span className="absolute text-2xl font-bold text-white drop-shadow-md">{countdown}</span>
                                                                 </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                            )}
 
-                                                {/* Right: Info & Actions */}
-                                                <div className="flex flex-col items-center md:items-start text-center md:text-left flex-1 min-w-0">
-                                                    <h3 className="text-gray-400 text-xs sm:text-sm uppercase font-bold tracking-[0.2em] mb-3">Up Next</h3>
-
-                                                    <h2 className="text-white font-bold text-2xl sm:text-3xl leading-tight mb-2 line-clamp-2 drop-shadow-lg">
-                                                        {episodes[currentEpisodeIndex + 1]?.title || `Episode ${episodes[currentEpisodeIndex + 1]?.episodeNumber}`}
-                                                    </h2>
-
-                                                    <p className="text-miru-primary font-medium text-lg mb-8">
-                                                        Episode {episodes[currentEpisodeIndex + 1]?.episodeNumber}
-                                                    </p>
-
-                                                    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                                                        <button
-                                                            onClick={handleNextEpisode}
-                                                            className="px-8 py-3 rounded-xl bg-white text-black font-bold hover:bg-white/90 transform hover:scale-105 transition-all shadow-xl shadow-white/10 flex items-center justify-center gap-2 group"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 group-hover:translate-x-0.5 transition-transform">
-                                                                <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                                                            </svg>
-                                                            Play Now
-                                                        </button>
-                                                        <button
-                                                            onClick={cancelAutoNext}
-                                                            className="px-8 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 backdrop-blur-sm transition-colors ring-1 ring-white/10"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-
-                                                    {/* Auto Play Toggle */}
-                                                    <div className="mt-8 flex items-center gap-3 group cursor-pointer" onClick={toggleAutoNext}>
-                                                        <div className={`w-11 h-6 rounded-full relative transition-colors duration-300 ${isAutoNextEnabled ? 'bg-miru-primary' : 'bg-white/20'}`}>
-                                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isAutoNextEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                            {/* Countdown Overlay on Thumbnail */}
+                                                            {isAutoNextEnabled && (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+                                                                    <div className="relative w-16 h-16 flex items-center justify-center">
+                                                                        <svg className="w-full h-full -rotate-90 transform drop-shadow-lg" viewBox="0 0 36 36">
+                                                                            <path
+                                                                                className="text-white/20"
+                                                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                strokeWidth="3"
+                                                                            />
+                                                                            <path
+                                                                                className="text-miru-primary transition-all duration-1000 ease-linear"
+                                                                                strokeDasharray={`${(countdown / 5) * 100}, 100`}
+                                                                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                strokeWidth="3"
+                                                                            />
+                                                                        </svg>
+                                                                        <span className="absolute text-2xl font-bold text-white drop-shadow-md">{countdown}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <span className="text-sm text-gray-400 font-medium group-hover:text-white transition-colors select-none">Auto-play next episode</span>
+                                                    </div>
+
+                                                    {/* Right: Info & Actions */}
+                                                    <div className="flex flex-col items-center md:items-start text-center md:text-left flex-1 min-w-0">
+                                                        <h3 className="text-gray-400 text-xs sm:text-sm uppercase font-bold tracking-[0.2em] mb-3">Up Next</h3>
+
+                                                        <h2 className="text-white font-bold text-2xl sm:text-3xl leading-tight mb-2 line-clamp-2 drop-shadow-lg">
+                                                            {episodes[currentEpisodeIndex + 1]?.title || `Episode ${episodes[currentEpisodeIndex + 1]?.episodeNumber}`}
+                                                        </h2>
+
+                                                        <p className="text-miru-primary font-medium text-lg mb-8">
+                                                            Episode {episodes[currentEpisodeIndex + 1]?.episodeNumber}
+                                                        </p>
+
+                                                        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                                                            <button
+                                                                onClick={handleNextEpisode}
+                                                                className="px-8 py-3 rounded-xl bg-white text-black font-bold hover:bg-white/90 transform hover:scale-105 transition-all shadow-xl shadow-white/10 flex items-center justify-center gap-2 group"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 group-hover:translate-x-0.5 transition-transform">
+                                                                    <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                                                                </svg>
+                                                                Play Now
+                                                            </button>
+                                                            <button
+                                                                onClick={cancelAutoNext}
+                                                                className="px-8 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 backdrop-blur-sm transition-colors ring-1 ring-white/10"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Auto Play Toggle */}
+                                                        <div className="mt-8 flex items-center gap-3 group cursor-pointer" onClick={toggleAutoNext}>
+                                                            <div className={`w-11 h-6 rounded-full relative transition-colors duration-300 ${isAutoNextEnabled ? 'bg-miru-primary' : 'bg-white/20'}`}>
+                                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isAutoNextEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                            </div>
+                                                            <span className="text-sm text-gray-400 font-medium group-hover:text-white transition-colors select-none">Auto-play next episode</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : externalUrl ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900 p-4">
-                                    <p className="mb-4 text-base sm:text-lg text-center">Stream not directly available.</p>
-                                    <a
-                                        href={externalUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-4 sm:px-6 py-2 sm:py-3 bg-miru-primary text-white rounded-lg hover:bg-miru-primary/80 transition-colors flex items-center gap-2 text-sm sm:text-base"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                        </svg>
-                                        Watch on Info Source
-                                    </a>
-                                    <p className="mt-4 text-xs text-gray-600 text-center">Clicking will open the source in a new tab.</p>
-                                </div>
-                            ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm sm:text-base text-center px-4">
-                                    {currentEpisode ? 'No stream available' : 'Select an episode to start watching'}
-                                </div>
-                            )}
+                                        )}
+                                    </div>
+                                ) : externalUrl ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900 p-4">
+                                        <p className="mb-4 text-base sm:text-lg text-center">Stream not directly available.</p>
+                                        <a
+                                            href={externalUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-4 sm:px-6 py-2 sm:py-3 bg-miru-primary text-white rounded-lg hover:bg-miru-primary/80 transition-colors flex items-center gap-2 text-sm sm:text-base"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                            </svg>
+                                            Watch on Info Source
+                                        </a>
+                                        <p className="mt-4 text-xs text-gray-600 text-center">Clicking will open the source in a new tab.</p>
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm sm:text-base text-center px-4">
+                                        {currentEpisode ? 'No stream available' : 'Select an episode to start watching'}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Unified Control Bar */}
@@ -532,6 +577,18 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                                         </svg>
                                         <span className="hidden sm:inline">Reload</span>
+                                    </button>
+
+                                    {/* Auto Play Toggle */}
+                                    <button
+                                        onClick={toggleAutoNext}
+                                        className={`pill-btn text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 ${isAutoNextEnabled ? 'accent' : ''}`}
+                                        title={isAutoNextEnabled ? 'Auto-play is ON' : 'Auto-play is OFF'}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                                        </svg>
+                                        <span className="hidden sm:inline">Auto Play</span>
                                     </button>
 
                                     {/* Cinema Mode Toggle */}
