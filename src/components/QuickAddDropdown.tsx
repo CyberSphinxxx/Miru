@@ -12,7 +12,7 @@ const QuickAddDropdown: React.FC<QuickAddDropdownProps> = ({ anime, className = 
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentStatus = getAnimeStatus(anime.mal_id);
+    const currentStatus = getAnimeStatus(anime.id);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -39,7 +39,7 @@ const QuickAddDropdown: React.FC<QuickAddDropdownProps> = ({ anime, className = 
 
     const handleRemove = (e: React.MouseEvent) => {
         e.stopPropagation();
-        removeFromLibrary(anime.mal_id);
+        removeFromLibrary(anime.id);
         setIsOpen(false);
     };
 
@@ -117,4 +117,5 @@ const QuickAddDropdown: React.FC<QuickAddDropdownProps> = ({ anime, className = 
 };
 
 export default React.memo(QuickAddDropdown);
+
 
