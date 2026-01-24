@@ -108,7 +108,7 @@ function HeroSection({
                         {featuredAnime.genres && featuredAnime.genres.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {featuredAnime.genres.slice(0, 4).map((genre) => (
-                                    <span key={genre.mal_id} className="genre-pill">
+                                    <span key={genre.id} className="genre-pill">
                                         {genre.name}
                                     </span>
                                 ))}
@@ -172,3 +172,5 @@ function HeroSection({
 }
 
 export default HeroSection;
+
+
