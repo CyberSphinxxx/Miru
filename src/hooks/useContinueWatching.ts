@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Anime, Episode } from '../types';
 
 export interface ContinueWatchingItem {
-    mal_id: number;
-    id?: number; // AniList ID for navigation
+    id: number;
     title: string;
     image: string;
     episodeNumber: number;
@@ -33,15 +32,14 @@ export function useContinueWatching() {
     const saveProgress = useCallback((anime: Anime, episode: Episode) => {
         setContinueWatchingList(prev => {
             // Remove existing entry for this anime if it exists
-            const filtered = prev.filter(item => item.mal_id !== anime.mal_id);
+            const filtered = prev.filter(item => item.id !== anime.id);
 
             // Try to find episode thumbnail - prefer banner for landscape cards
             const image = anime.anilist_banner_image || anime.images.jpg.large_image_url;
             const episodeTitle = episode.title || `Episode ${episode.episodeNumber}`;
 
             const newItem: ContinueWatchingItem = {
-                mal_id: anime.mal_id,
-                id: anime.id || anime.mal_id, // Store AniList ID for navigation
+                id: anime.id,
                 title: anime.title,
                 image: image,
                 episodeNumber: typeof episode.episodeNumber === 'string' ? parseFloat(episode.episodeNumber) : episode.episodeNumber,
@@ -59,9 +57,9 @@ export function useContinueWatching() {
         });
     }, []);
 
-    const removeFromHistory = useCallback((mal_id: number) => {
+    const removeFromHistory = useCallback((id: number) => {
         setContinueWatchingList(prev => {
-            const newList = prev.filter(item => item.mal_id !== mal_id);
+            const newList = prev.filter(item => item.id !== id);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
             return newList;
         });
@@ -73,3 +71,4 @@ export function useContinueWatching() {
         removeFromHistory
     };
 }
+
