@@ -99,7 +99,7 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
             setChaptersLoading(true);
             try {
                 // Check if we have prefetched data (from previous visits)
-                const prefetchKey = `manga_prefetch_${manga.id || manga.mal_id}`;
+                const prefetchKey = `manga_prefetch_${manga.id}`;
                 const cached = sessionStorage.getItem(prefetchKey);
 
                 if (cached) {
@@ -184,11 +184,11 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
         };
 
         fetchChapters();
-    }, [manga?.id, manga?.mal_id]);
+    }, [manga?.id, manga?.id]);
 
     const handleCardClick = (id: number) => {
         const minimalManga = {
-            mal_id: id,
+            id: id,
             title: 'Loading...',
             images: { jpg: { image_url: '', large_image_url: '' } },
             score: 0,
@@ -300,7 +300,7 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
                         {/* Genres */}
                         <div className="flex flex-wrap justify-center md:justify-start gap-2">
                             {manga.genres?.map(genre => (
-                                <span key={genre.mal_id || genre.name} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
+                                <span key={genre.id || genre.name} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
                                     {genre.name}
                                 </span>
                             ))}
@@ -356,8 +356,8 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                             {recommendations.slice(0, 5).map(rec => (
                                                 <button
-                                                    key={rec.mal_id}
-                                                    onClick={() => handleCardClick(rec.mal_id)}
+                                                    key={rec.id}
+                                                    onClick={() => handleCardClick(rec.id)}
                                                     className="group text-left"
                                                 >
                                                     <div className="aspect-[2/3] rounded-xl overflow-hidden mb-2 relative bg-gray-800">
@@ -419,3 +419,5 @@ const MangaDetailPage: React.FC<MangaDetailPageProps> = ({
 };
 
 export default MangaDetailPage;
+
+
