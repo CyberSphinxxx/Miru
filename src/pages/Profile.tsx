@@ -123,7 +123,6 @@ function Profile() {
     const getCurrentAnimeList = (): Anime[] => {
         if (animeTab === 'History') {
             return watchHistory.map(item => ({
-                mal_id: item.mal_id,
                 id: item.id,
                 title: item.title,
                 images: { jpg: { image_url: item.image_url, large_image_url: item.image_url } },
@@ -159,7 +158,6 @@ function Profile() {
         if (mangaTab === 'History') {
             // Show read history
             return readHistory.map(item => ({
-                mal_id: item.mal_id,
                 id: item.id,
                 title: item.title,
                 images: { jpg: { image_url: item.image_url, large_image_url: item.image_url } },
@@ -200,11 +198,11 @@ function Profile() {
     const currentMangaList = getCurrentMangaList();
 
     const handleAnimeCardClick = (anime: Anime) => {
-        navigate(`/anime/${anime.mal_id || anime.id}`);
+        navigate(`/anime/${anime.id}`);
     };
 
     const handleMangaCardClick = (manga: Manga) => {
-        navigate(`/manga/${manga.mal_id || manga.id}`);
+        navigate(`/manga/${manga.id}`);
     };
 
     // ============= TABS CONFIG =============
@@ -457,10 +455,10 @@ function Profile() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
                                 {currentAnimeList.map(anime => (
                                     <AnimeCard
-                                        key={anime.mal_id}
+                                        key={anime.id}
                                         anime={anime}
                                         onClick={() => handleAnimeCardClick(anime)}
-                                        onDelete={animeTab === 'History' ? () => handleRemoveFromWatchHistory(anime.mal_id) : undefined}
+                                        onDelete={animeTab === 'History' ? () => handleRemoveFromWatchHistory(anime.id) : undefined}
                                     />
                                 ))}
                             </div>
@@ -492,10 +490,10 @@ function Profile() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
                                 {currentMangaList.map(manga => (
                                     <MangaCard
-                                        key={manga.mal_id}
+                                        key={manga.id}
                                         manga={manga}
                                         onClick={() => handleMangaCardClick(manga)}
-                                        onDelete={mangaTab === 'History' ? () => handleRemoveFromReadHistory(manga.mal_id) : undefined}
+                                        onDelete={mangaTab === 'History' ? () => handleRemoveFromReadHistory(manga.id) : undefined}
                                     />
                                 ))}
                             </div>
@@ -530,3 +528,4 @@ function Profile() {
 }
 
 export default Profile;
+
