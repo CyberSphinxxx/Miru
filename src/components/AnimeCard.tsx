@@ -192,7 +192,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {anime.genres.slice(0, 3).map(g => (
                                         <span
-                                            key={g.mal_id}
+                                            key={g.id}
                                             className="px-1.5 py-0.5 rounded-full bg-miru-primary/20 text-miru-primary text-[9px] font-medium"
                                         >
                                             {g.name}
@@ -239,4 +239,5 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
 };
 
 export default React.memo(AnimeCard);
+
 
