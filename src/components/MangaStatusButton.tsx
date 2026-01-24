@@ -12,7 +12,7 @@ const MangaStatusButton: React.FC<MangaStatusButtonProps> = ({ manga, className 
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentStatus = getMangaStatus(manga.mal_id);
+    const currentStatus = getMangaStatus(manga.id);
 
     // Format status for display (e.g., 'plan_to_read' -> 'Plan to Read')
     const formatStatus = (status: MangaLibraryStatus) => {
@@ -39,7 +39,7 @@ const MangaStatusButton: React.FC<MangaStatusButtonProps> = ({ manga, className 
     };
 
     const handleRemove = () => {
-        removeFromMangaLibrary(manga.mal_id);
+        removeFromMangaLibrary(manga.id);
         setIsOpen(false);
     };
 
@@ -145,3 +145,4 @@ const MangaStatusButton: React.FC<MangaStatusButtonProps> = ({ manga, className 
 };
 
 export default MangaStatusButton;
+
