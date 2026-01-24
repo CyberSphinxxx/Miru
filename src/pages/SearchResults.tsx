@@ -90,11 +90,11 @@ function SearchResults() {
     };
 
     const handleAnimeClick = (anime: Anime) => {
-        navigate(`/anime/${anime.id || anime.mal_id}`);
+        navigate(`/anime/${anime.id}`);
     };
 
     const handleMangaClick = (manga: Manga) => {
-        navigate(`/manga/${manga.id || manga.mal_id}`);
+        navigate(`/manga/${manga.id}`);
     };
 
     const totalResults = animeResults.length + mangaResults.length;
@@ -187,10 +187,10 @@ function SearchResults() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                                 {animeResults.map(anime => (
                                     <AnimeCard
-                                        key={anime.mal_id}
+                                        key={anime.id}
                                         anime={anime}
                                         onClick={() => handleAnimeClick(anime)}
-                                        onPlayClick={() => navigate(`/watch/${anime.id || anime.mal_id}`)}
+                                        onPlayClick={() => navigate(`/watch/${anime.id}`)}
                                     />
                                 ))}
                             </div>
@@ -229,7 +229,7 @@ function SearchResults() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                                 {mangaResults.map(manga => (
                                     <MangaCard
-                                        key={manga.mal_id}
+                                        key={manga.id}
                                         manga={manga}
                                         onClick={() => handleMangaClick(manga)}
                                         onReadClick={() => navigate(`/read/${encodeURIComponent(manga.title)}`)}
@@ -268,3 +268,5 @@ function SearchResults() {
 }
 
 export default SearchResults;
+
+
