@@ -34,12 +34,12 @@ function AnimeSchedule() {
     const [currentTime, setCurrentTime] = useState(new Date());
     const tabsRef = useRef<HTMLDivElement>(null);
 
-    // Generate 7 day tabs starting from today
+    // Generate 14 day tabs starting from today
     const generateDayTabs = (): DayTab[] => {
         const tabs: DayTab[] = [];
         const now = new Date();
 
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 14; i++) {
             const date = new Date(now);
             date.setDate(date.getDate() + i);
 
@@ -51,7 +51,12 @@ function AnimeSchedule() {
             const endOfDay = new Date(date);
             endOfDay.setHours(23, 59, 59, 999);
 
-            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            let dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+
+            // Add Today/Tomorrow labels
+            if (i === 0) dayName = "Today";
+            else if (i === 1) dayName = "Tomorrow";
+
             const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
             tabs.push({
@@ -78,31 +83,48 @@ function AnimeSchedule() {
 
     // Fetch schedule for selected day
     useEffect(() => {
+        let isMounted = true;
+
         const fetchSchedule = async () => {
             const selectedDay = dayTabs[selectedDayIndex];
             if (!selectedDay) return;
 
             setLoading(true);
             setError(false);
-            setVisibleCount(10); // Reset visible count when changing days
+            // Don't reset visible count immediately to avoid jump if we can help it, 
+            // but for new data it's safer to reset or we might be out of bounds.
+            // Resetting to 10 is fine as long as we have skeletons.
+            setVisibleCount(10);
 
             try {
-                const result = await animeService.getAiringSchedule(
-                    selectedDay.startTime,
-                    selectedDay.endTime,
-                    1,
-                    50
-                );
-                setSchedules(result.schedules || []);
+                // Minimum loading time to prevent flickering for fast connections
+                // and to allow skeletons to be seen briefly
+                const minLoadTime = new Promise(resolve => setTimeout(resolve, 300));
+
+                const [result] = await Promise.all([
+                    animeService.getAiringSchedule(
+                        selectedDay.startTime,
+                        selectedDay.endTime,
+                        1,
+                        50
+                    ),
+                    minLoadTime
+                ]);
+
+                if (isMounted) {
+                    setSchedules(result.schedules || []);
+                }
             } catch (err) {
                 console.error('Failed to fetch schedule:', err);
-                setError(true);
+                if (isMounted) setError(true);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
 
         fetchSchedule();
+
+        return () => { isMounted = false; };
     }, [selectedDayIndex, dayTabs]);
 
     const formatTime = (timestamp: number): string => {
@@ -140,7 +162,7 @@ function AnimeSchedule() {
 
     const scrollTabs = (direction: 'left' | 'right') => {
         if (tabsRef.current) {
-            const scrollAmount = 150;
+            const scrollAmount = 200;
             tabsRef.current.scrollBy({
                 left: direction === 'left' ? -scrollAmount : scrollAmount,
                 behavior: 'smooth'
@@ -151,24 +173,44 @@ function AnimeSchedule() {
     const visibleSchedules = schedules.slice(0, visibleCount);
     const hasMore = schedules.length > visibleCount;
 
+    // Skeleton Component
+    const ScheduleSkeleton = () => (
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-white/5 animate-pulse">
+            {/* Time Skeleton */}
+            <div className="flex-shrink-0 w-16">
+                <div className="h-4 w-10 bg-white/10 rounded"></div>
+            </div>
+
+            {/* Title Skeleton */}
+            <div className="flex-1 min-w-0 px-4">
+                <div className="h-5 w-3/4 bg-white/10 rounded mb-1"></div>
+            </div>
+
+            {/* Badge Skeleton */}
+            <div className="flex-shrink-0">
+                <div className="h-8 w-24 bg-white/10 rounded-lg"></div>
+            </div>
+        </div>
+    );
+
     return (
-        <section className="mb-12 animate-fade-in">
+        <section className="mb-12 animate-fade-in relative z-10">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                 <h2 className="text-xl md:text-2xl font-bold text-gradient">
                     Estimated Schedule
                 </h2>
-                <div className="text-sm text-gray-400 font-mono bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                <div className="text-sm text-gray-400 font-mono bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 w-fit">
                     ({getTimezoneString()}) {formatCurrentDateTime()}
                 </div>
             </div>
 
             {/* Day Tabs */}
-            <div className="relative mb-6">
+            <div className="relative mb-6 group">
                 {/* Left Arrow */}
                 <button
                     onClick={() => scrollTabs('left')}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-miru-bg/90 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all shadow-lg"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-miru-dark-bg/90 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all shadow-lg opacity-0 group-hover:opacity-100 disabled:opacity-0"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -178,20 +220,20 @@ function AnimeSchedule() {
                 {/* Tabs Container */}
                 <div
                     ref={tabsRef}
-                    className="flex gap-2 overflow-x-auto scrollbar-hide px-10 py-2"
+                    className="flex gap-2 overflow-x-auto scrollbar-hide px-2 md:px-0 scroll-smooth"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {dayTabs.map((tab, index) => (
                         <button
                             key={index}
                             onClick={() => setSelectedDayIndex(index)}
-                            className={`flex-shrink-0 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${index === selectedDayIndex
-                                    ? 'bg-miru-accent text-white shadow-lg shadow-miru-accent/30'
-                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
+                            className={`flex-shrink-0 px-5 py-3 rounded-xl font-medium transition-all duration-300 min-w-[100px] ${index === selectedDayIndex
+                                ? 'bg-miru-accent text-white shadow-lg shadow-miru-accent/20 scale-[1.02]'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
                                 }`}
                         >
-                            <div className="text-sm font-bold">{tab.dayName}</div>
-                            <div className="text-xs opacity-80">{tab.dateStr}</div>
+                            <div className="text-sm font-bold truncate">{tab.dayName}</div>
+                            <div className="text-xs opacity-70 group-hover:opacity-100 transition-opacity">{tab.dateStr}</div>
                         </button>
                     ))}
                 </div>
@@ -199,7 +241,7 @@ function AnimeSchedule() {
                 {/* Right Arrow */}
                 <button
                     onClick={() => scrollTabs('right')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-miru-bg/90 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all shadow-lg"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-miru-dark-bg/90 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all shadow-lg opacity-0 group-hover:opacity-100"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -208,16 +250,15 @@ function AnimeSchedule() {
             </div>
 
             {/* Schedule List */}
-            <div className="rounded-xl bg-white/[0.02] border border-white/5 overflow-hidden">
+            <div className="rounded-xl bg-white/[0.02] border border-white/5 overflow-hidden min-h-[400px]">
                 {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="flex items-center gap-3 text-gray-400">
-                            <div className="w-5 h-5 border-2 border-miru-accent border-t-transparent rounded-full animate-spin" />
-                            <span>Loading schedule...</span>
-                        </div>
+                    <div className="divide-y divide-white/5">
+                        {[...Array(8)].map((_, i) => (
+                            <ScheduleSkeleton key={i} />
+                        ))}
                     </div>
                 ) : error ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="flex flex-col items-center justify-center h-[400px] text-center">
                         <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-red-500">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
@@ -232,7 +273,7 @@ function AnimeSchedule() {
                         </button>
                     </div>
                 ) : schedules.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="flex flex-col items-center justify-center h-[400px] text-center">
                         <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
