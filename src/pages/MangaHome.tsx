@@ -120,7 +120,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
 
     const handleMangaClick = (manga: Manga) => {
         // Navigate to manga details page
-        navigate(`/manga/${manga.id || manga.mal_id}`);
+        navigate(`/manga/${manga.id}`);
     };
 
     const handleReadClick = (manga: Manga) => {
@@ -140,7 +140,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
 
                     return (
                         <div
-                            key={manga.mal_id}
+                            key={manga.id}
                             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                         >
                             {/* Background Image */}
@@ -216,7 +216,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
                                         {manga.genres && manga.genres.length > 0 && (
                                             <div className="flex flex-wrap gap-2 mb-8">
                                                 {manga.genres.slice(0, 4).map(genre => (
-                                                    <span key={genre.mal_id || genre.name} className="genre-pill hover:bg-white/20 cursor-default">
+                                                    <span key={genre.id || genre.name} className="genre-pill hover:bg-white/20 cursor-default">
                                                         {genre.name}
                                                     </span>
                                                 ))}
@@ -355,7 +355,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
                         ) : (
                             <div className="horizontal-scroll gap-4 py-4">
                                 {trendingManga.slice(0, 10).map(manga => (
-                                    <div key={manga.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                                    <div key={manga.id} className="flex-shrink-0 w-56 md:w-64">
                                         <MangaCard
                                             manga={manga}
                                             onClick={() => handleMangaClick(manga)}
@@ -403,7 +403,7 @@ function MangaHome({ viewMode }: MangaHomeProps) {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                                 {mangaList.map((manga, index) => (
                                     <MangaCard
-                                        key={manga.mal_id}
+                                        key={manga.id}
                                         manga={{
                                             ...manga,
                                             rank: viewMode === 'home' ? ((currentPage - 1) * 24 + index + 1) : undefined
@@ -461,3 +461,5 @@ function MangaHome({ viewMode }: MangaHomeProps) {
 }
 
 export default MangaHome;
+
+
