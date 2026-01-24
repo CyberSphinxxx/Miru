@@ -12,7 +12,7 @@ const StatusButton: React.FC<StatusButtonProps> = ({ anime, className = '' }) =>
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentStatus = getAnimeStatus(anime.mal_id);
+    const currentStatus = getAnimeStatus(anime.id);
 
     // Format status for display (e.g., 'plan_to_watch' -> 'Plan to Watch')
     const formatStatus = (status: LibraryStatus) => {
@@ -40,7 +40,7 @@ const StatusButton: React.FC<StatusButtonProps> = ({ anime, className = '' }) =>
     };
 
     const handleRemove = () => {
-        removeFromLibrary(anime.mal_id);
+        removeFromLibrary(anime.id);
         setIsOpen(false);
     };
 
@@ -147,3 +147,4 @@ const StatusButton: React.FC<StatusButtonProps> = ({ anime, className = '' }) =>
 };
 
 export default StatusButton;
+
