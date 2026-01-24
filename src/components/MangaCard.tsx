@@ -204,7 +204,7 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick, onReadClick, onDe
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {manga.genres.slice(0, 3).map(g => (
                                         <span
-                                            key={g.mal_id || g.name}
+                                            key={g.id || g.name}
                                             className="px-1.5 py-0.5 rounded-full bg-miru-primary/20 text-miru-primary text-[9px] font-medium"
                                         >
                                             {g.name}
@@ -252,4 +252,5 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onClick, onReadClick, onDe
 };
 
 export default React.memo(MangaCard);
+
 
