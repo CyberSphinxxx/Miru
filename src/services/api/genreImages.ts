@@ -9,92 +9,93 @@
  * Static curated images for each genre - ALL UNIQUE, NO REPEATS
  * Each URL points to a different anime that best represents the genre.
  * Keys are normalized (lowercase) to ensure matching works regardless of API casing.
+ * Using AniList CDN (s4.anilist.co) for reliable image hosting.
  */
 const DATA_MAPPING: Record<string, string> = {
     // ===== Top Level Genres =====
-    'action': 'https://cdn.myanimelist.net/images/anime/1223/96541l.jpg',           // Fullmetal Alchemist: Brotherhood
-    'adventure': 'https://cdn.myanimelist.net/images/anime/6/73245l.jpg',         // One Piece
-    'avant garde': 'https://cdn.myanimelist.net/images/anime/13/18580l.jpg',      // Serial Experiments Lain
-    'award winning': 'https://cdn.myanimelist.net/images/anime/6/79597l.jpg',     // Spirited Away
-    'boys love': 'https://cdn.myanimelist.net/images/anime/12/35925l.jpg',        // Sekaiichi Hatsukoi
-    'comedy': 'https://cdn.myanimelist.net/images/anime/1208/94745l.jpg',         // Gintama
-    'drama': 'https://cdn.myanimelist.net/images/anime/10/71037l.jpg',            // Clannad: After Story
-    'fantasy': 'https://cdn.myanimelist.net/images/anime/2/88339l.jpg',           // Made in Abyss
-    'girls love': 'https://cdn.myanimelist.net/images/anime/12/99091l.jpg',       // Citrus
-    'gourmet': 'https://cdn.myanimelist.net/images/anime/8/76672l.jpg',           // Food Wars
-    'horror': 'https://cdn.myanimelist.net/images/anime/1858/97705l.jpg',         // Another
-    'mystery': 'https://cdn.myanimelist.net/images/anime/13/50521l.jpg',          // Hyouka
-    'romance': 'https://cdn.myanimelist.net/images/anime/13/24361l.jpg',          // Toradora
-    'sci-fi': 'https://cdn.myanimelist.net/images/anime/5/73199l.jpg',            // Steins;Gate
-    'slice of life': 'https://cdn.myanimelist.net/images/anime/1935/127974l.jpg', // Bocchi the Rock
-    'sports': 'https://cdn.myanimelist.net/images/anime/7/76014l.jpg',            // Haikyuu
-    'supernatural': 'https://cdn.myanimelist.net/images/anime/1517/100633l.jpg',  // Mob Psycho 100
-    'suspense': 'https://cdn.myanimelist.net/images/anime/9/9453l.jpg',           // Death Note
-    'ecchi': 'https://cdn.myanimelist.net/images/anime/1795/95088l.jpg',          // Kill la Kill
-    'erotica': 'https://cdn.myanimelist.net/images/anime/1453/112674l.jpg',       // Interspecies Reviewers
-    'hentai': 'https://cdn.myanimelist.net/images/anime/1819/129769l.jpg',        // Overflow
+    'action': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-C6FPmWm59CyP.jpg',           // Attack on Titan
+    'adventure': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-YCDoj1EkAxFn.jpg',         // One Piece
+    'avant garde': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx790-5JmjEg6MNbRN.jpg',      // Ergo Proxy
+    'award winning': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx199-lwMRYW16M1bY.jpg',     // Spirited Away
+    'boys love': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx19163-DDsEG41jEhSl.jpg',       // Given
+    'comedy': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx918-CKGbgekJP92p.jpg',         // Gintama
+    'drama': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx4181-qUy25o6pVwVj.jpg',            // Clannad: After Story
+    'fantasy': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx97986-5EvDyg9UZhNf.jpg',           // Made in Abyss
+    'girls love': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx99426-mN0PjFLT7Nfz.jpg',       // Bloom Into You
+    'gourmet': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21518-oDWZ6oXz2iuE.jpg',           // Food Wars
+    'horror': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11111-JEHl2KNI2mtu.jpg',         // Another
+    'mystery': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx12189-xaKqvZLAU9Iu.jpg',          // Hyouka
+    'romance': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx4224-3Bh0rm99N6Vl.jpg',          // Toradora
+    'sci-fi': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9253-7pdcVzJGVwCB.jpg',            // Steins;Gate
+    'slice of life': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx140960-vN39AmOWrVB5.jpg', // Bocchi the Rock
+    'sports': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20464-Fz3uD4SKfCLu.jpg',            // Haikyuu
+    'supernatural': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21507-Qx7UPfOvDRRE.jpg',  // Mob Psycho 100
+    'suspense': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-lawCwhzhi96X.jpg',           // Death Note
+    'ecchi': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx18679-Rx5jiqPSodR1.jpg',          // Kill la Kill
+    'erotica': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx110270-d9WXQM6fV4A7.jpg',       // Interspecies Reviewers
+    'hentai': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx109731-cIKB5CDyM7vB.jpg',        // Overflow
 
     // ===== Sub-Genres & Themes =====
-    'adult cast': 'https://cdn.myanimelist.net/images/anime/11/39987l.jpg',       // Wotakoi
-    'anthropomorphic': 'https://cdn.myanimelist.net/images/anime/1109/106649l.jpg', // Beastars
-    'cgdct': 'https://cdn.myanimelist.net/images/anime/4/23083l.jpg',             // K-On!
-    'childcare': 'https://cdn.myanimelist.net/images/anime/2/30677l.jpg',         // Usagi Drop
-    'combat sports': 'https://cdn.myanimelist.net/images/anime/12/6287l.jpg',     // Hajime no Ippo
-    'crossdressing': 'https://cdn.myanimelist.net/images/anime/7/24354l.jpg',     // Princess Jellyfish
-    'delinquents': 'https://cdn.myanimelist.net/images/anime/13/4665l.jpg',       // Great Teacher Onizuka
-    'detective': 'https://cdn.myanimelist.net/images/anime/6/77839l.jpg',         // Detective Conan
-    'educational': 'https://cdn.myanimelist.net/images/anime/13/75587l.jpg',      // Cells at Work
-    'gag humor': 'https://cdn.myanimelist.net/images/anime/8/80469l.jpg',         // Saiki K
-    'gore': 'https://cdn.myanimelist.net/images/anime/1806/126216l.jpg',          // Chainsaw Man
-    'harem': 'https://cdn.myanimelist.net/images/anime/1908/135431l.jpg',         // Quintessential Quintuplets
-    'high stakes game': 'https://cdn.myanimelist.net/images/anime/8/63979l.jpg',  // Kakegurui
-    'historical': 'https://cdn.myanimelist.net/images/anime/1711/143531l.jpg',    // Kingdom
-    'idols (female)': 'https://cdn.myanimelist.net/images/anime/11/53435l.jpg',   // Love Live
-    'idols (male)': 'https://cdn.myanimelist.net/images/anime/6/41819l.jpg',      // Uta no Prince-sama
-    'isekai': 'https://cdn.myanimelist.net/images/anime/1522/128039l.jpg',        // Mushoku Tensei
-    'iyashikei': 'https://cdn.myanimelist.net/images/anime/2/83141l.jpg',         // Laid-Back Camp
-    'love polygon': 'https://cdn.myanimelist.net/images/anime/13/55609l.jpg',     // Nagi no Asukara
-    'love status quo': 'https://cdn.myanimelist.net/images/anime/1628/117180l.jpg', // Karakai Jouzu no Takagi-san
-    'magical sex shift': 'https://cdn.myanimelist.net/images/anime/1121/133480l.jpg', // Onimai
-    'magic': 'https://cdn.myanimelist.net/images/anime/11/39717l.jpg',            // Madoka Magica
-    'mahou shoujo': 'https://cdn.myanimelist.net/images/anime/11/55225l.jpg',     // Cardcaptor Sakura
-    'martial arts': 'https://cdn.myanimelist.net/images/anime/1565/111305l.jpg',  // Baki
-    'mecha': 'https://cdn.myanimelist.net/images/anime/10/73111l.jpg',            // Gurren Lagann
-    'medical': 'https://cdn.myanimelist.net/images/anime/12/37521l.jpg',          // Black Jack
-    'military': 'https://cdn.myanimelist.net/images/anime/1001/100346l.jpg',      // 86
-    'music': 'https://cdn.myanimelist.net/images/anime/3/67177l.jpg',             // Your Lie in April
-    'mythology': 'https://cdn.myanimelist.net/images/anime/10/76792l.jpg',        // Noragami
-    'organized crime': 'https://cdn.myanimelist.net/images/anime/10/71923l.jpg',  // 91 Days
-    'otaku culture': 'https://cdn.myanimelist.net/images/anime/1629/94480l.jpg',  // Lucky Star
-    'parody': 'https://cdn.myanimelist.net/images/anime/8/83640l.jpg',            // Konosuba
-    'performing arts': 'https://cdn.myanimelist.net/images/anime/12/75178l.jpg',  // Hibike Euphonium
-    'pets': 'https://cdn.myanimelist.net/images/anime/1936/123168l.jpg',          // My Roommate is a Cat
-    'police': 'https://cdn.myanimelist.net/images/anime/5/73676l.jpg',            // Psycho-Pass
-    'racing': 'https://cdn.myanimelist.net/images/anime/13/28413l.jpg',           // Redline
-    'reincarnation': 'https://cdn.myanimelist.net/images/anime/1487/133659l.jpg', // Oshi no Ko
-    'reverse harem': 'https://cdn.myanimelist.net/images/anime/7/37841l.jpg',     // Ouran High School Host Club
-    'samurai': 'https://cdn.myanimelist.net/images/anime/11/29134l.jpg',          // Samurai Champloo
-    'school': 'https://cdn.myanimelist.net/images/anime/1429/95946l.jpg',         // My Hero Academia
-    'showbiz': 'https://cdn.myanimelist.net/images/anime/11/44791l.jpg',          // Skip Beat
-    'space': 'https://cdn.myanimelist.net/images/anime/4/19644l.jpg',             // Cowboy Bebop
-    'strategy game': 'https://cdn.myanimelist.net/images/anime/1074/111944l.jpg', // No Game No Life
-    'super power': 'https://cdn.myanimelist.net/images/anime/12/76049l.jpg',      // One Punch Man
-    'survival': 'https://cdn.myanimelist.net/images/anime/11/53927l.jpg',         // Mirai Nikki
-    'team sports': 'https://cdn.myanimelist.net/images/anime/12/36269l.jpg',      // Kuroko no Basket
-    'time travel': 'https://cdn.myanimelist.net/images/anime/1934/114972l.jpg',   // Tokyo Revengers
-    'urban fantasy': 'https://cdn.myanimelist.net/images/anime/9/75218l.jpg',     // Durarara!!
-    'vampire': 'https://cdn.myanimelist.net/images/anime/11/75274l.jpg',          // Hellsing Ultimate
-    'video game': 'https://cdn.myanimelist.net/images/anime/6/82761l.jpg',        // Sword Art Online
-    'villainess': 'https://cdn.myanimelist.net/images/anime/1626/114670l.jpg',    // Hamefura
-    'visual arts': 'https://cdn.myanimelist.net/images/anime/1915/119106l.jpg',   // Blue Period
-    'workplace': 'https://cdn.myanimelist.net/images/anime/1002/105741l.jpg',     // Shirobako
+    'adult cast': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx99578-zPH44sn9Yrf1.jpg',       // Wotakoi
+    'anthropomorphic': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx107660-qfm4gcTuWFxd.jpg', // Beastars
+    'cgdct': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx5680-yp05RHKWsNhj.jpg',             // K-On!
+    'childcare': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx10162-JBHnAixfFfKT.jpg',         // Usagi Drop
+    'combat sports': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx263-7rEZS3TEDEgL.jpg',     // Hajime no Ippo
+    'crossdressing': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx8129-Pf8SqEPn9dAi.jpg',     // Princess Jellyfish
+    'delinquents': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx245-W86vJJLyeQhL.jpg',       // Great Teacher Onizuka
+    'detective': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx235-oLDEuSkk6vgB.jpg',         // Detective Conan
+    'educational': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx100978-YX2S0V3PXaFa.jpg',      // Cells at Work
+    'gag humor': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21804-3YVqf2cNVplA.jpg',         // Saiki K
+    'gore': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx127230-lIaK2D3FuYy4.jpg',          // Chainsaw Man
+    'harem': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx103572-LZ5F3Ma2qPHG.jpg',         // Quintessential Quintuplets
+    'high stakes game': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx98314-PJOyBq2NFQHJ.jpg',  // Kakegurui
+    'historical': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21087-T9Q2jrpBo2zO.jpg',    // Vinland Saga
+    'idols (female)': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx15051-w3lqIqAJZxU1.jpg',   // Love Live
+    'idols (male)': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx10278-gk5qQ4v8Xwjq.jpg',      // Uta no Prince-sama
+    'isekai': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21856-t7YkJ8YJI8FA.jpg',        // Mushoku Tensei
+    'iyashikei': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx98444-mAIfKs96cdRC.jpg',         // Laid-Back Camp
+    'love polygon': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16067-uCPzrNbXDGFg.jpg',     // Nagi no Asukara
+    'love status quo': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx99468-xLVpuqPEXwDh.jpg', // Karakai Jouzu no Takagi-san
+    'magical sex shift': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx146918-5j3p3b9OHlV6.jpg', // Onimai
+    'magic': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9756-MAKWUKGGIqVe.jpg',            // Madoka Magica
+    'mahou shoujo': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx232-dqnqLXx9uBm9.jpg',     // Cardcaptor Sakura
+    'martial arts': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx97888-kLJrcMqwkPtk.jpg',  // Baki
+    'mecha': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx2001-VRPEgCJQZWWr.jpg',            // Gurren Lagann
+    'medical': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1372-thDvpZEdgF35.jpg',          // Black Jack
+    'military': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx116589-MgD0lNHJVQ3P.jpg',      // 86
+    'music': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20665-q0HlpW7nOUge.jpg',             // Your Lie in April
+    'mythology': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20583-ODemhbofxBYz.jpg',        // Noragami
+    'organized crime': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21711-4ahdYePzLOEC.jpg',  // 91 Days
+    'otaku culture': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1887-rldvLY8ZQPJ0.jpg',  // Lucky Star
+    'parody': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21202-8IwCT0S0fXMP.jpg',            // Konosuba
+    'performing arts': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20912-xvn7VvPMLfqR.jpg',  // Hibike Euphonium
+    'pets': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101175-jPDKRkbIeHqF.jpg',          // My Roommate is a Cat
+    'police': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx13601-pF1lnJP3wVbz.jpg',            // Psycho-Pass
+    'racing': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx6675-2NrD8MjRE6VD.jpg',           // Redline
+    'reincarnation': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113813-08rlxLc5HYL2.jpg', // Oshi no Ko
+    'reverse harem': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx853-JM2pxWBprKxN.jpg',     // Ouran High School Host Club
+    'samurai': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx205-DNeEqRF7QjqU.jpg',          // Samurai Champloo
+    'school': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21459-bLxGPndLw2mi.jpg',         // My Hero Academia
+    'showbiz': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx4722-gJLg0KbXzDY9.jpg',          // Skip Beat
+    'space': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1-LQDxXYnXBmTE.jpg',             // Cowboy Bebop
+    'strategy game': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx19815-E1k3lE7YGOA5.jpg', // No Game No Life
+    'super power': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21087-T9Q2jrpBo2zO.jpg',      // One Punch Man
+    'survival': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx10620-2lM9b9aTy9Cj.jpg',         // Mirai Nikki
+    'team sports': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11771-ESCwWxvgf8pi.jpg',      // Kuroko no Basket
+    'time travel': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx120120-Dq0bx2TdUpSB.jpg',   // Tokyo Revengers
+    'urban fantasy': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx6746-JV3nUBCkL7Cv.jpg',     // Durarara!!
+    'vampire': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx777-JlQ0GDfblqMi.jpg',          // Hellsing Ultimate
+    'video game': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11757-CKq0C2FyeQfZ.jpg',        // Sword Art Online
+    'villainess': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx109479-MfwImsqMvPKr.jpg',    // Hamefura
+    'visual arts': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx117649-c3iVSzPQdP5y.jpg',   // Blue Period
+    'workplace': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20595-3dQdqH6kTNJA.jpg',     // Shirobako
 
     // ===== Demographics =====
-    'josei': 'https://cdn.myanimelist.net/images/anime/1452/140119l.jpg',         // Nana
-    'kids': 'https://cdn.myanimelist.net/images/anime/1482/117365l.jpg',          // Pokemon 2019
-    'seinen': 'https://cdn.myanimelist.net/images/anime/1209/121190l.jpg',        // Vinland Saga
-    'shoujo': 'https://cdn.myanimelist.net/images/anime/1269/137870l.jpg',        // Fruits Basket
-    'shounen': 'https://cdn.myanimelist.net/images/anime/1015/138006l.jpg',       // Jujutsu Kaisen
+    'josei': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx877-3vN3laNRzRNf.jpg',         // Nana
+    'kids': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx527-rQ0NbKR4FDtR.jpg',          // Pokemon
+    'seinen': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101348-P3NdnlHYl3Bk.jpg',        // Vinland Saga
+    'shoujo': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx124194-pHBJEI6b6B1C.jpg',        // Fruits Basket
+    'shounen': 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-HnPj0BVXuLcu.jpg',       // Jujutsu Kaisen
 };
 
 // Default fallback image (Abstract pattern)
