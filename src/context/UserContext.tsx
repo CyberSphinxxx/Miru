@@ -124,7 +124,7 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
         }
     });
 
-    // Merge library (keep unique by mal_id, prefer cloud)
+    // Merge library (keep unique by id, prefer cloud)
     const mergedLibrary: Library = {
         watching: [],
         completed: [],
@@ -138,9 +138,9 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
     // Process cloud library first (priority)
     (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
         cloud.library[status].forEach(entry => {
-            if (!seenIds.has(entry.anime.mal_id)) {
+            if (!seenIds.has(entry.anime.id)) {
                 mergedLibrary[status].push(entry);
-                seenIds.add(entry.anime.mal_id);
+                seenIds.add(entry.anime.id);
             }
         });
     });
@@ -148,9 +148,9 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
     // Add local items not in cloud
     (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
         local.library[status].forEach(entry => {
-            if (!seenIds.has(entry.anime.mal_id)) {
+            if (!seenIds.has(entry.anime.id)) {
                 mergedLibrary[status].push(entry);
-                seenIds.add(entry.anime.mal_id);
+                seenIds.add(entry.anime.id);
             }
         });
     });
@@ -170,9 +170,9 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
     if (cloud.mangaLibrary) {
         (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
             (cloud.mangaLibrary[status] || []).forEach(entry => {
-                if (!seenMangaIds.has(entry.manga.mal_id)) {
+                if (!seenMangaIds.has(entry.manga.id)) {
                     mergedMangaLibrary[status].push(entry);
-                    seenMangaIds.add(entry.manga.mal_id);
+                    seenMangaIds.add(entry.manga.id);
                 }
             });
         });
@@ -182,9 +182,9 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
     if (local.mangaLibrary) {
         (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
             (local.mangaLibrary[status] || []).forEach(entry => {
-                if (!seenMangaIds.has(entry.manga.mal_id)) {
+                if (!seenMangaIds.has(entry.manga.id)) {
                     mergedMangaLibrary[status].push(entry);
-                    seenMangaIds.add(entry.manga.mal_id);
+                    seenMangaIds.add(entry.manga.id);
                 }
             });
         });
@@ -343,7 +343,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Check if anime is in 'plan_to_watch' and move to 'watching'
             let newLibrary = { ...prev.library };
-            const planToWatchIndex = newLibrary.plan_to_watch.findIndex(e => e.anime.mal_id === animeId);
+            const planToWatchIndex = newLibrary.plan_to_watch.findIndex(e => e.anime.id === animeId);
 
             if (planToWatchIndex >= 0) {
                 const entry = newLibrary.plan_to_watch[planToWatchIndex];
@@ -351,7 +351,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 newPlanToWatch.splice(planToWatchIndex, 1);
 
                 const newWatching = [...newLibrary.watching];
-                if (!newWatching.find(e => e.anime.mal_id === animeId)) {
+                if (!newWatching.find(e => e.anime.id === animeId)) {
                     newWatching.push({ ...entry, addedAt: new Date().toISOString() });
                 }
 
@@ -381,11 +381,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateStatus = useCallback((anime: Anime, newStatus: LibraryStatus) => {
         setUserData(prev => {
             const newLibrary = { ...prev.library };
-            const animeId = anime.mal_id;
+            const animeId = anime.id;
 
             // Remove from ALL lists
             (Object.keys(newLibrary) as LibraryStatus[]).forEach(status => {
-                newLibrary[status] = newLibrary[status].filter(entry => entry.anime.mal_id !== animeId);
+                newLibrary[status] = newLibrary[status].filter(entry => entry.anime.id !== animeId);
             });
 
             // Add to the new list
@@ -412,7 +412,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newLibrary = { ...prev.library };
 
             (Object.keys(newLibrary) as LibraryStatus[]).forEach(status => {
-                newLibrary[status] = newLibrary[status].filter(entry => entry.anime.mal_id !== animeId);
+                newLibrary[status] = newLibrary[status].filter(entry => entry.anime.id !== animeId);
             });
 
             const newData = {
@@ -432,7 +432,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const statuses = Object.keys(userData.library) as LibraryStatus[];
 
         for (const status of statuses) {
-            if (userData.library[status].some(entry => entry.anime.mal_id === animeId)) {
+            if (userData.library[status].some(entry => entry.anime.id === animeId)) {
                 return status;
             }
         }
@@ -448,11 +448,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateMangaStatus = useCallback((manga: Manga, newStatus: MangaLibraryStatus) => {
         setUserData(prev => {
             const newMangaLibrary = { ...(prev.mangaLibrary || INITIAL_DATA.mangaLibrary) };
-            const mangaId = manga.mal_id;
+            const mangaId = manga.id;
 
             // Remove from ALL lists
             (Object.keys(newMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.mal_id !== mangaId);
+                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.id !== mangaId);
             });
 
             // Add to the new list
@@ -479,7 +479,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newMangaLibrary = { ...(prev.mangaLibrary || INITIAL_DATA.mangaLibrary) };
 
             (Object.keys(newMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.mal_id !== mangaId);
+                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.id !== mangaId);
             });
 
             const newData = {
@@ -500,7 +500,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const statuses = Object.keys(mangaLibrary) as MangaLibraryStatus[];
 
         for (const status of statuses) {
-            if ((mangaLibrary[status] || []).some(entry => entry.manga.mal_id === mangaId)) {
+            if ((mangaLibrary[status] || []).some(entry => entry.manga.id === mangaId)) {
                 return status;
             }
         }
@@ -536,3 +536,4 @@ export const useLocalUser = () => {
     }
     return context;
 };
+
