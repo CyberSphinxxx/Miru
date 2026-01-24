@@ -6,8 +6,7 @@
  */
 
 export interface Manga {
-    mal_id: number;
-    id?: number; // AniList ID
+    id: number;
     title: string;
     title_japanese?: string;
     title_english?: string;
@@ -26,8 +25,8 @@ export interface Manga {
     chapters: number | null;
     volumes: number | null;
     synopsis?: string;
-    genres?: { mal_id: number; name: string }[];
-    authors?: { mal_id: number; name: string }[];
+    genres?: { id: number; name: string }[];
+    authors?: { id: number; name: string }[];
     published?: {
         from?: string;
         to?: string | null;
