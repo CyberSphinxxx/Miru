@@ -1,5 +1,6 @@
 
 import { AnimePaheScraper } from '../../scraper/animepahe.js';
+import { HiAnimeScraper } from '../../scraper/hianime.js';
 
 // Cache service import - loaded dynamically to prevent crashes
 let cacheService: any = null;
@@ -21,19 +22,22 @@ const loadCacheService = async () => {
 loadCacheService();
 
 export class ScraperService {
-    private scraper: AnimePaheScraper;
+    private animePahe: AnimePaheScraper;
+    private hiAnime: HiAnimeScraper;
 
     constructor() {
-        this.scraper = new AnimePaheScraper();
+        this.animePahe = new AnimePaheScraper();
+        this.hiAnime = new HiAnimeScraper();
     }
 
     /**
-     * Search for anime - cached for 6 hours if caching is available
+     * Search for anime
+     * Uses HiAnime as primary for better server support
      */
     async search(query: string) {
         // Try to use cache if available
         if (cacheService) {
-            const cacheKey = `search_${query.toLowerCase().trim()}`;
+            const cacheKey = `search_v2_${query.toLowerCase().trim()}`;
             try {
                 const cached = await cacheService.getIfFresh(
                     'anime_search',
@@ -48,12 +52,26 @@ export class ScraperService {
             }
         }
 
-        // Scrape
-        const result = await this.scraper.search(query);
+        // Scrape using HiAnime
+        console.log(`[Scraper] Searching for "${query}" on HiAnime...`);
+        let result = await this.hiAnime.search(query);
+
+        // Fallback to AnimePahe if HiAnime fails or returns nothing
+        if (!result || result.length === 0) {
+            console.log(`[Scraper] HiAnime returned no results, trying AnimePahe...`);
+            try {
+                const paheResult = await this.animePahe.search(query);
+                if (paheResult.length > 0) {
+                    result = paheResult;
+                }
+            } catch (e) {
+                console.error('[Scraper] AnimePahe fallback failed', e);
+            }
+        }
 
         // Try to save to cache if available
         if (cacheService) {
-            const cacheKey = `search_${query.toLowerCase().trim()}`;
+            const cacheKey = `search_v2_${query.toLowerCase().trim()}`;
             try {
                 cacheService.set('anime_search', cacheKey, result);
             } catch (e) {
@@ -65,7 +83,7 @@ export class ScraperService {
     }
 
     /**
-     * Get episodes for an anime - cached for 24 hours if caching is available
+     * Get episodes for an anime
      */
     async getEpisodes(session: string) {
         // Try to use cache if available
@@ -84,30 +102,20 @@ export class ScraperService {
             }
         }
 
-        // Scrape
-        const firstPage = await this.scraper.getEpisodes(session, 1);
-        let allEpisodes = [...firstPage.episodes];
+        // Detect source based on session ID format
+        // HiAnime IDs are kebab-case strings (e.g. one-piece-100)
+        // AnimePahe IDs are usually UUID-like or hashes (e.g. 7890a2b...)
+        const isHiAnime = session.includes('-');
 
-        if (firstPage.lastPage > 1) {
-            console.log(`Anime has ${firstPage.lastPage} pages of episodes. Fetching the rest...`);
-            const pagePromises = [];
-            for (let i = 2; i <= firstPage.lastPage; i++) {
-                pagePromises.push(this.scraper.getEpisodes(session, i));
-            }
-
-            const results = await Promise.all(pagePromises);
-            results.forEach(res => {
-                allEpisodes = [...allEpisodes, ...res.episodes];
-            });
+        let result;
+        if (isHiAnime) {
+            result = await this.hiAnime.getEpisodes(session);
+        } else {
+            result = await this.animePahe.getEpisodes(session);
         }
 
-        const result = {
-            episodes: allEpisodes,
-            lastPage: firstPage.lastPage
-        };
-
         // Try to save to cache if available
-        if (cacheService) {
+        if (cacheService && result.episodes.length > 0) {
             try {
                 cacheService.set('anime_episodes', session, result);
             } catch (e) {
@@ -119,15 +127,12 @@ export class ScraperService {
     }
 
     /**
-     * Get stream URLs - Uses multi-tier caching:
-     * 1. In-memory cache (instant, 30 min TTL)
-     * 2. Firestore cache (fast, 4 hour TTL)
-     * 3. Scraper (slow, ~5-10s)
+     * Get stream URLs
      */
     async getStreams(animeSession: string, epSession: string) {
         const cacheKey = `${animeSession}_${epSession}`;
 
-        // Step 1: Check in-memory cache (instant - ~0ms)
+        // Step 1: Check in-memory cache
         if (cacheService) {
             const memCached = cacheService.getFromMemory(cacheKey);
             if (memCached) {
@@ -135,7 +140,7 @@ export class ScraperService {
             }
         }
 
-        // Step 2: Check Firestore cache (fast - ~50-200ms)
+        // Step 2: Check Firestore cache
         if (cacheService) {
             try {
                 const cached = await cacheService.getIfFresh(
@@ -144,7 +149,6 @@ export class ScraperService {
                     cacheService.TTL_HOURS.STREAMS
                 );
                 if (cached) {
-                    // Populate memory cache for subsequent requests
                     cacheService.setToMemory(cacheKey, cached);
                     return cached;
                 }
@@ -153,15 +157,26 @@ export class ScraperService {
             }
         }
 
-        // Step 3: Cache miss - scrape (slow - ~5-10s)
-        console.log(`[Scraper] Cache MISS - Scraping: ${cacheKey}`);
-        const result = await this.scraper.getLinks(animeSession, epSession);
+        // Step 3: Scrape
+        console.log(`[Scraper] Cache MISS - Scraping streams for ${epSession}`);
 
-        // Step 4: Return immediately, cache asynchronously (non-blocking)
+        // Detect source
+        // If episode session is numeric (HiAnime uses data-id like "12345"), it's likely HiAnime
+        // AnimePahe uses specific session strings
+
+        let result = [];
+        // Heuristic: HiAnime episode IDs are usually numeric strings, but to be sure we check the anime session
+        const isHiAnime = animeSession.includes('-');
+
+        if (isHiAnime) {
+            result = await this.hiAnime.getLinks(epSession);
+        } else {
+            result = await this.animePahe.getLinks(animeSession, epSession);
+        }
+
+        // Step 4: Cache
         if (cacheService && result && result.length > 0) {
-            // Memory cache (instant for next request)
             cacheService.setToMemory(cacheKey, result);
-            // Firestore cache (async - doesn't block response)
             cacheService.setAsync('anime_streams', cacheKey, result);
         }
 

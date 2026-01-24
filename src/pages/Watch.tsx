@@ -218,9 +218,13 @@ function Watch() {
     }, [anime, addedToWatching, getAnimeStatus, updateStatus]);
 
     const getMappedQuality = (q: string): string => {
-        const res = parseInt(q);
-        if (res >= 1000) return '1080';
-        if (res >= 600) return '720';
+        // If quality is numeric (e.g. "1080", "720"), map it
+        // If it's a server name (e.g. "Vidstreaming"), keep it as is
+        const val = parseInt(q);
+        if (isNaN(val)) return q; // Return original string for server names
+
+        if (val >= 1000) return '1080';
+        if (val >= 600) return '720';
         return '360';
     };
 
@@ -273,9 +277,21 @@ function Watch() {
             if (streamData && streamData.length > 0) {
                 // Deduplicate and map qualities
                 const qualityMap = new Map<string, StreamLink>();
-                const sortedData = [...streamData].sort(
-                    (a: StreamLink, b: StreamLink) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0)
-                );
+                const sortedData = [...streamData].sort((a: StreamLink, b: StreamLink) => {
+                    // Sort server names alphabetically or specific priority?
+                    // Let's prefer 'Vidstreaming' or 'MegaCloud'
+                    const priority = ['Vidstreaming', 'MegaCloud', 'Streamtape'];
+                    const getP = (str: string) => {
+                        const idx = priority.findIndex(p => str.includes(p));
+                        return idx === -1 ? 999 : idx;
+                    };
+                    const pA = getP(a.quality);
+                    const pB = getP(b.quality);
+                    if (pA !== pB) return pA - pB;
+
+                    // Fallback to numeric sort for AnimePahe
+                    return (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0);
+                });
 
                 sortedData.forEach((s: StreamLink) => {
                     const mapped = getMappedQuality(s.quality);
@@ -320,9 +336,17 @@ function Watch() {
             if (streamData && streamData.length > 0) {
                 // Deduplicate and map qualities (same logic as loadStream)
                 const qualityMap = new Map<string, StreamLink>();
-                const sortedData = [...streamData].sort(
-                    (a: StreamLink, b: StreamLink) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0)
-                );
+                const sortedData = [...streamData].sort((a: StreamLink, b: StreamLink) => {
+                    const priority = ['Vidstreaming', 'MegaCloud', 'Streamtape'];
+                    const getP = (str: string) => {
+                        const idx = priority.findIndex(p => str.includes(p));
+                        return idx === -1 ? 999 : idx;
+                    };
+                    const pA = getP(a.quality);
+                    const pB = getP(b.quality);
+                    if (pA !== pB) return pA - pB;
+                    return (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0);
+                });
 
                 sortedData.forEach((s: StreamLink) => {
                     const mapped = getMappedQuality(s.quality);
