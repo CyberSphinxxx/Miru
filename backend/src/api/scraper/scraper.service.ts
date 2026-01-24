@@ -41,7 +41,7 @@ export class ScraperService {
     async search(query: string) {
         // Try to use cache if available
         if (cacheService) {
-            const cacheKey = `search_v3_${query.toLowerCase().trim()}`;
+            const cacheKey = `search_v4_${query.toLowerCase().trim()}`;
             try {
                 const cached = await cacheService.getIfFresh(
                     'anime_search',
@@ -68,25 +68,24 @@ export class ScraperService {
 
         // Process AnimePahe (Default/Primary)
         if (paheResult.status === 'fulfilled' && paheResult.value.length > 0) {
-            results = [...results, ...paheResult.value];
+            const tagged = paheResult.value.map(i => ({ ...i, title: `${i.title} [Pahe]` }));
+            results = [...results, ...tagged];
         } else {
             console.warn('[Scraper] AnimePahe search failed or empty');
         }
 
         // Process HiAnime (Secondary/Other Sources)
         if (hiResult.status === 'fulfilled' && hiResult.value.length > 0) {
-            // Deduplicate? Or just append? 
-            // Titles might match, but IDs are different.
-            // Let's append them so user can choose "HiAnime" version if they want Server Switching
-            // We could mark them in the UI, but for now just appending is "other sources"
-            results = [...results, ...hiResult.value];
+            const tagged = hiResult.value.map(i => ({ ...i, title: `${i.title} [HiAnime]` }));
+            // Deduplicate logic if strictly needed, but manual choice is better for now
+            results = [...results, ...tagged];
         } else {
             console.warn('[Scraper] HiAnime search failed or empty');
         }
 
         // Try to save to cache if available
         if (cacheService && results.length > 0) {
-            const cacheKey = `search_v3_${query.toLowerCase().trim()}`;
+            const cacheKey = `search_v4_${query.toLowerCase().trim()}`;
             try {
                 cacheService.set('anime_search', cacheKey, results);
             } catch (e) {

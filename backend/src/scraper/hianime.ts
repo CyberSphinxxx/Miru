@@ -183,11 +183,16 @@ export class HiAnimeScraper {
                         const type = sourceData.type || 'iframe';
 
                         // Map server names to our UI names
-                        let quality = 'HD';
-                        if (server.name.includes('VIDSTREAM')) quality = 'Vidstreaming';
-                        else if (server.name.includes('MEGA')) quality = 'MegaCloud';
-                        else if (server.name.includes('STREAMTAPE')) quality = 'Streamtape';
-                        else quality = server.name;
+                        let quality = server.name;
+                        const lowerName = server.name.toLowerCase();
+
+                        if (lowerName.includes('vidstream') || lowerName === 'hd-1') quality = 'Vidstreaming';
+                        else if (lowerName.includes('mega') || lowerName === 'hd-2') quality = 'MegaCloud';
+                        else if (lowerName.includes('streamtape') || lowerName === 'hd-3') quality = 'Streamtape';
+
+                        // Check for duplicate names/server types from HiAnime
+                        if (server.id === '4') quality = 'Vidstreaming';
+                        if (server.id === '1') quality = 'MegaCloud';
 
                         // Add Dub/Sub indicator
                         const label = `${quality} ${server.type === 'dub' ? '(Dub)' : '(Sub)'}`;
