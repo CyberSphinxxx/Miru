@@ -15,7 +15,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
 
     // Initialize with cached image if available, otherwise static or default
     const [coverImage, setCoverImage] = useState<string>(() => {
-        const cached = localStorage.getItem(`genre_img_${genre.mal_id}`);
+        const cached = localStorage.getItem(`genre_img_${genre.id}`);
         return cached || staticImage;
     });
 
@@ -47,7 +47,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
                     setHasAttemptedDynamicFetch(true);
 
                     // distinct check before network call
-                    if (localStorage.getItem(`genre_img_${genre.mal_id}`)) return;
+                    if (localStorage.getItem(`genre_img_${genre.id}`)) return;
 
                     try {
                         // Fetch top 1 anime by popularity for this genre
@@ -60,7 +60,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
                                 console.log(`[GenreCard] Dynamic fetch for "${genre.name}": Found "${topAnime.title}"`);
                                 setCoverImage(newImage);
                                 // Cache it so we don't hit API next time
-                                localStorage.setItem(`genre_img_${genre.mal_id}`, newImage);
+                                localStorage.setItem(`genre_img_${genre.id}`, newImage);
                             }
                         }
                     } catch (err) {
@@ -72,7 +72,7 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
 
             return () => clearTimeout(timer);
         }
-    }, [coverImage, hasAttemptedDynamicFetch, genre.name, genre.mal_id, index]);
+    }, [coverImage, hasAttemptedDynamicFetch, genre.name, genre.id, index]);
 
     const fallbackGradient = getGenreGradient(genre.name);
 
@@ -127,4 +127,5 @@ function GenreCard({ genre, onClick, index }: GenreCardProps) {
 }
 
 export default React.memo(GenreCard);
+
 
