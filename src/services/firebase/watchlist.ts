@@ -55,10 +55,10 @@ export async function getFirebaseWatchlist(): Promise<WatchlistItem[]> {
 export async function addToFirebaseWatchlist(anime: Anime): Promise<void> {
     try {
         const watchlistRef = getWatchlistCollection();
-        const docRef = doc(watchlistRef, anime.mal_id.toString());
+        const docRef = doc(watchlistRef, anime.id.toString());
 
         const item: FirebaseWatchlistItem = {
-            mal_id: anime.mal_id,
+            id: anime.id,
             title: anime.title,
             image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
             type: anime.type || 'TV',
@@ -78,10 +78,10 @@ export async function addToFirebaseWatchlist(anime: Anime): Promise<void> {
 /**
  * Remove an anime from the user's Firebase watchlist
  */
-export async function removeFromFirebaseWatchlist(mal_id: number): Promise<void> {
+export async function removeFromFirebaseWatchlist(id: number): Promise<void> {
     try {
         const watchlistRef = getWatchlistCollection();
-        const docRef = doc(watchlistRef, mal_id.toString());
+        const docRef = doc(watchlistRef, id.toString());
         await deleteDoc(docRef);
     } catch (error) {
         console.error('Failed to remove from Firebase watchlist:', error);
@@ -92,10 +92,10 @@ export async function removeFromFirebaseWatchlist(mal_id: number): Promise<void>
 /**
  * Check if an anime is in the user's Firebase watchlist
  */
-export async function isInFirebaseWatchlist(mal_id: number): Promise<boolean> {
+export async function isInFirebaseWatchlist(id: number): Promise<boolean> {
     try {
         const watchlist = await getFirebaseWatchlist();
-        return watchlist.some(item => item.mal_id === mal_id);
+        return watchlist.some(item => item.id === id);
     } catch {
         return false;
     }
@@ -139,13 +139,13 @@ export async function migrateLocalWatchlist(localItems: WatchlistItem[]): Promis
 
         // Get existing Firebase items to avoid duplicates
         const existingItems = await getFirebaseWatchlist();
-        const existingIds = new Set(existingItems.map(item => item.mal_id));
+        const existingIds = new Set(existingItems.map(item => item.id));
 
         // Only migrate items that don't already exist in Firebase
-        const newItems = localItems.filter(item => !existingIds.has(item.mal_id));
+        const newItems = localItems.filter(item => !existingIds.has(item.id));
 
         for (const item of newItems) {
-            const docRef = doc(watchlistRef, item.mal_id.toString());
+            const docRef = doc(watchlistRef, item.id.toString());
             const firebaseItem: FirebaseWatchlistItem = {
                 ...item,
                 addedAt: Timestamp.fromDate(new Date(item.addedAt)),
@@ -158,3 +158,4 @@ export async function migrateLocalWatchlist(localItems: WatchlistItem[]): Promis
         console.error('Failed to migrate local watchlist:', error);
     }
 }
+
