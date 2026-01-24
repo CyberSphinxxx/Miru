@@ -58,7 +58,7 @@ function ContinueWatchingRow({
             <div className="horizontal-scroll">
                 {items.slice(0, maxItems).map((item) => (
                     <div
-                        key={item.mal_id}
+                        key={item.id}
                         onClick={() => onItemClick(item)}
                         className="flex-shrink-0 w-72 landscape-card group cursor-pointer"
                     >
@@ -97,3 +97,5 @@ function ContinueWatchingRow({
 }
 
 export default ContinueWatchingRow;
+
+
