@@ -12,6 +12,7 @@ export {
     getPopularAnime,
     getAnimeInfo,
     getEpisodeStreams,
+    getCached,
 } from './anime.api';
 
 export { default } from './anime.api';
