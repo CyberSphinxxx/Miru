@@ -1,6 +1,5 @@
 export interface Anime {
-    mal_id: number;
-    id?: number; // AniList ID
+    id: number;
     title: string;
     title_japanese?: string;
     title_english?: string;
@@ -24,9 +23,9 @@ export interface Anime {
     duration?: string;
     rating?: string;
     scored_by?: number;
-    genres?: { mal_id: number; name: string }[];
-    studios?: { mal_id: number; name: string }[];
-    producers?: { mal_id: number; name: string }[];
+    genres?: { id: number; name: string }[];
+    studios?: { id: number; name: string }[];
+    producers?: { id: number; name: string }[];
     aired?: {
         from?: string;
         to?: string | null;
@@ -56,7 +55,7 @@ export interface Anime {
 }
 
 export interface WatchlistItem {
-    mal_id: number;
+    id: number;
     title: string;
     image_url: string;
     type: string;
@@ -101,7 +100,7 @@ export interface AnimeSearchResult {
 
 export interface Character {
     character: {
-        mal_id: number;
+        id: number;
         url: string;
         images: {
             jpg: {
@@ -113,7 +112,7 @@ export interface Character {
     role: string;
     voice_actors: {
         person: {
-            mal_id: number;
+            id: number;
             url: string;
             images: {
                 jpg: {
@@ -129,7 +128,7 @@ export interface Character {
 export interface RelatedAnime {
     relation: string;
     entry: {
-        mal_id: number;
+        id: number;
         type: string;
         name: string;
         url: string;
@@ -154,7 +153,7 @@ export interface PromoVideo {
 
 export interface Recommendation {
     entry: {
-        mal_id: number;
+        id: number;
         url: string;
         images: {
             jpg: {
@@ -170,7 +169,7 @@ export interface Recommendation {
 }
 
 export interface Genre {
-    mal_id: number;
+    id: number;
     name: string;
     count: number;
 }
