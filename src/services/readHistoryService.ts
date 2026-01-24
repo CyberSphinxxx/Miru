@@ -5,7 +5,6 @@ const MAX_HISTORY_ITEMS = 20;
 
 export interface ReadHistoryItem {
     id: number; // AniList ID for navigation
-    mal_id: number;
     title: string;
     image_url: string;
     type: string;
@@ -17,7 +16,7 @@ export interface ReadHistoryItem {
     lastRead: string;
     // Extra details for card display
     synopsis?: string;
-    genres?: { mal_id: number; name: string }[];
+    genres?: { id: number; name: string }[];
     score?: number;
     status?: string;
     rank?: number;
@@ -46,11 +45,10 @@ export const saveReadProgress = (
     const history = getReadHistory();
 
     // Remove existing entry for this manga if present
-    const filtered = history.filter(item => item.mal_id !== manga.mal_id);
+    const filtered = history.filter(item => item.id !== manga.id);
 
     const newItem: ReadHistoryItem = {
-        id: manga.id || manga.mal_id, // AniList ID for navigation, fallback to mal_id
-        mal_id: manga.mal_id,
+        id: manga.id,
         title: manga.title,
         image_url: manga.images.jpg.large_image_url || manga.images.jpg.image_url,
         type: manga.type || 'Manga',
@@ -78,9 +76,9 @@ export const saveReadProgress = (
     localStorage.setItem(READ_HISTORY_KEY, JSON.stringify(trimmed));
 };
 
-export const removeFromReadHistory = (mal_id: number): void => {
+export const removeFromReadHistory = (id: number): void => {
     const history = getReadHistory();
-    const filtered = history.filter(item => item.mal_id !== mal_id);
+    const filtered = history.filter(item => item.id !== id);
     localStorage.setItem(READ_HISTORY_KEY, JSON.stringify(filtered));
 };
 
@@ -88,13 +86,14 @@ export const clearReadHistory = (): void => {
     localStorage.removeItem(READ_HISTORY_KEY);
 };
 
-export const getLastReadChapter = (mal_id: number): number | null => {
+export const getLastReadChapter = (id: number): number | null => {
     const history = getReadHistory();
-    const item = history.find(h => h.mal_id === mal_id);
+    const item = history.find(h => h.id === id);
     return item ? item.currentChapter : null;
 };
 
-export const getReadHistoryItem = (mal_id: number): ReadHistoryItem | null => {
+export const getReadHistoryItem = (id: number): ReadHistoryItem | null => {
     const history = getReadHistory();
-    return history.find(h => h.mal_id === mal_id) || null;
+    return history.find(h => h.id === id) || null;
 };
+
