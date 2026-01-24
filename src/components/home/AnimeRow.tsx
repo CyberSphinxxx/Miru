@@ -131,7 +131,7 @@ function AnimeRow({
             {/* Content */}
             <div className="horizontal-scroll gap-4 py-4">
                 {anime.slice(0, maxItems).map((item) => (
-                    <div key={item.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                    <div key={item.id} className="flex-shrink-0 w-56 md:w-64">
                         <AnimeCard
                             anime={item}
                             onClick={() => onAnimeClick(item)}
@@ -145,3 +145,5 @@ function AnimeRow({
 }
 
 export default AnimeRow;
+
+
