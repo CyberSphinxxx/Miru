@@ -12,7 +12,6 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 // Helper to map AniList response to our Manga interface format
 const mapAnilistToManga = (item: any): Manga => {
     return {
-        mal_id: item.idMal || item.id,
         id: item.id,
         title: item.title?.english || item.title?.romaji || item.title?.native || 'Unknown',
         title_japanese: item.title?.native,
@@ -31,10 +30,10 @@ const mapAnilistToManga = (item: any): Manga => {
         volumes: item.volumes,
         score: item.averageScore ? item.averageScore / 10 : 0,
         status: item.status,
-        genres: item.genres?.map((g: string) => ({ name: g, mal_id: 0 })) || [],
+        genres: item.genres?.map((g: string) => ({ name: g, id: 0 })) || [],
         authors: item.staff?.edges
             ?.filter((s: any) => s.role === 'Story' || s.role === 'Art' || s.role === 'Story & Art')
-            ?.map((s: any) => ({ name: s.node.name.full, mal_id: s.node.id })) || [],
+            ?.map((s: any) => ({ name: s.node.name.full, id: s.node.id })) || [],
         published: {
             from: item.startDate ? `${item.startDate.year}-${item.startDate.month}-${item.startDate.day}` : undefined,
             to: item.endDate ? `${item.endDate.year}-${item.endDate.month}-${item.endDate.day}` : undefined,
@@ -60,7 +59,11 @@ const CACHE_TTL = {
 
 const memoryCache = new Map<string, { data: any, timestamp: number }>();
 
-const getCached = (key: string, ttlType: keyof typeof CACHE_TTL = 'default') => {
+/**
+ * Get cached manga data - checks memory first, then sessionStorage
+ * Exported for synchronous initial state hydration in Home.tsx
+ */
+export const getMangaCached = (key: string, ttlType: keyof typeof CACHE_TTL = 'default') => {
     const ttl = CACHE_TTL[ttlType];
     const fullKey = CACHE_PREFIX + key;
 
@@ -92,6 +95,9 @@ const getCached = (key: string, ttlType: keyof typeof CACHE_TTL = 'default') => 
 
     return null;
 };
+
+// Internal alias for backward compatibility within this file
+const getCached = getMangaCached;
 
 const setCache = (key: string, data: any) => {
     const fullKey = CACHE_PREFIX + key;
@@ -292,4 +298,5 @@ export const mangaService = {
 };
 
 export default mangaService;
+
 
