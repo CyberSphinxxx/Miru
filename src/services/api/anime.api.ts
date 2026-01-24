@@ -4,7 +4,6 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 // Helper to map AniList response to our Anime interface format
 const mapAnilistToAnime = (item: any) => {
     return {
-        mal_id: item.idMal || item.id,
         id: item.id,
         title: item.title?.english || item.title?.romaji || item.title?.native || 'Unknown',
         title_japanese: item.title?.native,
@@ -25,8 +24,8 @@ const mapAnilistToAnime = (item: any) => {
         status: item.status,
         duration: item.duration ? `${item.duration} min` : undefined,
         rating: item.isAdult ? 'R+ - Mild Nudity' : undefined,
-        genres: item.genres?.map((g: string) => ({ name: g, mal_id: 0 })) || [],
-        studios: item.studios?.nodes?.map((s: any) => ({ name: s.name, mal_id: 0 })) || [],
+        genres: item.genres?.map((g: string) => ({ name: g, id: 0 })) || [],
+        studios: item.studios?.nodes?.map((s: any) => ({ name: s.name, id: 0 })) || [],
         year: item.seasonYear || item.startDate?.year,
         season: item.season?.toLowerCase(),
         aired: {
@@ -82,8 +81,9 @@ const memoryCache = new Map<string, { data: any, timestamp: number }>();
 
 /**
  * Get cached data - checks memory first, then sessionStorage
+ * Exported for synchronous initial state hydration in components
  */
-const getCached = (key: string, ttlType: keyof typeof CACHE_TTL_CONFIG = 'default') => {
+export const getCached = (key: string, ttlType: keyof typeof CACHE_TTL_CONFIG = 'default') => {
     const ttl = CACHE_TTL_CONFIG[ttlType];
     const fullKey = CACHE_PREFIX + key;
 
@@ -495,7 +495,7 @@ export const getAnimeInfo = async (id: string | number) => {
         episodes,
         characters: result.data.characters?.edges?.map((c: any) => ({
             character: {
-                mal_id: c.node.id,
+                id: c.node.id,
                 name: c.node.name.full,
                 images: { jpg: { image_url: c.node.image?.large || '' } },
                 url: ''
@@ -503,7 +503,7 @@ export const getAnimeInfo = async (id: string | number) => {
             role: c.role,
             voice_actors: c.voiceActors?.map((va: any) => ({
                 person: {
-                    mal_id: va.id,
+                    id: va.id,
                     name: va.name.full,
                     images: { jpg: { image_url: va.image?.large || '' } },
                     url: ''
@@ -515,7 +515,7 @@ export const getAnimeInfo = async (id: string | number) => {
             ?.filter((r: any) => r.mediaRecommendation?.id && r.mediaRecommendation?.coverImage?.large)
             ?.map((r: any) => ({
                 entry: {
-                    mal_id: r.mediaRecommendation?.id,
+                    id: r.mediaRecommendation?.id,
                     title: r.mediaRecommendation?.title?.english || r.mediaRecommendation?.title?.romaji,
                     images: {
                         jpg: {
@@ -537,3 +537,4 @@ export const getEpisodeStreams = async (episodeSession: string, animeSession: st
 };
 
 export default animeService;
+
