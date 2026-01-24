@@ -14,8 +14,10 @@ import {
     animeService,
     mangaService,
     getPopularAnime,
-    getGenres
+    getGenres,
+    getCached
 } from '../services/api';
+import { getMangaCached } from '../services/api/manga.api';
 
 // Mixed media spotlight item type
 type SpotlightItem = {
@@ -27,6 +29,17 @@ interface HomeProps {
     viewMode: 'home' | 'anime' | 'trending' | 'genres';
     selectedGenreId?: string;
 }
+
+// Helper to get initial state from cache (prevents layout shift on refresh)
+const getInitialTrendingAnime = (): Anime[] => {
+    const cached = getCached('trending-1-10', 'trending');
+    return cached?.data || [];
+};
+
+const getInitialTrendingManga = (): Manga[] => {
+    const cached = getMangaCached('trending-manga-1-10', 'trending');
+    return cached?.data || [];
+};
 
 function Home({ viewMode, selectedGenreId }: HomeProps) {
     const [searchParams] = useSearchParams();
@@ -51,10 +64,10 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [lastVisiblePage, setLastVisiblePage] = useState(1);
 
-    // New state for homepage redesign
-    const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]);
+    // New state for homepage redesign - initialized from cache to prevent layout shift
+    const [trendingAnime, setTrendingAnime] = useState<Anime[]>(getInitialTrendingAnime);
     const [trendingError, setTrendingError] = useState(false);
-    const [trendingManga, setTrendingManga] = useState<Manga[]>([]);
+    const [trendingManga, setTrendingManga] = useState<Manga[]>(getInitialTrendingManga);
     const [trendingMangaError, setTrendingMangaError] = useState(false);
     const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
     const [readHistory, setReadHistory] = useState<ReadHistoryItem[]>([]);
@@ -148,7 +161,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                 } else if (viewMode === 'genres') {
                     if (selectedGenreId) {
                         // Find genre name from ID
-                        const genre = genres.find(g => g.mal_id.toString() === selectedGenreId);
+                        const genre = genres.find(g => g.id.toString() === selectedGenreId);
 
                         // Use dedicated genre endpoint
                         const genreName = genre?.name || 'Action';
@@ -242,12 +255,12 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
     };
 
     const handleAnimeClick = (anime: Anime) => {
-        navigate(`/anime/${anime.id || anime.mal_id}`);
+        navigate(`/anime/${anime.id}`);
     };
 
     const handleWatchNow = (e: React.MouseEvent, anime: Anime) => {
         e.stopPropagation();
-        navigate(`/watch/${anime.id || anime.mal_id}`);
+        navigate(`/watch/${anime.id}`);
     };
 
     const handleGenreClick = (id: number) => {
@@ -258,7 +271,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         if (searchQuery) return `Results for "${searchQuery}"`;
         if (viewMode === 'trending') return 'Trending Now';
         if (viewMode === 'genres' && selectedGenreId) {
-            const g = genres.find(g => g.mal_id.toString() === selectedGenreId);
+            const g = genres.find(g => g.id.toString() === selectedGenreId);
             return g ? g.name : 'Genre Anime';
         }
         return 'Popular Anime';
@@ -268,7 +281,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
         if (searchQuery) return `Found results`;
         if (viewMode === 'trending') return 'Currently airing & popular anime';
         if (viewMode === 'genres' && selectedGenreId) {
-            const g = genres.find(g => g.mal_id.toString() === selectedGenreId);
+            const g = genres.find(g => g.id.toString() === selectedGenreId);
             return `Browse ${g?.name || ''} anime`;
         }
         return 'Discover the most popular anime';
@@ -293,7 +306,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 
                     return (
                         <div
-                            key={`${item.type}-${media.mal_id}`}
+                            key={`${item.type}-${media.id}`}
                             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                         >
                             {/* Background Image */}
@@ -383,8 +396,8 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                         {/* Genre Pills */}
                                         {media.genres && media.genres.length > 0 && (
                                             <div className="flex flex-wrap gap-2 mb-8">
-                                                {media.genres.slice(0, 4).map((genre: { mal_id: number; name: string }) => (
-                                                    <span key={genre.mal_id} className="genre-pill hover:bg-white/20 cursor-default">
+                                                {media.genres.slice(0, 4).map((genre: { id: number; name: string }) => (
+                                                    <span key={genre.id} className="genre-pill hover:bg-white/20 cursor-default">
                                                         {genre.name}
                                                     </span>
                                                 ))}
@@ -420,7 +433,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                                 </button>
                                             )}
                                             <button
-                                                onClick={() => isAnime ? handleAnimeClick(media as Anime) : navigate(`/manga/${media.id || media.mal_id}`)}
+                                                onClick={() => isAnime ? handleAnimeClick(media as Anime) : navigate(`/manga/${media.id}`)}
                                                 className="flex items-center gap-2 px-6 py-4 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white font-medium hover:bg-white/10 transition-all hover:border-white/20"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -523,7 +536,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                         <div className="horizontal-scroll">
                             {watchHistory.slice(0, 10).map(item => (
                                 <div
-                                    key={item.mal_id}
+                                    key={item.id}
                                     onClick={() => navigate(`/watch/${item.id}`)}
                                     className="flex-shrink-0 w-72 landscape-card group"
                                 >
@@ -597,11 +610,11 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                         ) : (
                             <div className="horizontal-scroll gap-4 py-4">
                                 {trendingAnime.slice(0, 10).map(anime => (
-                                    <div key={anime.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                                    <div key={anime.id} className="flex-shrink-0 w-56 md:w-64">
                                         <AnimeCard
                                             anime={anime}
                                             onClick={() => handleAnimeClick(anime)}
-                                            onPlayClick={() => navigate(`/watch/${anime.id || anime.mal_id}`)}
+                                            onPlayClick={() => navigate(`/watch/${anime.id}`)}
                                         />
                                     </div>
                                 ))}
@@ -624,7 +637,7 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                         <div className="horizontal-scroll">
                             {readHistory.slice(0, 10).map(item => (
                                 <div
-                                    key={item.mal_id}
+                                    key={item.id}
                                     onClick={() => navigate(`/read/${encodeURIComponent(item.title)}`)}
                                     className="flex-shrink-0 w-72 landscape-card group"
                                 >
@@ -708,10 +721,10 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                         ) : (
                             <div className="horizontal-scroll gap-4 py-4">
                                 {trendingManga.slice(0, 10).map(manga => (
-                                    <div key={manga.mal_id} className="flex-shrink-0 w-56 md:w-64">
+                                    <div key={manga.id} className="flex-shrink-0 w-56 md:w-64">
                                         <MangaCard
                                             manga={manga}
-                                            onClick={() => navigate(`/manga/${manga.id || manga.mal_id}`)}
+                                            onClick={() => navigate(`/manga/${manga.id}`)}
                                             onReadClick={() => navigate(`/read/${encodeURIComponent(manga.title)}`)}
                                         />
                                     </div>
@@ -796,9 +809,9 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                                         {displayedGenres.map((genre, index) => (
                                             <GenreCard
-                                                key={genre.mal_id}
+                                                key={genre.id}
                                                 genre={genre}
-                                                onClick={() => handleGenreClick(genre.mal_id)}
+                                                onClick={() => handleGenreClick(genre.id)}
                                                 index={index}
                                             />
                                         ))}
@@ -880,13 +893,13 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                                     {animeList.map((anime, index) => (
                                         <AnimeCard
-                                            key={anime.mal_id}
+                                            key={anime.id}
                                             anime={{
                                                 ...anime,
                                                 rank: viewMode === 'home' && !searchQuery ? ((currentPage - 1) * 24 + index + 1) : undefined
                                             }}
                                             onClick={() => handleAnimeClick(anime)}
-                                            onPlayClick={() => navigate(`/watch/${anime.id || anime.mal_id}`)}
+                                            onPlayClick={() => navigate(`/watch/${anime.id}`)}
                                         />
                                     ))}
                                 </div>
@@ -1008,3 +1021,5 @@ function Home({ viewMode, selectedGenreId }: HomeProps) {
 }
 
 export default Home;
+
+
