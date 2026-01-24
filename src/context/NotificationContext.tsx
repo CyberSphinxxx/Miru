@@ -75,7 +75,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             for (const schedule of scheduleData.schedules) {
                 // Check if this anime is in watching list
                 const inWatching = watchingList.find((a: any) =>
-                    a.mal_id === schedule.media?.idMal ||
+                    a.id === schedule.media?.idMal ||
                     a.id === schedule.media?.id
                 );
 
@@ -128,10 +128,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         for (const anime of watchingList as any[]) {
             // Skip if we already have a nudge for this
-            if (existingNudgeIds.includes(anime.mal_id)) continue;
+            if (existingNudgeIds.includes(anime.id)) continue;
 
             // Find last watched info
-            const lastWatched = history.find((h: any) => h.animeId === anime.mal_id);
+            const lastWatched = history.find((h: any) => h.animeId === anime.id);
 
             if (lastWatched) {
                 const watchedAt = (lastWatched as any).timestamp || 0;
@@ -141,16 +141,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 // If not finished and not watched recently
                 if (watchedAt < sevenDaysAgo && watchedEps < totalEps) {
                     nudges.push({
-                        id: `nudge-${anime.mal_id}`,
+                        id: `nudge-${anime.id}`,
                         type: 'resume_nudge' as NotificationType,
                         title: anime.title || 'Continue Watching',
                         message: `Pick up at Episode ${watchedEps + 1}`,
                         thumbnail: anime.images?.jpg?.image_url,
-                        animeId: anime.mal_id,
+                        animeId: anime.id,
                         episodeNumber: watchedEps + 1,
                         timestamp: Date.now(),
                         read: false,
-                        actionUrl: `/watch/${anime.mal_id}?ep=${watchedEps + 1}`
+                        actionUrl: `/watch/${anime.id}?ep=${watchedEps + 1}`
                     });
                 }
             }
@@ -222,3 +222,4 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         </NotificationContext.Provider>
     );
 };
+
