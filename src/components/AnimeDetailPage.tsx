@@ -109,7 +109,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
             setEpisodesLoading(true);
             try {
                 // Check if we have prefetched data
-                const prefetchKey = `watch_prefetch_${anime.id || anime.mal_id}`;
+                const prefetchKey = `watch_prefetch_${anime.id}`;
                 const cached = sessionStorage.getItem(prefetchKey);
 
                 if (cached) {
@@ -149,11 +149,11 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
         };
 
         fetchEpisodes();
-    }, [anime?.id, anime?.mal_id]);
+    }, [anime?.id, anime?.id]);
 
     const handleCardClick = (id: number) => {
         const minimalAnime = {
-            mal_id: id,
+            id: id,
             title: 'Loading...',
             images: { jpg: { image_url: '', large_image_url: '' } },
             score: 0,
@@ -167,7 +167,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
 
     const handleEpisodeClick = (ep: Episode) => {
         // Navigate to watch page with episode
-        navigate(`/watch/${anime.id || anime.mal_id}?ep=${ep.episodeNumber}`, { state: { anime } });
+        navigate(`/watch/${anime.id}?ep=${ep.episodeNumber}`, { state: { anime } });
     };
 
     // Get banner image - fallback to cover if no banner
@@ -262,7 +262,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                         {/* Genres */}
                         <div className="flex flex-wrap justify-center md:justify-start gap-2">
                             {anime.genres?.map(genre => (
-                                <span key={genre.mal_id} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
+                                <span key={genre.id} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
                                     {genre.name}
                                 </span>
                             ))}
@@ -317,7 +317,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                         <h3 className="text-xl font-bold text-white mb-4">Characters & Voice Actors</h3>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                                             {characters.slice(0, 6).map((item, idx) => (
-                                                <div key={`${item.character.mal_id}-${idx}`} className="flex bg-miru-surface rounded-xl overflow-hidden border border-white/5 hover:border-miru-primary/30 transition-colors">
+                                                <div key={`${item.character.id}-${idx}`} className="flex bg-miru-surface rounded-xl overflow-hidden border border-white/5 hover:border-miru-primary/30 transition-colors">
                                                     <img src={item.character.images.jpg.image_url} alt={item.character.name} className="w-16 h-24 object-cover" />
                                                     <div className="flex-1 p-3 flex flex-col justify-center">
                                                         <h4 className="font-bold text-sm line-clamp-1">{item.character.name}</h4>
@@ -400,8 +400,8 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                             {recommendations.slice(0, 5).map(rec => (
                                                 <button
-                                                    key={rec.entry.mal_id}
-                                                    onClick={() => handleCardClick(rec.entry.mal_id)}
+                                                    key={rec.entry.id}
+                                                    onClick={() => handleCardClick(rec.entry.id)}
                                                     className="group text-left"
                                                 >
                                                     <div className="aspect-[2/3] rounded-xl overflow-hidden mb-2 relative bg-gray-800">
@@ -433,10 +433,10 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                     <div className="py-6 border-t border-white/10 animate-fade-in-up delay-400">
                                         <h3 className="text-xl font-bold text-white mb-4">More like this</h3>
                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                            {similar.filter(s => s.mal_id !== anime.mal_id).slice(0, 5).map(s => (
+                                            {similar.filter(s => s.id !== anime.id).slice(0, 5).map(s => (
                                                 <button
-                                                    key={s.mal_id}
-                                                    onClick={() => handleCardClick(s.mal_id)}
+                                                    key={s.id}
+                                                    onClick={() => handleCardClick(s.id)}
                                                     className="group text-left"
                                                 >
                                                     <div className="aspect-[2/3] rounded-xl overflow-hidden mb-2 relative">
@@ -489,8 +489,8 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                                     <div className="flex flex-wrap gap-2">
                                                         {rel.entry.map(entry => (
                                                             <button
-                                                                key={entry.mal_id}
-                                                                onClick={() => handleCardClick(entry.mal_id)}
+                                                                key={entry.id}
+                                                                onClick={() => handleCardClick(entry.id)}
                                                                 className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 hover:text-white transition-colors"
                                                             >
                                                                 {entry.name} ({entry.type})
@@ -514,3 +514,5 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
 };
 
 export default AnimeDetailPage;
+
+
