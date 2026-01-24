@@ -405,8 +405,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                                 src={currentStream.url}
                                                 className="w-full h-full border-0"
                                                 allowFullScreen
-                                                allow="autoplay; fullscreen; picture-in-picture"
-                                                referrerPolicy="origin"
+                                                allow="autoplay; fullscreen"
                                             />
                                         )}
 
@@ -547,26 +546,20 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                 {/* Quality Pills */}
                                 {streams.length > 0 && (
                                     <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                                        <span className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider mr-1 hidden sm:block">
-                                            {streams[0].quality.match(/^\d+$/) ? 'Quality' : 'Server'}
-                                        </span>
-                                        {/* Only show AUTO button if we have qualities, not servers */}
-                                        {streams[0].quality.match(/^\d+$/) && (
-                                            <button
-                                                onClick={onAutoQuality}
-                                                className={`pill-btn text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 ${isAutoQuality ? 'active' : ''}`}
-                                            >
-                                                AUTO
-                                            </button>
-                                        )}
+                                        <span className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider mr-1 hidden sm:block">Quality</span>
+                                        <button
+                                            onClick={onAutoQuality}
+                                            className={`pill-btn text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 ${isAutoQuality ? 'active' : ''}`}
+                                        >
+                                            AUTO
+                                        </button>
                                         {streams.map((stream, idx) => (
                                             <button
                                                 key={idx}
                                                 onClick={() => onQualityChange(idx)}
                                                 className={`pill-btn text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 ${selectedStreamIndex === idx && !isAutoQuality ? 'active' : ''}`}
                                             >
-                                                {/* If numeric, append 'p', else show as is */}
-                                                {stream.quality.match(/^\d+$/) ? `${stream.quality}p` : stream.quality}
+                                                {stream.quality}p
                                             </button>
                                         ))}
                                     </div>
