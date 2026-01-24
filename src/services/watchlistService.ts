@@ -15,12 +15,12 @@ export const addToWatchlist = (anime: Anime): void => {
     const watchlist = getWatchlist();
 
     // Check if already exists
-    if (watchlist.some(item => item.mal_id === anime.mal_id)) {
+    if (watchlist.some(item => item.id === anime.id)) {
         return;
     }
 
     const newItem: WatchlistItem = {
-        mal_id: anime.mal_id,
+        id: anime.id,
         title: anime.title,
         image_url: anime.images.jpg.large_image_url,
         type: anime.type || 'TV',
@@ -33,20 +33,20 @@ export const addToWatchlist = (anime: Anime): void => {
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
 };
 
-export const removeFromWatchlist = (mal_id: number): void => {
+export const removeFromWatchlist = (id: number): void => {
     const watchlist = getWatchlist();
-    const filtered = watchlist.filter(item => item.mal_id !== mal_id);
+    const filtered = watchlist.filter(item => item.id !== id);
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(filtered));
 };
 
-export const isInWatchlist = (mal_id: number): boolean => {
+export const isInWatchlist = (id: number): boolean => {
     const watchlist = getWatchlist();
-    return watchlist.some(item => item.mal_id === mal_id);
+    return watchlist.some(item => item.id === id);
 };
 
 export const toggleWatchlist = (anime: Anime): boolean => {
-    if (isInWatchlist(anime.mal_id)) {
-        removeFromWatchlist(anime.mal_id);
+    if (isInWatchlist(anime.id)) {
+        removeFromWatchlist(anime.id);
         return false;
     } else {
         addToWatchlist(anime);
