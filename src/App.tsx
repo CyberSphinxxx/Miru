@@ -13,6 +13,8 @@ const MangaHome = lazy(() => import('./pages/MangaHome'));
 const MangaDetail = lazy(() => import('./pages/MangaDetail'));
 const MangaReader = lazy(() => import('./pages/MangaReader'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
+const Movies = lazy(() => import('./pages/Movies'));
+const MovieDetail = lazy(() => import('./pages/MovieDetail'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -56,6 +58,7 @@ function AppContent() {
         if (mode === 'home') navigate('/');
         if (mode === 'anime') navigate('/anime');
         if (mode === 'manga') navigate('/manga');
+        if (mode === 'movies') navigate('/movies');
         if (mode === 'profile') navigate('/profile');
     };
 
@@ -65,6 +68,7 @@ function AppContent() {
         // All anime-related paths highlight 'Anime' in nav
         if (path === '/anime' || path === '/trending' || path.startsWith('/genres') || path.startsWith('/anime/')) return 'anime';
         if (path.startsWith('/manga') || path.startsWith('/read')) return 'manga';
+        if (path.startsWith('/movies')) return 'movies';
         if (path.startsWith('/watch')) return 'anime'; // Watch pages are anime-related
         if (path === '/profile') return 'profile';
         return 'home';
@@ -91,6 +95,8 @@ function AppContent() {
                     <Route path="/read/:id" element={<MangaReader />} />
                     <Route path="/anime/:id" element={<Detail />} />
                     <Route path="/watch/:id" element={<Watch />} />
+                    <Route path="/movies" element={<Movies />} />
+                    <Route path="/movies/:id" element={<MovieDetail />} />
                 </Routes>
             </Suspense>
         </div>
