@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import LoginModal from './LoginModal';
 import NotificationDropdown from './NotificationDropdown';
+import { animeService, mangaService, movieService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { Anime } from '../types';
+import { Manga } from '../types/manga';
+import { Movie } from '../types/tmdb';
 
 export type ViewMode = 'home' | 'anime' | 'manga' | 'movies' | 'detail' | 'watch' | 'profile';
 
@@ -14,7 +19,17 @@ interface NavbarProps {
     onViewChange: (view: ViewMode) => void;
 }
 
+interface SearchResultItem {
+    id: number | string;
+    title: string;
+    image: string;
+    type: 'anime' | 'manga' | 'movie';
+    year?: string | number;
+    rating?: number;
+}
+
 const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => {
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
@@ -22,6 +37,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
     const [searchType, setSearchType] = useState<SearchType>('all');
     const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+
+    // Live Search State
+    const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showResultsDropdown, setShowResultsDropdown] = useState(false);
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     const { currentUser } = useAuth();
     const { unreadCount } = useNotifications();
 
@@ -66,17 +88,120 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
         }
     };
 
+    // Live Search Logic
+    useEffect(() => {
+        let isMounted = true;
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        if (searchQuery.length < 2) {
+            setSearchResults([]);
+            setShowResultsDropdown(false);
+            return;
+        }
+
+        setIsSearching(true);
+        setShowResultsDropdown(true);
+
+        searchTimeoutRef.current = setTimeout(async () => {
+            try {
+                const promises = [];
+
+                if (searchType === 'all' || searchType === 'anime') {
+                    promises.push(animeService.searchAnime(searchQuery, 1).then(res =>
+                        res.data.slice(0, 3).map((item: Anime) => ({
+                            id: item.id,
+                            title: item.title,
+                            image: item.images.jpg.image_url,
+                            type: 'anime' as const,
+                            year: item.year,
+                            rating: item.score
+                        }))
+                    ));
+                }
+
+                if (searchType === 'all' || searchType === 'manga') {
+                    promises.push(mangaService.searchManga(searchQuery, 1, 3).then(res =>
+                        res.data.slice(0, 3).map((item: Manga) => ({
+                            id: item.id,
+                            title: item.title,
+                            image: item.images.jpg.image_url,
+                            type: 'manga' as const,
+                            year: item.published?.string,
+                            rating: item.score
+                        }))
+                    ));
+                }
+
+                if (searchType === 'all' || searchType === 'movies') {
+                    promises.push(movieService.search(searchQuery, 1).then(res =>
+                        res.results.slice(0, 3).map((item: Movie) => ({
+                            id: item.id,
+                            title: item.title,
+                            image: item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : '',
+                            type: 'movie' as const,
+                            year: item.release_date?.split('-')[0],
+                            rating: item.vote_average
+                        }))
+                    ));
+                }
+
+                const results = await Promise.all(promises);
+
+                if (isMounted) {
+                    const flatResults = results.flat().sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                    setSearchResults(flatResults);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    console.error("Search failed", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setIsSearching(false);
+                }
+            }
+        }, 500);
+
+        return () => {
+            isMounted = false;
+            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        };
+    }, [searchQuery, searchType]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
             onSearch(searchQuery.trim(), searchType);
             setIsMobileMenuOpen(false);
+            setShowResultsDropdown(false);
+        }
+    };
+
+    const handleResultClick = (item: SearchResultItem) => {
+        setSearchQuery('');
+        setShowResultsDropdown(false);
+        setIsMobileMenuOpen(false);
+
+        switch (item.type) {
+            case 'anime':
+                navigate(`/anime/${item.id}`);
+                break;
+            case 'manga':
+                navigate(`/manga/${item.id}`);
+                break;
+            case 'movie':
+                navigate(`/movies/${item.id}`);
+                break;
         }
     };
 
     // Close mobile menu when view changes
     useEffect(() => {
         setIsMobileMenuOpen(false);
+        setShowResultsDropdown(false);
     }, [viewMode]);
 
     // Keyboard shortcut handler for search (Ctrl/Cmd + K)
@@ -84,7 +209,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
-                const searchInput = document.querySelector('input[placeholder="Search anime..."]') as HTMLInputElement;
+                const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
                 if (searchInput) {
                     searchInput.focus();
                 }
@@ -233,7 +358,11 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             onFocus={() => setIsSearchFocused(true)}
                                             onBlur={() => {
-                                                setIsSearchFocused(false);
+                                                // Minor delay to allow clicks on dropdown items
+                                                setTimeout(() => {
+                                                    setIsSearchFocused(false);
+                                                    setShowResultsDropdown(false);
+                                                }, 200);
                                                 // Delay closing dropdown to allow clicks
                                                 setTimeout(() => setShowSearchTypeDropdown(false), 200);
                                             }}
@@ -262,9 +391,69 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Live Search Results Dropdown */}
+                                {showResultsDropdown && (searchQuery.length >= 2) && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in max-h-[80vh] overflow-y-auto">
+                                        {isSearching ? (
+                                            <div className="p-4 text-center text-gray-400 text-sm">
+                                                <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                                Searching...
+                                            </div>
+                                        ) : searchResults.length > 0 ? (
+                                            <div>
+                                                {searchResults.map((item, index) => (
+                                                    <div
+                                                        key={`${item.type}-${item.id}-${index}`}
+                                                        onClick={() => handleResultClick(item)}
+                                                        className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 transition-colors"
+                                                    >
+                                                        <div className="w-10 h-14 bg-gray-800 rounded overflow-hidden flex-shrink-0">
+                                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-medium text-white truncate">{item.title}</h4>
+                                                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${item.type === 'anime' ? 'bg-purple-500/20 text-purple-400' :
+                                                                    item.type === 'manga' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                                        'bg-blue-500/20 text-blue-400'
+                                                                    }`}>
+                                                                    {item.type.toUpperCase()}
+                                                                </span>
+                                                                {item.year && <span>{item.year}</span>}
+                                                                {item.rating && item.rating > 0 && (
+                                                                    <span className="flex items-center gap-1 text-yellow-500">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                                                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                                                        </svg>
+                                                                        {item.rating.toFixed(1)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() => {
+                                                        onSearch(searchQuery, searchType);
+                                                        setShowResultsDropdown(false);
+                                                    }}
+                                                    className="w-full p-3 text-center text-sm text-purple-400 hover:text-purple-300 hover:bg-white/5 transition-colors font-medium border-t border-white/10"
+                                                >
+                                                    View all results for "{searchQuery}"
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 text-center text-gray-400 text-sm">
+                                                No results found
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </form>
 
                             {/* User Actions - Hidden on mobile, shown on md+ */}
+
                             <div className="hidden md:flex items-center gap-3">
                                 {/* Notification Bell */}
                                 <div className="relative">
