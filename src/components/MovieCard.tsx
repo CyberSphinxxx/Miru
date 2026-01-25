@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Movie } from '../types/tmdb';
-import { useLocalUser } from '../context/UserContext';
+
 import MovieQuickAddDropdown from './MovieQuickAddDropdown';
 
 const TMDB_GENRES: Record<number, string> = {
@@ -18,7 +18,7 @@ interface MovieCardProps {
 }
 
 const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDelete }) => {
-    const { getMovieStatus } = useLocalUser();
+
     const [isHovered, setIsHovered] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
@@ -55,7 +55,7 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDe
 
 
 
-    const currentStatus = getMovieStatus(movie.id);
+
 
     // Image logic: TMDB uses poster_path, need to construct URL
     const imageUrl = movie.poster_path
