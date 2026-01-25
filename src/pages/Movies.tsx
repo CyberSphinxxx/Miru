@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import HeroCarousel, { SpotlightItem } from '../components/HeroCarousel';
 import { movieService } from '../services/api/movies.api';
 import { Movie } from '../types/tmdb';
 
@@ -11,6 +12,7 @@ function Movies() {
     const [popular, setPopular] = useState<Movie[]>([]);
     const [topRated, setTopRated] = useState<Movie[]>([]);
     const [nowPlaying, setNowPlaying] = useState<Movie[]>([]);
+    const [spotlightItems, setSpotlightItems] = useState<SpotlightItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -27,6 +29,14 @@ function Movies() {
                 setPopular(pop.results);
                 setTopRated(top.results);
                 setNowPlaying(now.results);
+
+                // Prepare spotlight items from trending movies
+                const spotlights: SpotlightItem[] = trend.slice(0, 5).map(movie => ({
+                    type: 'movie',
+                    data: movie
+                }));
+                setSpotlightItems(spotlights);
+
             } catch (error) {
                 console.error("Failed to fetch movies", error);
             } finally {
@@ -67,8 +77,10 @@ function Movies() {
     if (loading) return <div className="min-h-screen pt-24 flex justify-center"><LoadingSpinner /></div>;
 
     return (
-        <div className="min-h-screen pt-24 pb-12">
-            <div className="container mx-auto px-6">
+        <div className="min-h-screen pb-12">
+            <HeroCarousel items={spotlightItems} />
+
+            <div className="container mx-auto px-6 pt-12">
                 <h1 className="text-4xl font-black mb-8 text-white drop-shadow-lg">Movies</h1>
 
                 {renderSection("Trending Now", trending)}
