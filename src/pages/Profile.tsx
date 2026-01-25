@@ -1,18 +1,21 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLocalUser, LibraryStatus, LibraryEntry, MangaLibraryStatus, MangaLibraryEntry } from '../context/UserContext';
+import { useLocalUser, LibraryStatus, LibraryEntry, MangaLibraryStatus, MangaLibraryEntry, MovieLibraryStatus, MovieLibraryEntry } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
 import AnimeCard from '../components/AnimeCard';
 import MangaCard from '../components/MangaCard';
+import MovieCard from '../components/MovieCard';
 import { Anime } from '../types';
 import { Manga } from '../types/manga';
+import { Movie } from '../types/tmdb';
 import { getWatchHistory, clearWatchHistory, removeFromHistory } from '../services/watchHistoryService';
 import { getReadHistory, clearReadHistory, removeFromReadHistory } from '../services/readHistoryService';
 import { toast } from 'react-hot-toast';
 
-type MediaMode = 'anime' | 'manga';
+type MediaMode = 'anime' | 'manga' | 'movies';
 type AnimeTab = 'All' | 'Watching' | 'Completed' | 'Plan to Watch' | 'On Hold' | 'Dropped' | 'History';
 type MangaTab = 'All' | 'Reading' | 'Completed' | 'Plan to Read' | 'On Hold' | 'Dropped' | 'History';
+type MovieTab = 'All' | 'Watched' | 'Plan to Watch' | 'On Hold' | 'Dropped';
 
 function Profile() {
     const { userData } = useLocalUser();
@@ -21,6 +24,7 @@ function Profile() {
     const [mediaMode, setMediaMode] = useState<MediaMode>('anime');
     const [animeTab, setAnimeTab] = useState<AnimeTab>('All');
     const [mangaTab, setMangaTab] = useState<MangaTab>('All');
+    const [movieTab, setMovieTab] = useState<MovieTab>('All');
     const [historyUpdate, setHistoryUpdate] = useState(0);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,6 +123,21 @@ function Profile() {
     ].filter(s => s > 0);
     const mangaMeanScore = allMangaScores.length > 0 ? (allMangaScores.reduce((a, b) => a + b, 0) / allMangaScores.length).toFixed(1) : '—';
 
+
+    // ============= MOVIE STATS =============
+    const movieLibrary = userData.movieLibrary || { watched: [], plan_to_watch: [], on_hold: [], dropped: [] };
+    const movieLibraryTotal = Object.values(movieLibrary).reduce((acc, list) => acc + (list?.length || 0), 0);
+    const movieWatchedCount = movieLibrary.watched?.length || 0;
+    const moviePlanToWatchCount = movieLibrary.plan_to_watch?.length || 0;
+    const movieOnHoldCount = movieLibrary.on_hold?.length || 0;
+    const movieDroppedCount = movieLibrary.dropped?.length || 0;
+
+
+
+    const allMovieScores = Object.values(movieLibrary).flat().map(e => e.movie.vote_average).filter(s => s > 0);
+    const movieMeanScore = allMovieScores.length > 0 ? (allMovieScores.reduce((a, b) => a + b, 0) / allMovieScores.length).toFixed(1) : '—';
+
+
     // ============= GET CURRENT LIST =============
     const getCurrentAnimeList = (): Anime[] => {
         if (animeTab === 'History') {
@@ -174,7 +193,6 @@ function Profile() {
         }
 
         if (mangaTab === 'All') {
-            // Show all manga from library
             const allManga: Manga[] = [];
             Object.values(mangaLibrary).forEach((list: MangaLibraryEntry[]) => {
                 (list || []).forEach((entry) => allManga.push(entry.manga));
@@ -182,7 +200,6 @@ function Profile() {
             return allManga;
         }
 
-        // Map tab names to library keys
         const tabToKey: Record<string, MangaLibraryStatus> = {
             'Reading': 'reading',
             'Completed': 'completed',
@@ -194,8 +211,28 @@ function Profile() {
         return (mangaLibrary[key] || []).map(entry => entry.manga);
     };
 
+    const getCurrentMovieList = (): Movie[] => {
+        if (movieTab === 'All') {
+            const allMovies: Movie[] = [];
+            Object.values(movieLibrary).forEach((list: MovieLibraryEntry[]) => {
+                (list || []).forEach((entry) => allMovies.push(entry.movie));
+            });
+            return allMovies;
+        }
+
+        const tabToKey: Record<string, MovieLibraryStatus> = {
+            'Watched': 'watched',
+            'Plan to Watch': 'plan_to_watch',
+            'On Hold': 'on_hold',
+            'Dropped': 'dropped'
+        };
+        const key = tabToKey[movieTab] as MovieLibraryStatus;
+        return (movieLibrary[key] || []).map(entry => entry.movie);
+    };
+
     const currentAnimeList = getCurrentAnimeList();
     const currentMangaList = getCurrentMangaList();
+    const currentMovieList = getCurrentMovieList();
 
     const handleAnimeCardClick = (anime: Anime) => {
         navigate(`/anime/${anime.id}`);
@@ -203,6 +240,10 @@ function Profile() {
 
     const handleMangaCardClick = (manga: Manga) => {
         navigate(`/manga/${manga.id}`);
+    };
+
+    const handleMovieCardClick = (movie: Movie) => {
+        navigate(`/movies/${movie.id}`);
     };
 
     // ============= TABS CONFIG =============
@@ -224,6 +265,14 @@ function Profile() {
         { label: 'Plan to Read', count: mangaPlanToReadCount },
         { label: 'On Hold', count: mangaOnHoldCount },
         { label: 'Dropped', count: mangaDroppedCount },
+    ];
+
+    const movieTabs: { label: MovieTab; count: number }[] = [
+        { label: 'All', count: movieLibraryTotal },
+        { label: 'Watched', count: movieWatchedCount },
+        { label: 'Plan to Watch', count: moviePlanToWatchCount },
+        { label: 'On Hold', count: movieOnHoldCount },
+        { label: 'Dropped', count: movieDroppedCount },
     ];
 
     // ============= STATS CONFIG =============
@@ -289,9 +338,42 @@ function Profile() {
         },
     ];
 
-    const currentStats = mediaMode === 'anime' ? animeStats : mangaStats;
-    const currentTabs = mediaMode === 'anime' ? animeTabs : mangaTabs;
-    const activeTab = mediaMode === 'anime' ? animeTab : mangaTab;
+    const movieStats = [
+        {
+            label: 'Total Movies', value: movieLibraryTotal, icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                    <path d="M19.5 6h-15v12h15V6zm-15-2h15a2 2 0 012 2v12a2 2 0 01-2 2h-15a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                    <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+            )
+        },
+        { // Placeholder
+            label: 'Watched', value: movieWatchedCount, icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            )
+        },
+        { // Placeholder
+            label: 'Mean Score', value: movieMeanScore, icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                </svg>
+            )
+        },
+        { // Placeholder
+            label: 'Plan to Watch', value: moviePlanToWatchCount, icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+            )
+        }
+    ];
+
+    const currentStats = mediaMode === 'anime' ? animeStats : (mediaMode === 'manga' ? mangaStats : movieStats);
+    const currentTabs = mediaMode === 'anime' ? animeTabs : (mediaMode === 'manga' ? mangaTabs : movieTabs);
+    const activeTab = mediaMode === 'anime' ? animeTab : (mediaMode === 'manga' ? mangaTab : movieTab);
 
     return (
         <div className="min-h-screen bg-miru-bg">
@@ -381,15 +463,32 @@ function Profile() {
                                 </svg>
                                 Manga
                             </button>
+                            <button
+                                onClick={() => setMediaMode('movies')}
+                                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${mediaMode === 'movies'
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                    : 'text-gray-400 hover:text-white'
+                                    }`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                    <path d="M19.5 6h-15v12h15V6zm-15-2h15a2 2 0 012 2v12a2 2 0 01-2 2h-15a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                                    <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                </svg>
+                                Movies
+                            </button>
                         </div>
                     </div>
 
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                         {currentStats.map((stat, idx) => (
-                            <div key={idx} className={`rounded-xl p-4 text-center transition-colors group ${mediaMode === 'anime' ? 'bg-purple-500/10 hover:bg-purple-500/20' : 'bg-emerald-500/10 hover:bg-emerald-500/20'
+                            <div key={idx} className={`rounded-xl p-4 text-center transition-colors group ${mediaMode === 'anime' ? 'bg-purple-500/10 hover:bg-purple-500/20' :
+                                mediaMode === 'manga' ? 'bg-emerald-500/10 hover:bg-emerald-500/20' :
+                                    'bg-blue-500/10 hover:bg-blue-500/20'
                                 }`}>
-                                <div className={`mb-2 flex justify-center transition-colors ${mediaMode === 'anime' ? 'text-purple-400 group-hover:text-purple-300' : 'text-emerald-400 group-hover:text-emerald-300'
+                                <div className={`mb-2 flex justify-center transition-colors ${mediaMode === 'anime' ? 'text-purple-400 group-hover:text-purple-300' :
+                                    mediaMode === 'manga' ? 'text-emerald-400 group-hover:text-emerald-300' :
+                                        'text-blue-400 group-hover:text-blue-300'
                                     }`}>
                                     {stat.icon}
                                 </div>
@@ -406,19 +505,27 @@ function Profile() {
                         {currentTabs.map(tab => (
                             <button
                                 key={tab.label}
-                                onClick={() => mediaMode === 'anime' ? setAnimeTab(tab.label as AnimeTab) : setMangaTab(tab.label as MangaTab)}
+                                onClick={() => {
+                                    if (mediaMode === 'anime') setAnimeTab(tab.label as AnimeTab);
+                                    else if (mediaMode === 'manga') setMangaTab(tab.label as MangaTab);
+                                    else setMovieTab(tab.label as MovieTab);
+                                }}
                                 className={`relative py-4 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${activeTab === tab.label ? 'text-white' : 'text-gray-500 hover:text-gray-300'
                                     }`}
                             >
                                 {tab.label}
                                 <span className={`text-xs px-1.5 py-0.5 rounded-md ${activeTab === tab.label
-                                    ? mediaMode === 'anime' ? 'bg-purple-500/20 text-purple-400' : 'bg-emerald-500/20 text-emerald-400'
+                                    ? mediaMode === 'anime' ? 'bg-purple-500/20 text-purple-400' :
+                                        mediaMode === 'manga' ? 'bg-emerald-500/20 text-emerald-400' :
+                                            'bg-blue-500/20 text-blue-400'
                                     : 'bg-white/5 text-gray-500'
                                     }`}>
                                     {tab.count}
                                 </span>
                                 {activeTab === tab.label && (
-                                    <span className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${mediaMode === 'anime' ? 'bg-purple-500' : 'bg-emerald-500'
+                                    <span className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${mediaMode === 'anime' ? 'bg-purple-500' :
+                                        mediaMode === 'manga' ? 'bg-emerald-500' :
+                                            'bg-blue-500'
                                         }`}></span>
                                 )}
                             </button>
@@ -485,7 +592,7 @@ function Profile() {
                                 </button>
                             </div>
                         )
-                    ) : (
+                    ) : mediaMode === 'manga' ? (
                         currentMangaList.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
                                 {currentMangaList.map(manga => (
@@ -520,6 +627,38 @@ function Profile() {
                                 </button>
                             </div>
                         )
+                    ) : (
+                        currentMovieList.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                                {currentMovieList.map(movie => (
+                                    <MovieCard
+                                        key={movie.id}
+                                        movie={movie}
+                                        onClick={() => handleMovieCardClick(movie)}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-80 flex flex-col items-center justify-center text-center px-4">
+                                <div className="w-24 h-24 mb-6 text-gray-600/50">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={0.75} stroke="currentColor" className="w-full h-full">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 16.318A4.486 4.486 0 0012.016 15a4.486 4.486 0 00-3.198 1.318M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-400 mb-2">
+                                    Your movie list is empty
+                                </h3>
+                                <p className="text-gray-500 mb-6 max-w-xs">
+                                    Grab some popcorn! Add some movies to your watchlist.
+                                </p>
+                                <button
+                                    onClick={() => navigate('/movies')}
+                                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors shadow-lg shadow-blue-500/25 flex items-center gap-2"
+                                >
+                                    Browse Movies
+                                </button>
+                            </div>
+                        )
                     )}
                 </div>
             </div>
@@ -528,4 +667,3 @@ function Profile() {
 }
 
 export default Profile;
-
