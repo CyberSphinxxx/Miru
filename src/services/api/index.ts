@@ -23,3 +23,6 @@ export { mangaService } from './manga.api';
 // Genre functions
 export { getGenres, getGenreById, getGenreByName } from './genres';
 
+// Movie API functions
+export { movieService } from './movies.api';
+
