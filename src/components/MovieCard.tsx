@@ -58,9 +58,13 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDe
 
 
     // Image logic: TMDB uses poster_path, need to construct URL
-    const imageUrl = movie.poster_path
+    const [imgSrc, setImgSrc] = useState(movie.poster_path
         ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-        : 'https://via.placeholder.com/300x450?text=No+Poster';
+        : 'https://placehold.co/300x450/1a1a1a/ffffff?text=No+Cover');
+
+    const handleImageError = () => {
+        setImgSrc('https://placehold.co/300x450/1a1a1a/ffffff?text=No+Cover');
+    };
 
     return (
         <div
@@ -77,8 +81,9 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDe
                 {/* Image */}
                 <div className="relative aspect-[2/3] overflow-hidden">
                     <img
-                        src={imageUrl}
+                        src={imgSrc}
                         alt={movie.title}
+                        onError={handleImageError}
                         className={`w-full h-full object-cover transition-all duration-500 ${showDetails ? 'scale-110 brightness-[0.3]' : isHovered ? 'scale-105 brightness-90' : 'scale-100'}`}
                         loading="lazy"
                     />

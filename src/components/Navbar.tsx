@@ -140,7 +140,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                         res.results.slice(0, 3).map((item: Movie) => ({
                             id: item.id,
                             title: item.title,
-                            image: item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : '',
+                            image: item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : 'https://placehold.co/200x300/1a1a1a/ffffff?text=No+Cover',
                             type: 'movie' as const,
                             year: item.release_date?.split('-')[0],
                             rating: item.vote_average
@@ -409,7 +409,15 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                                                         className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 transition-colors"
                                                     >
                                                         <div className="w-10 h-14 bg-gray-800 rounded overflow-hidden flex-shrink-0">
-                                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                                            <img
+                                                                src={item.image}
+                                                                alt={item.title}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.src = 'https://placehold.co/200x300/1a1a1a/ffffff?text=No+Cover';
+                                                                }}
+                                                            />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <h4 className="text-sm font-medium text-white truncate">{item.title}</h4>
