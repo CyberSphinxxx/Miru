@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { Anime } from '../types';
 import { Manga } from '../types/manga';
+import { Movie } from '../types/tmdb';
 
 // ============================================================================
 // Types
@@ -48,10 +49,26 @@ export interface MangaLibrary {
     dropped: MangaLibraryEntry[];
 }
 
+// Movie Library Types
+export type MovieLibraryStatus = 'watched' | 'plan_to_watch' | 'on_hold' | 'dropped';
+
+export interface MovieLibraryEntry {
+    movie: Movie;
+    addedAt: string;
+}
+
+export interface MovieLibrary {
+    watched: MovieLibraryEntry[];
+    plan_to_watch: MovieLibraryEntry[];
+    on_hold: MovieLibraryEntry[];
+    dropped: MovieLibraryEntry[];
+}
+
 export interface UserData {
     history: HistoryItem[];
     library: Library;
     mangaLibrary: MangaLibrary;
+    movieLibrary: MovieLibrary;
 }
 
 interface UserContextType {
@@ -66,6 +83,10 @@ interface UserContextType {
     updateMangaStatus: (manga: Manga, newStatus: MangaLibraryStatus) => void;
     getMangaStatus: (mangaId: number) => MangaLibraryStatus | null;
     removeFromMangaLibrary: (mangaId: number) => void;
+    // Movie
+    updateMovieStatus: (movie: Movie, newStatus: MovieLibraryStatus) => void;
+    getMovieStatus: (movieId: number) => MovieLibraryStatus | null;
+    removeFromMovieLibrary: (movieId: number) => void;
 }
 
 // ============================================================================
@@ -87,6 +108,12 @@ const INITIAL_DATA: UserData = {
         reading: [],
         completed: [],
         plan_to_read: [],
+        on_hold: [],
+        dropped: [],
+    },
+    movieLibrary: {
+        watched: [],
+        plan_to_watch: [],
         on_hold: [],
         dropped: [],
     },
@@ -190,10 +217,45 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
         });
     }
 
+    // Also merge movie library
+    const mergedMovieLibrary: MovieLibrary = {
+        watched: [],
+        plan_to_watch: [],
+        on_hold: [],
+        dropped: [],
+    };
+
+    const seenMovieIds = new Set<number>();
+
+    // Process cloud movie library first
+    if (cloud.movieLibrary) {
+        (Object.keys(mergedMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
+            (cloud.movieLibrary[status] || []).forEach(entry => {
+                if (!seenMovieIds.has(entry.movie.id)) {
+                    mergedMovieLibrary[status].push(entry);
+                    seenMovieIds.add(entry.movie.id);
+                }
+            });
+        });
+    }
+
+    // Add local movie items not in cloud
+    if (local.movieLibrary) {
+        (Object.keys(mergedMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
+            (local.movieLibrary[status] || []).forEach(entry => {
+                if (!seenMovieIds.has(entry.movie.id)) {
+                    mergedMovieLibrary[status].push(entry);
+                    seenMovieIds.add(entry.movie.id);
+                }
+            });
+        });
+    }
+
     return {
         history: Array.from(historyMap.values()),
         library: mergedLibrary,
         mangaLibrary: mergedMangaLibrary,
+        movieLibrary: mergedMovieLibrary,
     };
 };
 
@@ -508,6 +570,74 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
     }, [userData.mangaLibrary]);
 
+    // ========== MOVIE LIBRARY FUNCTIONS ==========
+
+    /**
+     * Adds or moves a movie to a specific list.
+     */
+    const updateMovieStatus = useCallback((movie: Movie, newStatus: MovieLibraryStatus) => {
+        setUserData(prev => {
+            const newMovieLibrary = { ...(prev.movieLibrary || INITIAL_DATA.movieLibrary) };
+            const movieId = movie.id;
+
+            // Remove from ALL lists
+            (Object.keys(newMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
+                newMovieLibrary[status] = (newMovieLibrary[status] || []).filter(entry => entry.movie.id !== movieId);
+            });
+
+            // Add to the new list
+            newMovieLibrary[newStatus].push({
+                movie,
+                addedAt: new Date().toISOString()
+            });
+
+            const newData = {
+                ...prev,
+                movieLibrary: newMovieLibrary
+            };
+
+            saveData(newData);
+            return newData;
+        });
+    }, [saveData]);
+
+    /**
+     * Removes a movie from the library entirely.
+     */
+    const removeFromMovieLibrary = useCallback((movieId: number) => {
+        setUserData(prev => {
+            const newMovieLibrary = { ...(prev.movieLibrary || INITIAL_DATA.movieLibrary) };
+
+            (Object.keys(newMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
+                newMovieLibrary[status] = (newMovieLibrary[status] || []).filter(entry => entry.movie.id !== movieId);
+            });
+
+            const newData = {
+                ...prev,
+                movieLibrary: newMovieLibrary
+            };
+
+            saveData(newData);
+            return newData;
+        });
+    }, [saveData]);
+
+    /**
+     * Returns the current status of a movie.
+     */
+    const getMovieStatus = useCallback((movieId: number): MovieLibraryStatus | null => {
+        const movieLibrary = userData.movieLibrary || INITIAL_DATA.movieLibrary;
+        const statuses = Object.keys(movieLibrary) as MovieLibraryStatus[];
+
+        for (const status of statuses) {
+            if ((movieLibrary[status] || []).some(entry => entry.movie.id === movieId)) {
+                return status;
+            }
+        }
+
+        return null;
+    }, [userData.movieLibrary]);
+
     return (
         <UserContext.Provider value={{
             userData,
@@ -518,7 +648,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             removeFromLibrary,
             updateMangaStatus,
             getMangaStatus,
-            removeFromMangaLibrary
+            removeFromMangaLibrary,
+            updateMovieStatus,
+            getMovieStatus,
+            removeFromMovieLibrary
         }}>
             {children}
         </UserContext.Provider>
