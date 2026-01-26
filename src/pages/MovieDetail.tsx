@@ -5,6 +5,8 @@ import { MovieDetail as MovieDetailType } from '../types/tmdb';
 import MovieCard from '../components/MovieCard';
 import MovieStatusButton from '../components/MovieStatusButton';
 import LoadingSpinner from '../components/LoadingSpinner';
+import VideoModal from '../components/VideoModal';
+import CollectionModal from '../components/CollectionModal';
 
 import { saveMovieProgress } from '../services/watchHistoryService';
 
@@ -14,10 +16,49 @@ function MovieDetail() {
     const [movie, setMovie] = useState<MovieDetailType | null>(null);
     const [loading, setLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [showTrailer, setShowTrailer] = useState(false);
+    const [showCollection, setShowCollection] = useState(false);
 
     // Derived state for easy access
-    const recommendations = movie?.recommendations?.results || [];
+    // Smart Recommendations Logic
+    const getRecommendations = () => {
+        if (!movie) return [];
+
+        const directRecommendations = movie.recommendations?.results || [];
+        const similarMovies = movie.similar?.results || [];
+
+        // Combine both lists, prioritizing direct recommendations
+        const allCandidates = [...directRecommendations, ...similarMovies];
+
+        // Filter and Deduplicate
+        const seenIds = new Set();
+        const movieGenres = new Set(movie.genres?.map(g => g.id) || []);
+
+        return allCandidates.filter(item => {
+            if (seenIds.has(item.id)) return false;
+            seenIds.add(item.id);
+
+            // Basic Quality Check
+            if (!item.poster_path) return false;
+
+            // Relevance Check: Must share at least one genre with the current movie
+            // If current movie has no genres (rare), skip this check
+            if (movieGenres.size > 0 && item.genre_ids) {
+                const hasSharedGenre = item.genre_ids.some(id => movieGenres.has(id));
+                if (!hasSharedGenre) return false;
+            }
+
+            return true;
+        }).slice(0, 12); // Show up to 12 relevant items
+    };
+
+    const recommendations = getRecommendations();
     const cast = movie?.credits?.cast || [];
+
+    // Find the first trailer (prefer official ones)
+    const trailerVideo = movie?.videos?.results?.find(
+        video => video.site === "YouTube" && video.type === "Trailer"
+    );
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -133,28 +174,33 @@ function MovieDetail() {
                                 />
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="space-y-3 mt-6">
-                                <button
-                                    onClick={handlePlayClick}
-                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-miru-primary to-miru-accent text-white font-bold shadow-lg shadow-miru-primary/25 hover:shadow-miru-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                                    </svg>
-                                    Play Movie
-                                </button>
-                                <MovieStatusButton movie={movie} />
-                            </div>
+
                         </div>
                     )}
 
                     {/* Details Column */}
-                    <div className="flex-1 pt-4 md:pt-8 text-center md:text-left space-y-4">
+                    <div className="flex-1 min-w-0 pt-4 md:pt-8 text-center md:text-left space-y-4">
                         <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight">
                             {movie.title}
                         </h1>
                         {movie.tagline && <p className="text-xl text-gray-400 italic font-light">"{movie.tagline}"</p>}
+
+                        {/* Collection Link */}
+                        {movie.belongs_to_collection && (
+                            <div className="flex justify-center md:justify-start mb-6">
+                                <button
+                                    onClick={() => setShowCollection(true)}
+                                    className="px-6 py-3 rounded-full border border-white/20 hover:border-miru-primary/50 hover:bg-white/5 transition-all group flex items-center gap-3 backdrop-blur-md"
+                                >
+                                    <span className="text-xs font-bold uppercase tracking-[0.15em] text-miru-primary group-hover:text-white transition-colors">
+                                        Part of the {movie.belongs_to_collection.name}
+                                    </span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-miru-primary group-hover:text-white group-hover:translate-x-1 transition-all">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
 
                         {/* Badges */}
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-sm">
@@ -192,13 +238,42 @@ function MovieDetail() {
                             </p>
                         </div>
 
+                        {/* Action Buttons Row */}
+                        <div className="flex flex-col sm:flex-row gap-4 mt-6 mb-8">
+                            <button
+                                onClick={handlePlayClick}
+                                className="flex-1 sm:flex-none px-8 py-3.5 rounded-xl bg-gradient-to-r from-miru-primary to-miru-accent text-white font-bold shadow-lg shadow-miru-primary/25 hover:shadow-miru-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                                </svg>
+                                Play Movie
+                            </button>
+                            {trailerVideo && (
+                                <button
+                                    onClick={() => setShowTrailer(true)}
+                                    className="flex-1 sm:flex-none px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold border border-white/5 backdrop-blur-sm transition-all flex items-center justify-center gap-2 group"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 group-hover:text-red-500 transition-colors">
+                                        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.75 3c1.916 0 3.638.912 4.75 2.378a5.726 5.726 0 013.25-1.078c2.613 0 4.75 2.137 4.75 4.75a4.706 4.706 0 01-.157 1.205c.67.756 1.157 1.637 1.157 2.745 0 2.268-1.577 4.544-3.922 6.577a24.79 24.79 0 01-5.18 3.328 15.688 15.688 0 01-.382.16l-.019.006h-.001a.75.75 0 01-.75 0z" fill="none" />
+                                        <path fillRule="evenodd" d="M19.906 9c.382 0 .749.057 1.094.162F1.729 1.729 0 0021.375 9.65M9 6v.004c0 .548-.448.996-1 .996H2.625A.625.625 0 012 6.375V2.625A.625.625 0 012.625 2H8c.552 0 1 .448 1 1v3zm13 0v.004c0 .548-.448.996-1 .996H15.625a.625.625 0 01-.625-.375V2.625a.625.625 0 01.625-.625H21c.552 0 1 .448 1 1v3zM9 16v.004c0 .548-.448.996-1 .996H2.625a.625.625 0 01-.625-.375V12.625a.625.625 0 01.625-.625H8c.552 0 1 .448 1 1v3zm13 0v.004c0 .548-.448.996-1 .996h-5.375a.625.625 0 01-.625-.375V12.625a.625.625 0 01.625-.625H21c.552 0 1 .448 1 1v3z" clipRule="evenodd" display="none" />
+                                        <path d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h8.25a3 3 0 003-3v-9a3 3 0 00-3-3H4.5zM19.94 18.75l-2.69-2.69V7.94l2.69-2.69c.944-.945 2.56-.276 2.56 1.06v11.38c0 1.336-1.616 2.005-2.56 1.06z" />
+                                    </svg>
+                                    Trailer
+                                </button>
+                            )}
+                            <div className="w-full sm:w-auto">
+                                <MovieStatusButton movie={movie} />
+                            </div>
+                        </div>
+
                         {/* Cast */}
                         {cast.length > 0 && (
                             <div className="py-6 border-t border-white/10">
                                 <h3 className="text-xl font-bold text-white mb-4">Cast</h3>
-                                <div className="flex gap-4 overflow-x-auto pb-4 snap-x custom-scrollbar">
+                                <div className="flex gap-4 overflow-x-auto pb-4 px-4 -mx-4 md:mx-0 md:px-0 scroll-pl-4 snap-x custom-scrollbar touch-pan-x after:content-[''] after:min-w-[20px] after:block">
                                     {cast.slice(0, 10).map((person) => (
-                                        <div key={person.id} className="flex-shrink-0 w-32 snap-start">
+                                        <div key={person.id} className="flex-shrink-0 w-28 md:w-32 snap-start">
                                             <div className="rounded-lg overflow-hidden bg-miru-surface border border-white/5 aspect-[2/3] mb-2">
                                                 {person.profile_path ? (
                                                     <img
@@ -222,9 +297,9 @@ function MovieDetail() {
                         {recommendations.length > 0 && (
                             <div className="py-6 border-t border-white/10">
                                 <h3 className="text-xl font-bold text-white mb-4">You might also like</h3>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {recommendations.slice(0, 4).map(rec => (
-                                        <div key={rec.id} className="w-full">
+                                <div className="flex gap-4 overflow-x-auto pb-4 px-4 -mx-4 md:mx-0 md:px-0 scroll-pl-4 snap-x custom-scrollbar touch-pan-x after:content-[''] after:min-w-[20px] after:block">
+                                    {recommendations.map(rec => (
+                                        <div key={rec.id} className="flex-shrink-0 w-36 md:w-48 snap-start">
                                             <MovieCard
                                                 movie={rec}
                                                 onClick={() => {
@@ -240,6 +315,20 @@ function MovieDetail() {
                     </div>
                 </div>
             </div>
+
+            {/* Trailer Modal */}
+            <VideoModal
+                isOpen={showTrailer}
+                onClose={() => setShowTrailer(false)}
+                videoId={trailerVideo?.key || ""}
+            />
+
+            {/* Collection Modal */}
+            <CollectionModal
+                isOpen={showCollection}
+                onClose={() => setShowCollection(false)}
+                collectionId={movie.belongs_to_collection?.id || null}
+            />
         </div>
     );
 }
