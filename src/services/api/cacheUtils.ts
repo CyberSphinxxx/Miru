@@ -110,6 +110,24 @@ export function clearOldCacheEntries(prefix: string = CACHE_PREFIX): void {
     keysToRemove.forEach(k => sessionStorage.removeItem(k));
 }
 
+/**
+ * Completely clear all app cache
+ */
+export function clearCache(prefix: string = CACHE_PREFIX): void {
+    // Clear memory
+    memoryCache.clear();
+
+    // Clear session storage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith(prefix)) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(k => sessionStorage.removeItem(k));
+}
+
 // Track in-flight requests to prevent duplicates
 export const inFlightRequests = new Map<string, Promise<any>>();
 

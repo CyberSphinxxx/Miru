@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
+import { clearCache } from '../services/api/cacheUtils';
 import { Anime } from '../types';
 import { Manga } from '../types/manga';
 import { Movie } from '../types/tmdb';
@@ -64,11 +65,29 @@ export interface MovieLibrary {
     dropped: MovieLibraryEntry[];
 }
 
+export interface AppSettings {
+    _version: number;
+    autoPlayNext: boolean;
+    defaultQuality: '1080p' | '720p' | '480p' | 'auto';
+    // Appearance
+    themeAccent: 'purple' | 'blue' | 'green' | 'orange';
+    backgroundMode: 'simple' | 'glow' | 'mesh';
+    baseColor: 'black' | 'midnight' | 'slate';
+    showNSFW: boolean;
+    // Notifications
+    notifications: {
+        airing: boolean;
+        completed: boolean;
+        news: boolean;
+    };
+}
+
 export interface UserData {
     history: HistoryItem[];
     library: Library;
     mangaLibrary: MangaLibrary;
     movieLibrary: MovieLibrary;
+    settings: AppSettings;
 }
 
 interface UserContextType {
@@ -87,6 +106,12 @@ interface UserContextType {
     updateMovieStatus: (movie: Movie, newStatus: MovieLibraryStatus) => void;
     getMovieStatus: (movieId: number) => MovieLibraryStatus | null;
     removeFromMovieLibrary: (movieId: number) => void;
+    updateSettings: (newSettings: Partial<AppSettings>) => void;
+    // Data Management
+    getStorageUsage: () => number;
+    clearAppCache: () => void;
+    exportData: () => void;
+    importData: (jsonData: string) => Promise<boolean>;
 }
 
 // ============================================================================
@@ -117,6 +142,20 @@ const INITIAL_DATA: UserData = {
         on_hold: [],
         dropped: [],
     },
+    settings: {
+        _version: 1,
+        autoPlayNext: true,
+        defaultQuality: 'auto',
+        themeAccent: 'purple',
+        backgroundMode: 'glow',
+        baseColor: 'black',
+        showNSFW: false,
+        notifications: {
+            airing: true,
+            completed: true,
+            news: true,
+        }
+    }
 };
 
 // ============================================================================
@@ -126,7 +165,17 @@ const INITIAL_DATA: UserData = {
 const getLocalData = (): UserData => {
     try {
         const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-        return stored ? JSON.parse(stored) : INITIAL_DATA;
+        if (!stored) return INITIAL_DATA;
+
+        const parsed = JSON.parse(stored);
+        return {
+            ...INITIAL_DATA,
+            ...parsed,
+            settings: {
+                ...INITIAL_DATA.settings,
+                ...(parsed.settings || {})
+            }
+        };
     } catch (error) {
         console.error('Failed to parse local user data:', error);
         return INITIAL_DATA;
@@ -256,6 +305,11 @@ const mergeUserData = (local: UserData, cloud: UserData): UserData => {
         library: mergedLibrary,
         mangaLibrary: mergedMangaLibrary,
         movieLibrary: mergedMovieLibrary,
+        settings: {
+            ...INITIAL_DATA.settings, // Start with defaults
+            ...(local.settings || {}), // Apply local overrides
+            ...(cloud.settings || {}), // Apply cloud overrides (highest priority)
+        }
     };
 };
 
@@ -326,7 +380,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             localStorage.removeItem(LOCAL_STORAGE_KEY);
                             console.log('Local data merged with cloud account');
                         } else {
-                            setUserData(cloudData);
+                            setUserData({
+                                ...INITIAL_DATA,
+                                ...cloudData,
+                                settings: {
+                                    ...INITIAL_DATA.settings,
+                                    ...(cloudData.settings || {})
+                                }
+                            });
                         }
                     } else {
                         // New user: Check for local data to upload
@@ -638,6 +699,71 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
     }, [userData.movieLibrary]);
 
+
+
+    /**
+     * Updates user settings.
+     */
+    const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
+        setUserData(prev => {
+            const updatedSettings = { ...prev.settings, ...newSettings };
+            const newData = { ...prev, settings: updatedSettings };
+            saveData(newData);
+            return newData;
+        });
+    }, [saveData]);
+
+    // ============================================================================
+    // Data Management
+    // ============================================================================
+
+    const getStorageUsage = useCallback(() => {
+        let total = 0;
+        for (const key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                total += (localStorage[key].length + key.length) * 2;
+            }
+        }
+        return total;
+    }, []);
+
+    const clearAppCache = useCallback(() => {
+        clearCache();
+        window.location.reload();
+    }, []);
+
+    const exportData = useCallback(() => {
+        const dataStr = JSON.stringify(userData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+        const exportFileDefaultName = `miru-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    }, [userData]);
+
+    const importData = useCallback(async (jsonString: string): Promise<boolean> => {
+        try {
+            const parsed = JSON.parse(jsonString);
+            // Basic validation
+            if (!parsed.history || !parsed.library || !parsed.settings) {
+                console.error("Invalid backup file format");
+                return false;
+            }
+
+            // Merge or overwrite logic
+            // We'll trust the backup and overwrite local state, then save
+            const newData = { ...INITIAL_DATA, ...parsed };
+            await saveData(newData);
+            return true;
+        } catch (e) {
+            console.error("Failed to import data:", e);
+            return false;
+        }
+    }, [saveData]);
+
     return (
         <UserContext.Provider value={{
             userData,
@@ -651,7 +777,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             removeFromMangaLibrary,
             updateMovieStatus,
             getMovieStatus,
-            removeFromMovieLibrary
+            removeFromMovieLibrary,
+            updateSettings,
+            getStorageUsage,
+            clearAppCache,
+            exportData,
+            importData
         }}>
             {children}
         </UserContext.Provider>
