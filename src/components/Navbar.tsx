@@ -9,7 +9,7 @@ import { Anime } from '../types';
 import { Manga } from '../types/manga';
 import { Movie } from '../types/tmdb';
 
-export type ViewMode = 'home' | 'anime' | 'manga' | 'movies' | 'detail' | 'watch' | 'profile';
+export type ViewMode = 'home' | 'anime' | 'manga' | 'movies' | 'detail' | 'watch' | 'profile' | 'settings';
 
 export type SearchType = 'all' | 'anime' | 'manga' | 'movies';
 

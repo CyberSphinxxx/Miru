@@ -55,6 +55,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Generate episode notifications from airing schedule
     const generateAiringNotifications = useCallback(async () => {
+        if (!userData?.settings?.notifications?.airing) return [];
         const watchingList = userData?.library?.watching || [];
         if (watchingList.length === 0) return [];
 
@@ -74,12 +75,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
             for (const schedule of scheduleData.schedules) {
                 // Check if this anime is in watching list
-                const inWatching = watchingList.find((a: any) =>
-                    a.id === schedule.media?.idMal ||
-                    a.id === schedule.media?.id
+                const watchingEntry = watchingList.find((entry: any) =>
+                    entry.anime.id === schedule.media?.idMal ||
+                    entry.anime.id === schedule.media?.id
                 );
 
-                if (inWatching && schedule.episode) {
+                if (watchingEntry && schedule.episode) {
                     const animeId = schedule.media?.idMal || schedule.media?.id;
                     const seenForAnime = seenEpisodes[animeId] || [];
 
@@ -90,7 +91,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             type: 'episode_released' as NotificationType,
                             title: schedule.media?.title?.english || schedule.media?.title?.romaji || 'New Episode',
                             message: `Episode ${schedule.episode} is now available`,
-                            thumbnail: schedule.media?.coverImage?.medium || (inWatching as any).images?.jpg?.image_url,
+                            thumbnail: schedule.media?.coverImage?.medium || (watchingEntry as any).anime.images?.jpg?.image_url,
                             animeId: animeId,
                             episodeNumber: schedule.episode,
                             timestamp: schedule.airingAt * 1000,
@@ -116,6 +117,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Generate resume nudges for stalled shows
     const generateResumeNudges = useCallback(() => {
+        // Treat nudges as "News & Updates" for now or add a specific setting
+        if (!userData?.settings?.notifications?.news) return [];
+
         const history = userData?.history || [];
         const watchingList = userData?.library?.watching || [];
         const nudges: AppNotification[] = [];
@@ -126,7 +130,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             .filter(n => n.type === 'resume_nudge')
             .map(n => n.animeId);
 
-        for (const anime of watchingList as any[]) {
+        for (const entry of watchingList as any[]) {
+            const anime = entry.anime;
+
             // Skip if we already have a nudge for this
             if (existingNudgeIds.includes(anime.id)) continue;
 
@@ -134,12 +140,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             const lastWatched = history.find((h: any) => h.animeId === anime.id);
 
             if (lastWatched) {
-                const watchedAt = (lastWatched as any).timestamp || 0;
-                const totalEps = anime.episodes || 12;
+                // Use history timestamp (seconds) converted to ms
+                const watchedTime = (lastWatched as any).timestamp * 1000 || 0;
+                const totalEps = anime.episodes || 12; // Fallback if unknown
                 const watchedEps = (lastWatched as any).episodeNumber || (lastWatched as any).episode || 1;
 
-                // If not finished and not watched recently
-                if (watchedAt < sevenDaysAgo && watchedEps < totalEps) {
+                // If not finished and not watched recently (7 days)
+                if (watchedTime < sevenDaysAgo && watchedEps < totalEps) {
                     nudges.push({
                         id: `nudge-${anime.id}`,
                         type: 'resume_nudge' as NotificationType,
@@ -222,4 +229,3 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         </NotificationContext.Provider>
     );
 };
-
