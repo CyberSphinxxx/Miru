@@ -6,6 +6,8 @@ import MovieCard from '../components/MovieCard';
 import MovieStatusButton from '../components/MovieStatusButton';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+import { saveMovieProgress } from '../services/watchHistoryService';
+
 function MovieDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -37,6 +39,11 @@ function MovieDetail() {
 
     const handlePlayClick = () => {
         setIsPlaying(true);
+        if (movie) {
+            // Save initial progress of 5% to mark as started/continue watching
+            saveMovieProgress(movie, 5);
+        }
+
         // Scroll to player immediately after render
         requestAnimationFrame(() => {
             const playerElement = document.getElementById('movie-player-container');

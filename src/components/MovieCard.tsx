@@ -15,9 +15,10 @@ interface MovieCardProps {
     onClick: () => void;
     onPlayClick?: () => void;
     onDelete?: () => void;
+    progress?: number; // 0-100
 }
 
-const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDelete }) => {
+const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDelete, progress }) => {
 
     const [isHovered, setIsHovered] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
@@ -91,6 +92,16 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDe
                     {/* Gradient Overlay */}
                     <div className={`absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/20 transition-opacity duration-300 ${showDetails ? 'opacity-90' : 'opacity-60'}`} />
 
+                    {/* Progress Bar (Visible when NOT showing details) */}
+                    {progress !== undefined && progress > 0 && !showDetails && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">
+                            <div
+                                className="h-full bg-gradient-to-r from-miru-primary to-miru-accent"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                    )}
+
                     {/* Score Badge - Hidden on detail view */}
                     {movie.vote_average > 0 && !showDetails && (
                         <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 backdrop-blur-md border border-white/10">
@@ -144,7 +155,13 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, onPlayClick, onDe
                                         {movie.vote_average.toFixed(1)}
                                     </span>
                                 )}
-                                <span className="px-1.5 py-0.5 rounded bg-miru-primary/20 text-miru-primary text-[10px] font-medium">HD</span>
+                                {progress !== undefined && progress > 0 ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-miru-accent/20 text-miru-accent text-[10px] font-medium border border-miru-accent/20">
+                                        Continue
+                                    </span>
+                                ) : (
+                                    <span className="px-1.5 py-0.5 rounded bg-miru-primary/20 text-miru-primary text-[10px] font-medium">HD</span>
+                                )}
                                 <span className="px-1.5 py-0.5 rounded bg-white/10 text-white/80 text-[10px] font-medium">
                                     {new Date(movie.release_date).getFullYear() || 'TBA'}
                                 </span>
