@@ -5,6 +5,7 @@ import scraperRoutes from './api/scraper/scraper.routes.js';
 import anilistRoutes from './api/anilist/anilist.routes.js';
 import hianimeRoutes from './api/scraper/hianime.routes.js';
 import mangaScraperRoutes from './api/scraper/mangascraper.routes.js';
+import fanartRoutes from './api/fanart/fanart.routes.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -18,6 +19,7 @@ app.use('/api/anilist', anilistRoutes);
 app.use('/api/scraper', scraperRoutes);
 app.use('/api/hianime', hianimeRoutes);
 app.use('/api/manga', mangaScraperRoutes);
+app.use('/api/fanart', fanartRoutes);
 
 app.get('/', (req, res) => {
     res.send('Miru Backend is running');
