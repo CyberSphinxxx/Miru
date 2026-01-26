@@ -69,7 +69,7 @@ export async function saveFirebaseWatchProgress(
             id: anime.id,
             title: anime.title,
             image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
-            type: anime.type || 'TV',
+            type: 'anime',
             episodes: anime.episodes,
             currentEpisode: episodeNumber,
             progress: Math.min(100, Math.max(0, progress)),
