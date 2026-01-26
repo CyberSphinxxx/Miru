@@ -1,4 +1,10 @@
-import 'dotenv/config';
+import path from 'path';
+import 'dotenv/config'; // Loads from backend/.env if exists
+import dotenv from 'dotenv';
+
+// Also try loading from root .env (for Vercel/Root config preference)
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+
 import express from 'express';
 import cors from 'cors';
 import scraperRoutes from './api/scraper/scraper.routes.js';
