@@ -298,14 +298,14 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                         {/* Search + User Actions */}
                         <div className="flex items-center gap-2 sm:gap-4 flex-1 md:flex-none justify-end">
                             {/* Search - Compact on mobile */}
-                            <form onSubmit={handleSubmit} className="flex-1 max-w-[180px] sm:max-w-md relative">
+                            <form onSubmit={handleSubmit} className="flex-1 w-full sm:max-w-md relative">
                                 <div className={`flex items-center transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
                                     {/* Search Type Selector */}
                                     <div className="relative">
                                         <button
                                             type="button"
                                             onClick={() => setShowSearchTypeDropdown(!showSearchTypeDropdown)}
-                                            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-l-xl text-xs sm:text-sm font-medium transition-all duration-300 border-r-0 ${isSearchFocused
+                                            className={`flex items-center gap-1.5 px-3 sm:px-3 py-2 sm:py-2.5 rounded-l-full text-xs sm:text-sm font-medium transition-all duration-300 border-r-0 ${isSearchFocused
                                                 ? 'bg-white/15 border border-purple-500 text-white'
                                                 : 'bg-white/10 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white'
                                                 }`}
@@ -366,7 +366,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, viewMode, onViewChange }) => 
                                                 // Delay closing dropdown to allow clicks
                                                 setTimeout(() => setShowSearchTypeDropdown(false), 200);
                                             }}
-                                            className={`w-full rounded-r-xl px-3 sm:px-4 py-2 sm:py-2.5 pl-8 sm:pl-10 pr-3 sm:pr-14 text-xs sm:text-sm text-white placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
+                                            className={`w-full rounded-r-full px-3 sm:px-4 py-2 sm:py-2.5 pl-8 sm:pl-10 pr-3 sm:pr-14 text-xs sm:text-sm text-white placeholder-transparent sm:placeholder-gray-500 outline-none transition-all duration-300 ${isSearchFocused
                                                 ? 'bg-white/15 border border-purple-500 ring-1 ring-purple-500 shadow-lg shadow-purple-500/20 border-l-0'
                                                 : 'bg-white/10 border border-white/10 hover:border-white/20 border-l-0'
                                                 }`}
