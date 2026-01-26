@@ -211,20 +211,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                             />
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="space-y-3 mt-6">
-                            <button
-                                onClick={onWatchClick}
-                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-miru-primary to-miru-accent text-white font-bold shadow-lg shadow-miru-primary/25 hover:shadow-miru-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                    <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                                </svg>
-                                Watch Now
-                            </button>
 
-                            <StatusButton anime={anime} />
-                        </div>
                     </div>
 
                     {/* Details Column */}
@@ -291,6 +278,22 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                 {/* Synopsis */}
                                 <div className="mb-8">
                                     <p className="text-gray-400 leading-relaxed text-base md:text-lg text-left">{anime.synopsis}</p>
+                                </div>
+
+                                {/* Action Buttons Row */}
+                                <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                                    <button
+                                        onClick={onWatchClick}
+                                        className="flex-1 sm:flex-none px-8 py-3.5 rounded-xl bg-gradient-to-r from-miru-primary to-miru-accent text-white font-bold shadow-lg shadow-miru-primary/25 hover:shadow-miru-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                            <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                                        </svg>
+                                        Watch Now
+                                    </button>
+                                    <div className="w-full sm:w-auto">
+                                        <StatusButton anime={anime} />
+                                    </div>
                                 </div>
 
                                 {/* Episodes Section */}
