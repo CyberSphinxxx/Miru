@@ -13,6 +13,18 @@ export interface Movie {
     genre_ids: number[];
 }
 
+export interface Collection {
+    id: number;
+    name: string;
+    poster_path: string | null;
+    backdrop_path: string | null;
+}
+
+export interface CollectionDetail extends Collection {
+    overview: string;
+    parts: Movie[];
+}
+
 export interface MovieDetail extends Movie {
     genres: { id: number; name: string }[];
     runtime: number | null;
@@ -32,6 +44,10 @@ export interface MovieDetail extends Movie {
     videos?: {
         results: Video[];
     };
+    similar?: {
+        results: Movie[];
+    };
+    belongs_to_collection: Collection | null;
 }
 
 export interface Cast {
