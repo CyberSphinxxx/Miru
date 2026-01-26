@@ -1,4 +1,4 @@
-import { Movie, MovieDetail, MovieResponse } from '../../types/tmdb';
+import { Movie, MovieDetail, MovieResponse, CollectionDetail } from '../../types/tmdb';
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const API_TOKEN = import.meta.env.VITE_TMDB_ACCESS_TOKEN;
@@ -45,7 +45,7 @@ export const movieService = {
 
     getDetail: async (id: number): Promise<MovieDetail> => {
         return fetchTMDB<MovieDetail>(`/movie/${id}`, {
-            append_to_response: 'credits,videos,recommendations'
+            append_to_response: 'credits,videos,recommendations,similar'
         });
     },
 
@@ -55,5 +55,9 @@ export const movieService = {
             page: page.toString(),
             sort_by: 'popularity.desc'
         });
+    },
+
+    getCollection: async (id: number): Promise<CollectionDetail> => {
+        return fetchTMDB<CollectionDetail>(`/collection/${id}`);
     }
 };
