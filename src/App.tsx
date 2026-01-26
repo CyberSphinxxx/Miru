@@ -4,7 +4,15 @@ import Navbar, { SearchType } from './components/Navbar';
 import Home from './pages/Home';
 import LoadingSpinner from './components/LoadingSpinner';
 import { animeService } from './services/api';
+import { useLocalUser } from './context/UserContext';
 
+// Theme configuration
+const THEMES = {
+    purple: { primary: '#6366f1', accent: '#f472b6', primaryRgb: '99, 102, 241', accentRgb: '244, 114, 182' },
+    blue: { primary: '#3b82f6', accent: '#60a5fa', primaryRgb: '59, 130, 246', accentRgb: '96, 165, 250' },
+    green: { primary: '#10b981', accent: '#34d399', primaryRgb: '16, 185, 129', accentRgb: '52, 211, 153' },
+    orange: { primary: '#f97316', accent: '#fbbf24', primaryRgb: '249, 115, 22', accentRgb: '251, 191, 36' },
+};
 // Lazy load heavy pages for better initial load time
 const Detail = lazy(() => import('./pages/Detail'));
 const Watch = lazy(() => import('./pages/Watch'));
@@ -15,6 +23,7 @@ const MangaReader = lazy(() => import('./pages/MangaReader'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 const Movies = lazy(() => import('./pages/Movies'));
 const MovieDetail = lazy(() => import('./pages/MovieDetail'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -27,6 +36,37 @@ const PageLoader = () => (
 function AppContent() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { userData } = useLocalUser();
+
+    // Theme & Background Logic
+    useEffect(() => {
+        const theme = THEMES[userData.settings.themeAccent || 'purple'];
+        const root = document.documentElement;
+        const body = document.body;
+
+        // Apply Theme Colors
+        root.style.setProperty('--miru-primary', theme.primary);
+        root.style.setProperty('--miru-accent', theme.accent);
+        root.style.setProperty('--miru-primary-rgb', theme.primaryRgb);
+        root.style.setProperty('--miru-accent-rgb', theme.accentRgb);
+
+        // Apply Base Color
+        const baseColors = {
+            black: '#0a0a0a',
+            midnight: '#0f1014',
+            slate: '#0f172a'
+        };
+        root.style.setProperty('--miru-bg', baseColors[userData.settings.baseColor || 'black']);
+
+        // Apply Background Mode
+        body.classList.remove('bg-mode-simple', 'bg-mode-glow', 'bg-mode-mesh');
+        body.classList.add(`bg-mode-${userData.settings.backgroundMode || 'glow'}`);
+
+    }, [
+        userData.settings.themeAccent,
+        userData.settings.backgroundMode,
+        userData.settings.baseColor
+    ]);
 
     // Cache prewarming: prefetch trending data during idle time
     useEffect(() => {
@@ -59,7 +99,9 @@ function AppContent() {
         if (mode === 'anime') navigate('/anime');
         if (mode === 'manga') navigate('/manga');
         if (mode === 'movies') navigate('/movies');
+        if (mode === 'movies') navigate('/movies');
         if (mode === 'profile') navigate('/profile');
+        if (mode === 'settings') navigate('/settings');
     };
 
     // Determine current view mode for Navbar highlighting
@@ -71,6 +113,7 @@ function AppContent() {
         if (path.startsWith('/movies')) return 'movies';
         if (path.startsWith('/watch')) return 'anime'; // Watch pages are anime-related
         if (path === '/profile') return 'profile';
+        if (path === '/settings') return 'settings';
         return 'home';
     };
 
@@ -96,7 +139,9 @@ function AppContent() {
                     <Route path="/anime/:id" element={<Detail />} />
                     <Route path="/watch/:id" element={<Watch />} />
                     <Route path="/movies" element={<Movies />} />
+                    <Route path="/movies" element={<Movies />} />
                     <Route path="/movies/:id" element={<MovieDetail />} />
+                    <Route path="/settings" element={<Settings />} />
                 </Routes>
             </Suspense>
         </div>

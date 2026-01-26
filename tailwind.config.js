@@ -8,11 +8,11 @@ export default {
         extend: {
             colors: {
                 miru: {
-                    bg: '#050505',
-                    surface: '#0f0f0f',
+                    bg: 'var(--miru-bg)',
+                    surface: 'var(--miru-surface)',
                     'surface-light': '#1a1a1a',
-                    primary: '#6366f1',
-                    accent: '#f472b6',
+                    primary: 'var(--miru-primary)',
+                    accent: 'var(--miru-accent)',
                     'accent-light': '#f9a8d4',
                 }
             },
