@@ -399,6 +399,24 @@ function Watch() {
         }
     };
 
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            if (e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                handleNextEpisode();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleNextEpisode]);
+
     if (loading) {
         return <WatchPageSkeleton />;
     }
