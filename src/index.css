@@ -463,3 +463,23 @@ body {
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;
 }
+
+/* Thin Scrollbar for Genre Filter */
+.thin-scrollbar::-webkit-scrollbar {
+  height: 4px;
+  /* Slightly thicker for usability */
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  /* Subtle primary color */
+  border-radius: 99px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.6);
+}

@@ -47,5 +47,13 @@ export const movieService = {
         return fetchTMDB<MovieDetail>(`/movie/${id}`, {
             append_to_response: 'credits,videos,recommendations'
         });
+    },
+
+    getByGenre: async (genreId: number, page = 1): Promise<MovieResponse> => {
+        return fetchTMDB<MovieResponse>('/discover/movie', {
+            with_genres: genreId.toString(),
+            page: page.toString(),
+            sort_by: 'popularity.desc'
+        });
     }
 };
