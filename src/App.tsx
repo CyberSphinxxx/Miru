@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Navbar, { SearchType } from './components/Navbar';
-import Home from './pages/Home';
+import Home from './pages/Home/HomePage';
 import LoadingSpinner from './components/LoadingSpinner';
 import { animeService } from './services/api';
 import { useLocalUser } from './context/UserContext';
@@ -14,16 +14,16 @@ const THEMES = {
     orange: { primary: '#f97316', accent: '#fbbf24', primaryRgb: '249, 115, 22', accentRgb: '251, 191, 36' },
 };
 // Lazy load heavy pages for better initial load time
-const Detail = lazy(() => import('./pages/Detail'));
-const Watch = lazy(() => import('./pages/Watch'));
-const Profile = lazy(() => import('./pages/Profile'));
-const MangaHome = lazy(() => import('./pages/MangaHome'));
-const MangaDetail = lazy(() => import('./pages/MangaDetail'));
-const MangaReader = lazy(() => import('./pages/MangaReader'));
+const Detail = lazy(() => import('./pages/Details/AnimeDetailPageContainer'));
+const Watch = lazy(() => import('./pages/Watch/WatchPageContainer'));
+const Profile = lazy(() => import('./pages/Profile/ProfilePage'));
+const MangaHome = lazy(() => import('./pages/Manga/MangaHomePage'));
+const MangaDetail = lazy(() => import('./pages/Details/MangaDetailPageContainer'));
+const MangaReader = lazy(() => import('./pages/Manga/MangaReaderPage'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
-const Movies = lazy(() => import('./pages/Movies'));
-const MovieDetail = lazy(() => import('./pages/MovieDetail'));
-const Settings = lazy(() => import('./pages/Settings'));
+const Movies = lazy(() => import('./pages/Movies/MoviesPage'));
+const MovieDetail = lazy(() => import('./pages/Details/MovieDetailPage'));
+const Settings = lazy(() => import('./pages/Profile/SettingsPage'));
 
 // Loading fallback component
 const PageLoader = () => (
