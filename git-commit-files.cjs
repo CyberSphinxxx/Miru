@@ -30,10 +30,11 @@ function commitFiles() {
     for (const line of lines) {
         if (!line.trim()) continue;
 
-        // git status --porcelain output:
-        // XY path/to/file
-        // We need 'path/to/file'. If it's a rename (R), it looks like 'R old -> new'
-        const parts = line.substring(3).trim().split(' -> ');
+        const match = line.match(/^.{2} (.+)$/);
+        if (!match) continue;
+        
+        const pathPart = match[1];
+        const parts = pathPart.split(' -> ');
         const filePath = parts[parts.length - 1];
 
         console.log(`\nStaging: ${filePath}`);
