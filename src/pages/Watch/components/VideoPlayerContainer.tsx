@@ -16,6 +16,7 @@ interface VideoPlayerContainerProps {
     countdown: number;
     initialTime?: number;
     onTimeUpdate?: (time: number) => void;
+    onPlayStateChange?: (isPlaying: boolean) => void;
     handleNextEpisode: () => void;
     cancelAutoNext: () => void;
     toggleAutoNext: () => void;
@@ -36,12 +37,26 @@ const VideoPlayerContainer: React.FC<VideoPlayerContainerProps> = ({
     countdown,
     initialTime,
     onTimeUpdate,
+    onPlayStateChange,
     handleNextEpisode,
     cancelAutoNext,
     toggleAutoNext,
     externalUrl,
     currentEpisode
 }) => {
+    React.useEffect(() => {
+        // Best-effort tracking for iframe embeds (no native events)
+        const isIframe = currentStream && 
+            !currentStream.url.includes('.m3u8') && 
+            !currentStream.url.includes('.mp4') && 
+            !currentStream.isHls;
+            
+        if (isIframe && onPlayStateChange) {
+            onPlayStateChange(true);
+            return () => onPlayStateChange(false);
+        }
+    }, [currentStream?.url, onPlayStateChange]);
+
     return (
         <div className="w-full bg-black relative flex-shrink-0 flex justify-center">
             <div className="w-full max-w-[1400px] aspect-video relative">
@@ -59,6 +74,7 @@ const VideoPlayerContainer: React.FC<VideoPlayerContainerProps> = ({
                                 isHls={currentStream.isHls || currentStream.url.includes('.m3u8')}
                                 initialTime={initialTime}
                                 onTimeUpdate={onTimeUpdate}
+                                onPlayStateChange={onPlayStateChange}
                                 onEnded={() => {
                                     // Trigger auto-next overlay instead of immediate play
                                     if (hasNext) {
