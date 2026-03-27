@@ -4,7 +4,7 @@ import WatchPage from './WatchPage';
 import WatchPageSkeleton from '../../components/WatchPageSkeleton';
 import { Anime, Episode, StreamLink } from '../../types';
 import { saveWatchProgress } from '../../services/watchHistoryService';
-import { animeService } from '../../services/api';
+import { animeService, findBestScraperMatch } from '../../services/api';
 import { useLocalUser } from '../../context/UserContext';
 
 function Watch() {
@@ -133,9 +133,10 @@ function Watch() {
                 console.log('[Watch] No prefetch cache, fetching from scraper');
                 if (!currentAnime) return;
                 const searchResults = await animeService.searchScraper(currentAnime.title);
+                const bestMatch = findBestScraperMatch(currentAnime, searchResults || []);
 
-                if (searchResults && searchResults.length > 0) {
-                    const session = searchResults[0].session;
+                if (bestMatch) {
+                    const session = bestMatch.session;
                     setScraperSession(session);
                     sessionCache.current.set(Number(id), session);
 
