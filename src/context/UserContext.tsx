@@ -3,343 +3,12 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { clearCache } from '../services/api/cacheUtils';
-import { Anime } from '../types';
-import { Manga } from '../types/manga';
-import { Movie } from '../types/tmdb';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface HistoryItem {
-    animeId: number;
-    episodeId: string;
-    timestamp: number; // in seconds
-    lastWatched: string; // ISO date string
-}
-
-// Anime Library Types
-export type LibraryStatus = 'watching' | 'completed' | 'plan_to_watch' | 'on_hold' | 'dropped';
-
-export interface LibraryEntry {
-    anime: Anime;
-    addedAt: string;
-}
-
-export interface Library {
-    watching: LibraryEntry[];
-    completed: LibraryEntry[];
-    plan_to_watch: LibraryEntry[];
-    on_hold: LibraryEntry[];
-    dropped: LibraryEntry[];
-}
-
-// Manga Library Types
-export type MangaLibraryStatus = 'reading' | 'completed' | 'plan_to_read' | 'on_hold' | 'dropped';
-
-export interface MangaLibraryEntry {
-    manga: Manga;
-    addedAt: string;
-}
-
-export interface MangaLibrary {
-    reading: MangaLibraryEntry[];
-    completed: MangaLibraryEntry[];
-    plan_to_read: MangaLibraryEntry[];
-    on_hold: MangaLibraryEntry[];
-    dropped: MangaLibraryEntry[];
-}
-
-// Movie Library Types
-export type MovieLibraryStatus = 'watched' | 'plan_to_watch' | 'on_hold' | 'dropped';
-
-export interface MovieLibraryEntry {
-    movie: Movie;
-    addedAt: string;
-}
-
-export interface MovieLibrary {
-    watched: MovieLibraryEntry[];
-    plan_to_watch: MovieLibraryEntry[];
-    on_hold: MovieLibraryEntry[];
-    dropped: MovieLibraryEntry[];
-}
-
-export interface AppSettings {
-    _version: number;
-    autoPlayNext: boolean;
-    defaultQuality: '1080p' | '720p' | '480p' | 'auto';
-    // Appearance
-    themeAccent: 'purple' | 'blue' | 'green' | 'orange';
-    backgroundMode: 'simple' | 'glow' | 'mesh';
-    baseColor: 'black' | 'midnight' | 'slate';
-    showNSFW: boolean;
-    // Notifications
-    notifications: {
-        airing: boolean;
-        completed: boolean;
-        news: boolean;
-    };
-}
-
-export interface UserData {
-    history: HistoryItem[];
-    library: Library;
-    mangaLibrary: MangaLibrary;
-    movieLibrary: MovieLibrary;
-    settings: AppSettings;
-}
-
-interface UserContextType {
-    userData: UserData;
-    loading: boolean;
-    // Anime
-    updateHistory: (animeId: number, episodeId: string, timestamp: number) => void;
-    updateStatus: (anime: Anime, newStatus: LibraryStatus) => void;
-    getAnimeStatus: (animeId: number) => LibraryStatus | null;
-    removeFromLibrary: (animeId: number) => void;
-    // Manga
-    updateMangaStatus: (manga: Manga, newStatus: MangaLibraryStatus) => void;
-    getMangaStatus: (mangaId: number) => MangaLibraryStatus | null;
-    removeFromMangaLibrary: (mangaId: number) => void;
-    // Movie
-    updateMovieStatus: (movie: Movie, newStatus: MovieLibraryStatus) => void;
-    getMovieStatus: (movieId: number) => MovieLibraryStatus | null;
-    removeFromMovieLibrary: (movieId: number) => void;
-    updateSettings: (newSettings: Partial<AppSettings>) => void;
-    // Data Management
-    getStorageUsage: () => number;
-    clearAppCache: () => void;
-    exportData: () => void;
-    importData: (jsonData: string) => Promise<boolean>;
-}
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const LOCAL_STORAGE_KEY = 'miru_local_user';
-
-const INITIAL_DATA: UserData = {
-    history: [],
-    library: {
-        watching: [],
-        completed: [],
-        plan_to_watch: [],
-        on_hold: [],
-        dropped: [],
-    },
-    mangaLibrary: {
-        reading: [],
-        completed: [],
-        plan_to_read: [],
-        on_hold: [],
-        dropped: [],
-    },
-    movieLibrary: {
-        watched: [],
-        plan_to_watch: [],
-        on_hold: [],
-        dropped: [],
-    },
-    settings: {
-        _version: 1,
-        autoPlayNext: true,
-        defaultQuality: 'auto',
-        themeAccent: 'purple',
-        backgroundMode: 'glow',
-        baseColor: 'black',
-        showNSFW: false,
-        notifications: {
-            airing: true,
-            completed: true,
-            news: true,
-        }
-    }
-};
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-const getLocalData = (): UserData => {
-    try {
-        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!stored) return INITIAL_DATA;
-
-        const parsed = JSON.parse(stored);
-        return {
-            ...INITIAL_DATA,
-            ...parsed,
-            settings: {
-                ...INITIAL_DATA.settings,
-                ...(parsed.settings || {})
-            }
-        };
-    } catch (error) {
-        console.error('Failed to parse local user data:', error);
-        return INITIAL_DATA;
-    }
-};
-
-const setLocalData = (data: UserData) => {
-    try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-    } catch (error) {
-        console.error('Failed to save local user data:', error);
-    }
-};
-
-const mergeUserData = (local: UserData, cloud: UserData): UserData => {
-    // Merge history (keep unique by animeId, prefer most recent)
-    const historyMap = new Map<number, HistoryItem>();
-    [...cloud.history, ...local.history].forEach(item => {
-        const existing = historyMap.get(item.animeId);
-        if (!existing || new Date(item.lastWatched) > new Date(existing.lastWatched)) {
-            historyMap.set(item.animeId, item);
-        }
-    });
-
-    // Merge library (keep unique by id, prefer cloud)
-    const mergedLibrary: Library = {
-        watching: [],
-        completed: [],
-        plan_to_watch: [],
-        on_hold: [],
-        dropped: [],
-    };
-
-    const seenIds = new Set<number>();
-
-    // Process cloud library first (priority)
-    (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
-        cloud.library[status].forEach(entry => {
-            if (!seenIds.has(entry.anime.id)) {
-                mergedLibrary[status].push(entry);
-                seenIds.add(entry.anime.id);
-            }
-        });
-    });
-
-    // Add local items not in cloud
-    (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
-        local.library[status].forEach(entry => {
-            if (!seenIds.has(entry.anime.id)) {
-                mergedLibrary[status].push(entry);
-                seenIds.add(entry.anime.id);
-            }
-        });
-    });
-
-    // Also merge manga library in same pattern
-    const mergedMangaLibrary: MangaLibrary = {
-        reading: [],
-        completed: [],
-        plan_to_read: [],
-        on_hold: [],
-        dropped: [],
-    };
-
-    const seenMangaIds = new Set<number>();
-
-    // Process cloud manga library first
-    if (cloud.mangaLibrary) {
-        (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-            (cloud.mangaLibrary[status] || []).forEach(entry => {
-                if (!seenMangaIds.has(entry.manga.id)) {
-                    mergedMangaLibrary[status].push(entry);
-                    seenMangaIds.add(entry.manga.id);
-                }
-            });
-        });
-    }
-
-    // Add local manga items not in cloud
-    if (local.mangaLibrary) {
-        (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-            (local.mangaLibrary[status] || []).forEach(entry => {
-                if (!seenMangaIds.has(entry.manga.id)) {
-                    mergedMangaLibrary[status].push(entry);
-                    seenMangaIds.add(entry.manga.id);
-                }
-            });
-        });
-    }
-
-    // Also merge movie library
-    const mergedMovieLibrary: MovieLibrary = {
-        watched: [],
-        plan_to_watch: [],
-        on_hold: [],
-        dropped: [],
-    };
-
-    const seenMovieIds = new Set<number>();
-
-    // Process cloud movie library first
-    if (cloud.movieLibrary) {
-        (Object.keys(mergedMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
-            (cloud.movieLibrary[status] || []).forEach(entry => {
-                if (!seenMovieIds.has(entry.movie.id)) {
-                    mergedMovieLibrary[status].push(entry);
-                    seenMovieIds.add(entry.movie.id);
-                }
-            });
-        });
-    }
-
-    // Add local movie items not in cloud
-    if (local.movieLibrary) {
-        (Object.keys(mergedMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
-            (local.movieLibrary[status] || []).forEach(entry => {
-                if (!seenMovieIds.has(entry.movie.id)) {
-                    mergedMovieLibrary[status].push(entry);
-                    seenMovieIds.add(entry.movie.id);
-                }
-            });
-        });
-    }
-
-    return {
-        history: Array.from(historyMap.values()),
-        library: mergedLibrary,
-        mangaLibrary: mergedMangaLibrary,
-        movieLibrary: mergedMovieLibrary,
-        settings: {
-            ...INITIAL_DATA.settings, // Start with defaults
-            ...(local.settings || {}), // Apply local overrides
-            ...(cloud.settings || {}), // Apply cloud overrides (highest priority)
-        }
-    };
-};
-
-// ============================================================================
-// Context
-// ============================================================================
-
-// Helper to recursively remove undefined values or convert them to null for Firestore
-const sanitizeForFirestore = (obj: any): any => {
-    if (obj === undefined) return null;
-    if (obj === null || typeof obj !== 'object') return obj;
-
-    if (Array.isArray(obj)) {
-        return obj.map(sanitizeForFirestore);
-    }
-
-    const result: any = {};
-    for (const key in obj) {
-        const value = obj[key];
-        if (value !== undefined) {
-            result[key] = sanitizeForFirestore(value);
-        } else {
-            // Option 1: Convert undefined to null
-            // result[key] = null;
-            // Option 2: Delete the key (preferred for cleaner Firestore docs)
-            // Do nothing, key is skipped
-        }
-    }
-    return result;
-};
+export * from '../types/user';
+import { UserData, UserContextType, AppSettings } from '../types/user';
+import { INITIAL_DATA, LOCAL_STORAGE_KEY, getLocalData, setLocalData, mergeUserData, sanitizeForFirestore } from './userUtils';
+import { useAnimeLibrary } from './hooks/useAnimeLibrary';
+import { useMangaLibrary } from './hooks/useMangaLibrary';
+import { useMovieLibrary } from './hooks/useMovieLibrary';
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
@@ -348,17 +17,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userData, setUserData] = useState<UserData>(INITIAL_DATA);
     const [loading, setLoading] = useState(true);
 
-    // Debounced Firebase write refs
     const debouncedSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingDataRef = useRef<UserData | null>(null);
 
-    // Load user data based on auth state
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
 
             if (currentUser) {
-                // Authenticated: Load from Firestore
                 try {
                     const userDocRef = doc(db, 'users', currentUser.uid);
                     const userDoc = await getDoc(userDocRef);
@@ -367,18 +33,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const cloudData = userDoc.data() as UserData;
                         const localData = getLocalData();
 
-                        // Check if local data has content to merge
                         const hasLocalData = localData.history.length > 0 ||
                             Object.values(localData.library).some(list => list.length > 0);
 
                         if (hasLocalData) {
-                            // Merge local data with cloud data
                             const mergedData = mergeUserData(localData, cloudData);
                             await setDoc(userDocRef, sanitizeForFirestore(mergedData));
                             setUserData(mergedData);
-                            // Clear local storage after successful merge
                             localStorage.removeItem(LOCAL_STORAGE_KEY);
-                            console.log('Local data merged with cloud account');
                         } else {
                             setUserData({
                                 ...INITIAL_DATA,
@@ -390,21 +52,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             });
                         }
                     } else {
-                        // New user: Check for local data to upload
                         const localData = getLocalData();
                         await setDoc(userDocRef, sanitizeForFirestore(localData));
                         setUserData(localData);
-                        // Clear local storage after upload
                         localStorage.removeItem(LOCAL_STORAGE_KEY);
-                        console.log('Local data uploaded to new cloud account');
                     }
                 } catch (error) {
                     console.error('Error loading user data from Firestore:', error);
-                    // Fallback to local data
                     setUserData(getLocalData());
                 }
             } else {
-                // Guest Mode: Load from localStorage
                 setUserData(getLocalData());
             }
 
@@ -414,13 +71,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadData();
     }, [currentUser]);
 
-    // Save data helper with debounced Firebase writes
-    const saveData = useCallback(async (newData: UserData) => {
-        // Immediately update local state for responsive UI
-        setUserData(newData);
-
+    const persistData = useCallback(async (newData: UserData) => {
         if (currentUser) {
-            // Debounce Firebase writes to batch rapid updates
             pendingDataRef.current = newData;
             if (debouncedSaveRef.current) {
                 clearTimeout(debouncedSaveRef.current);
@@ -432,290 +84,31 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     await setDoc(userDocRef, sanitizeForFirestore(pendingDataRef.current));
                 } catch (error) {
                     console.error('Error saving to Firestore:', error);
-                    // Fallback: save locally
                     setLocalData(pendingDataRef.current!);
                 }
-            }, 500); // 500ms debounce delay
+            }, 500);
         } else {
-            // Guest Mode: Save to localStorage immediately
             setLocalData(newData);
         }
     }, [currentUser]);
 
-    /**
-     * Updates watch history for an anime/episode.
-     * Automatically moves 'plan_to_watch' anime to 'watching'.
-     */
-    const updateHistory = useCallback((animeId: number, episodeId: string, timestamp: number) => {
-        setUserData(prev => {
-            const newHistory = [...prev.history];
-            const existingIndex = newHistory.findIndex(h => h.animeId === animeId);
+    // Helper to update state and persist
+    const updateUserData = useCallback((newData: UserData) => {
+        setUserData(newData);
+        persistData(newData);
+    }, [persistData]);
 
-            const historyItem: HistoryItem = {
-                animeId,
-                episodeId,
-                timestamp,
-                lastWatched: new Date().toISOString(),
-            };
+    // Library Hooks
+    const animeControls = useAnimeLibrary(userData, updateUserData);
+    const mangaControls = useMangaLibrary(userData, updateUserData);
+    const movieControls = useMovieLibrary(userData, updateUserData);
 
-            if (existingIndex >= 0) {
-                newHistory[existingIndex] = historyItem;
-            } else {
-                newHistory.push(historyItem);
-            }
-
-            // Check if anime is in 'plan_to_watch' and move to 'watching'
-            let newLibrary = { ...prev.library };
-            const planToWatchIndex = newLibrary.plan_to_watch.findIndex(e => e.anime.id === animeId);
-
-            if (planToWatchIndex >= 0) {
-                const entry = newLibrary.plan_to_watch[planToWatchIndex];
-                const newPlanToWatch = [...newLibrary.plan_to_watch];
-                newPlanToWatch.splice(planToWatchIndex, 1);
-
-                const newWatching = [...newLibrary.watching];
-                if (!newWatching.find(e => e.anime.id === animeId)) {
-                    newWatching.push({ ...entry, addedAt: new Date().toISOString() });
-                }
-
-                newLibrary = {
-                    ...newLibrary,
-                    plan_to_watch: newPlanToWatch,
-                    watching: newWatching,
-                };
-            }
-
-            const newData = {
-                ...prev,
-                history: newHistory,
-                library: newLibrary
-            };
-
-            // Save asynchronously
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Adds or moves an anime to a specific list.
-     * Ensures exclusivity (removes from old list first).
-     */
-    const updateStatus = useCallback((anime: Anime, newStatus: LibraryStatus) => {
-        setUserData(prev => {
-            const newLibrary = { ...prev.library };
-            const animeId = anime.id;
-
-            // Remove from ALL lists
-            (Object.keys(newLibrary) as LibraryStatus[]).forEach(status => {
-                newLibrary[status] = newLibrary[status].filter(entry => entry.anime.id !== animeId);
-            });
-
-            // Add to the new list
-            newLibrary[newStatus].push({
-                anime,
-                addedAt: new Date().toISOString()
-            });
-
-            const newData = {
-                ...prev,
-                library: newLibrary
-            };
-
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Removes an anime from the library entirely.
-     */
-    const removeFromLibrary = useCallback((animeId: number) => {
-        setUserData(prev => {
-            const newLibrary = { ...prev.library };
-
-            (Object.keys(newLibrary) as LibraryStatus[]).forEach(status => {
-                newLibrary[status] = newLibrary[status].filter(entry => entry.anime.id !== animeId);
-            });
-
-            const newData = {
-                ...prev,
-                library: newLibrary
-            };
-
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Returns the current status of an anime.
-     */
-    const getAnimeStatus = useCallback((animeId: number): LibraryStatus | null => {
-        const statuses = Object.keys(userData.library) as LibraryStatus[];
-
-        for (const status of statuses) {
-            if (userData.library[status].some(entry => entry.anime.id === animeId)) {
-                return status;
-            }
-        }
-
-        return null;
-    }, [userData.library]);
-
-    // ========== MANGA LIBRARY FUNCTIONS ==========
-
-    /**
-     * Adds or moves a manga to a specific list.
-     */
-    const updateMangaStatus = useCallback((manga: Manga, newStatus: MangaLibraryStatus) => {
-        setUserData(prev => {
-            const newMangaLibrary = { ...(prev.mangaLibrary || INITIAL_DATA.mangaLibrary) };
-            const mangaId = manga.id;
-
-            // Remove from ALL lists
-            (Object.keys(newMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.id !== mangaId);
-            });
-
-            // Add to the new list
-            newMangaLibrary[newStatus].push({
-                manga,
-                addedAt: new Date().toISOString()
-            });
-
-            const newData = {
-                ...prev,
-                mangaLibrary: newMangaLibrary
-            };
-
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Removes a manga from the library entirely.
-     */
-    const removeFromMangaLibrary = useCallback((mangaId: number) => {
-        setUserData(prev => {
-            const newMangaLibrary = { ...(prev.mangaLibrary || INITIAL_DATA.mangaLibrary) };
-
-            (Object.keys(newMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-                newMangaLibrary[status] = (newMangaLibrary[status] || []).filter(entry => entry.manga.id !== mangaId);
-            });
-
-            const newData = {
-                ...prev,
-                mangaLibrary: newMangaLibrary
-            };
-
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Returns the current status of a manga.
-     */
-    const getMangaStatus = useCallback((mangaId: number): MangaLibraryStatus | null => {
-        const mangaLibrary = userData.mangaLibrary || INITIAL_DATA.mangaLibrary;
-        const statuses = Object.keys(mangaLibrary) as MangaLibraryStatus[];
-
-        for (const status of statuses) {
-            if ((mangaLibrary[status] || []).some(entry => entry.manga.id === mangaId)) {
-                return status;
-            }
-        }
-
-        return null;
-    }, [userData.mangaLibrary]);
-
-    // ========== MOVIE LIBRARY FUNCTIONS ==========
-
-    /**
-     * Adds or moves a movie to a specific list.
-     */
-    const updateMovieStatus = useCallback((movie: Movie, newStatus: MovieLibraryStatus) => {
-        setUserData(prev => {
-            const newMovieLibrary = { ...(prev.movieLibrary || INITIAL_DATA.movieLibrary) };
-            const movieId = movie.id;
-
-            // Remove from ALL lists
-            (Object.keys(newMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
-                newMovieLibrary[status] = (newMovieLibrary[status] || []).filter(entry => entry.movie.id !== movieId);
-            });
-
-            // Add to the new list
-            newMovieLibrary[newStatus].push({
-                movie,
-                addedAt: new Date().toISOString()
-            });
-
-            const newData = {
-                ...prev,
-                movieLibrary: newMovieLibrary
-            };
-
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Removes a movie from the library entirely.
-     */
-    const removeFromMovieLibrary = useCallback((movieId: number) => {
-        setUserData(prev => {
-            const newMovieLibrary = { ...(prev.movieLibrary || INITIAL_DATA.movieLibrary) };
-
-            (Object.keys(newMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
-                newMovieLibrary[status] = (newMovieLibrary[status] || []).filter(entry => entry.movie.id !== movieId);
-            });
-
-            const newData = {
-                ...prev,
-                movieLibrary: newMovieLibrary
-            };
-
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    /**
-     * Returns the current status of a movie.
-     */
-    const getMovieStatus = useCallback((movieId: number): MovieLibraryStatus | null => {
-        const movieLibrary = userData.movieLibrary || INITIAL_DATA.movieLibrary;
-        const statuses = Object.keys(movieLibrary) as MovieLibraryStatus[];
-
-        for (const status of statuses) {
-            if ((movieLibrary[status] || []).some(entry => entry.movie.id === movieId)) {
-                return status;
-            }
-        }
-
-        return null;
-    }, [userData.movieLibrary]);
-
-
-
-    /**
-     * Updates user settings.
-     */
+    // Settings & Utils
     const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
-        setUserData(prev => {
-            const updatedSettings = { ...prev.settings, ...newSettings };
-            const newData = { ...prev, settings: updatedSettings };
-            saveData(newData);
-            return newData;
-        });
-    }, [saveData]);
-
-    // ============================================================================
-    // Data Management
-    // ============================================================================
+        const updatedSettings = { ...userData.settings, ...newSettings };
+        const newData = { ...userData, settings: updatedSettings };
+        updateUserData(newData);
+    }, [userData, updateUserData]);
 
     const getStorageUsage = useCallback(() => {
         let total = 0;
@@ -747,37 +140,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const importData = useCallback(async (jsonString: string): Promise<boolean> => {
         try {
             const parsed = JSON.parse(jsonString);
-            // Basic validation
             if (!parsed.history || !parsed.library || !parsed.settings) {
                 console.error("Invalid backup file format");
                 return false;
             }
 
-            // Merge or overwrite logic
-            // We'll trust the backup and overwrite local state, then save
             const newData = { ...INITIAL_DATA, ...parsed };
-            await saveData(newData);
+            updateUserData(newData);
             return true;
         } catch (e) {
             console.error("Failed to import data:", e);
             return false;
         }
-    }, [saveData]);
+    }, [updateUserData]);
 
     return (
         <UserContext.Provider value={{
             userData,
             loading,
-            updateHistory,
-            updateStatus,
-            getAnimeStatus,
-            removeFromLibrary,
-            updateMangaStatus,
-            getMangaStatus,
-            removeFromMangaLibrary,
-            updateMovieStatus,
-            getMovieStatus,
-            removeFromMovieLibrary,
+            ...animeControls,
+            ...mangaControls,
+            ...movieControls,
             updateSettings,
             getStorageUsage,
             clearAppCache,
@@ -789,10 +172,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 };
 
-// ============================================================================
-// Hook
-// ============================================================================
-
 export const useLocalUser = () => {
     const context = useContext(UserContext);
     if (context === undefined) {
@@ -800,4 +179,3 @@ export const useLocalUser = () => {
     }
     return context;
 };
-
