@@ -1,5 +1,3 @@
-import React from 'react';
-
 const cls = "w-6 h-6";
 
 // Anime icons
