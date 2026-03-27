@@ -11,7 +11,7 @@ function Watch() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const { updateStatus, getAnimeStatus, userData, updateHistory, loading: userLoading } = useLocalUser();
+    const { updateStatus, getAnimeStatus, userData, updateHistory, addWatchTime, loading: userLoading } = useLocalUser();
 
     // State
     const [anime, setAnime] = useState<Anime | null>(location.state?.anime || null);
@@ -32,10 +32,16 @@ function Watch() {
     const [selectedStreamIndex, setSelectedStreamIndex] = useState<number>(0);
     const [isAutoQuality, setIsAutoQuality] = useState(false); // Default to Manual (Highest)
 
-    // 5-minute timer ref for auto-adding to Watching
-    const watchTimerRef = useRef<NodeJS.Timeout | null>(null);
     // Timer for throttling history updates
     const lastSaveTimeRef = useRef<number>(0);
+
+    // Real watch time tracking
+    const isPlayingRef = useRef<boolean>(false);
+    const playStartTimeRef = useRef<number>(0);
+    const accumulatedPlayTimeRef = useRef<number>(0); // seconds accumulated since last flush
+    const watchTimeFlushIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    // Cumulative play-seconds for 5-min auto-add (resets per watch page mount)
+    const cumulativePlaySecondsRef = useRef<number>(0);
 
     // Cache refs
     const sessionCache = useRef(new Map<number, string>());
@@ -66,7 +72,7 @@ function Watch() {
         );
     }, [anime, userData.history]);
 
-    // Handle Time Update (Throttled)
+    // Handle Time Update (Throttled) — Bug 3: only called when playing (guard in VideoPlayer)
     const handleTimeUpdate = useCallback((time: number) => {
         if (!anime || !currentEpisode) return;
 
@@ -77,6 +83,53 @@ function Watch() {
             lastSaveTimeRef.current = now;
         }
     }, [anime, currentEpisode, updateHistory]);
+
+    // --- Real watch time tracking ---
+    // Flush accumulated play time to UserContext
+    const flushPlayTime = useCallback(() => {
+        if (isPlayingRef.current) {
+            const elapsed = (Date.now() - playStartTimeRef.current) / 1000;
+            accumulatedPlayTimeRef.current += elapsed;
+            cumulativePlaySecondsRef.current += elapsed;
+            playStartTimeRef.current = Date.now(); // reset for next interval
+        }
+
+        const toFlush = accumulatedPlayTimeRef.current;
+        if (toFlush > 0) {
+            addWatchTime(Math.round(toFlush));
+            accumulatedPlayTimeRef.current = 0;
+        }
+    }, [addWatchTime]);
+
+    // Periodic flush every 10 seconds while on the page
+    useEffect(() => {
+        watchTimeFlushIntervalRef.current = setInterval(() => {
+            flushPlayTime();
+        }, 10_000);
+
+        return () => {
+            // Flush remaining time on unmount
+            flushPlayTime();
+            if (watchTimeFlushIntervalRef.current) {
+                clearInterval(watchTimeFlushIntervalRef.current);
+            }
+        };
+    }, [flushPlayTime]);
+
+    // Play state change handler — starts/stops the play-time clock
+    const handlePlayStateChange = useCallback((isPlaying: boolean) => {
+        if (isPlaying && !isPlayingRef.current) {
+            // Started playing
+            isPlayingRef.current = true;
+            playStartTimeRef.current = Date.now();
+        } else if (!isPlaying && isPlayingRef.current) {
+            // Paused/buffering — accumulate time since last play start
+            const elapsed = (Date.now() - playStartTimeRef.current) / 1000;
+            accumulatedPlayTimeRef.current += elapsed;
+            cumulativePlaySecondsRef.current += elapsed;
+            isPlayingRef.current = false;
+        }
+    }, []);
 
     // 1. Fetch Anime Info and Episodes
     useEffect(() => {
@@ -183,39 +236,29 @@ function Watch() {
         }
     }, [episodes, currentEpisode, streamLoading, userLoading, userData.history, anime]);
 
-    // 5-minute timer to auto-add to "Watching" list
+    // Bug 2 fix: 5-minute auto-add to "Watching" — only counts REAL play time
     useEffect(() => {
-        // Clear any existing timer
-        if (watchTimerRef.current) {
-            clearTimeout(watchTimerRef.current);
-        }
-
-        // Only start timer if we have anime data
+        // Only check if we have anime data and haven't added yet
         if (!anime) return;
 
         // Check if anime is already in any library list
         const status = getAnimeStatus(anime.id || 0);
         if (status) {
-            // Already in library, don't auto-add
             setAddedToWatching(true);
             return;
         }
 
-        // Start 5-minute timer
-        watchTimerRef.current = setTimeout(() => {
-            if (anime && !addedToWatching) {
-                console.log('[Watch] Auto-adding to Watching after 5 minutes:', anime.title);
+        // Poll cumulative real play-seconds every 10s
+        const checkInterval = setInterval(() => {
+            if (cumulativePlaySecondsRef.current >= 300 && anime && !addedToWatching) {
+                console.log('[Watch] Auto-adding to Watching after 5 minutes of real playback:', anime.title);
                 updateStatus(anime, 'watching');
                 setAddedToWatching(true);
+                clearInterval(checkInterval);
             }
-        }, 5 * 60 * 1000); // 5 minutes
+        }, 10_000);
 
-        // Cleanup on unmount or when anime changes
-        return () => {
-            if (watchTimerRef.current) {
-                clearTimeout(watchTimerRef.current);
-            }
-        };
+        return () => clearInterval(checkInterval);
     }, [anime, addedToWatching, getAnimeStatus, updateStatus]);
 
     const getMappedQuality = (q: string): string => {
@@ -235,8 +278,10 @@ function Watch() {
         setExternalUrl(null);
         setSelectedStreamIndex(0);
         setIsAutoQuality(false); // Reset to manual/highest
-        // Reset save time when loading new episode
+        // Reset save time and play tracking when loading new episode
         lastSaveTimeRef.current = 0;
+        isPlayingRef.current = false;
+        accumulatedPlayTimeRef.current = 0;
 
         // Clear any pending prefetch timer
         if (prefetchTimerRef.current) {
@@ -449,6 +494,7 @@ function Watch() {
             externalUrl={externalUrl}
             initialTime={initialTime}
             onTimeUpdate={handleTimeUpdate}
+            onPlayStateChange={handlePlayStateChange}
             watchedEpisodes={watchedEpisodes}
         />
     );
