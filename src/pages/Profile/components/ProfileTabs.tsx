@@ -1,5 +1,6 @@
 import React from 'react';
 import { MediaMode, AnimeTab, MangaTab, MovieTab } from '../hooks/useProfileData';
+import { getMediaColors } from '../utils/mediaColors';
 
 interface ProfileTabsProps {
     mediaMode: MediaMode;
@@ -26,8 +27,10 @@ const ProfileTabs: React.FC<ProfileTabsProps> = ({
     setMangaTab,
     setMovieTab
 }) => {
+    const colors = getMediaColors(mediaMode);
+
     return (
-        <div className="sticky top-20 z-20 bg-miru-bg/80 backdrop-blur-lg border-b border-white/5 -mx-6 px-6 mb-8 flex items-center justify-between">
+        <div className="sticky top-16 z-20 bg-miru-bg/80 backdrop-blur-lg border-b border-white/5 mb-8 flex items-center justify-between px-2">
             <div className="flex gap-6 overflow-x-auto pb-px">
                 {currentTabs.map(tab => (
                     <button
@@ -44,19 +47,13 @@ const ProfileTabs: React.FC<ProfileTabsProps> = ({
                         {tab.label}
                         <span className={`text-xs px-1.5 py-0.5 rounded-md ${
                             activeTab === tab.label
-                                ? mediaMode === 'anime' ? 'bg-purple-500/20 text-purple-400' :
-                                    mediaMode === 'manga' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        'bg-blue-500/20 text-blue-400'
+                                ? colors.tabBadgeActive
                                 : 'bg-white/5 text-gray-500'
                         }`}>
                             {tab.count}
                         </span>
                         {activeTab === tab.label && (
-                            <span className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${
-                                mediaMode === 'anime' ? 'bg-purple-500' :
-                                mediaMode === 'manga' ? 'bg-emerald-500' :
-                                    'bg-blue-500'
-                                }`}></span>
+                            <span className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all ${colors.tabUnderline}`}></span>
                         )}
                     </button>
                 ))}
