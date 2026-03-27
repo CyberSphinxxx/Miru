@@ -7,6 +7,7 @@ interface VideoPlayerProps {
     poster?: string;
     initialTime?: number;
     onTimeUpdate?: (currentTime: number) => void;
+    onPlayStateChange?: (isPlaying: boolean) => void;
     onEnded?: () => void;
     autoPlay?: boolean;
     className?: string;
@@ -18,6 +19,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     poster,
     initialTime = 0,
     onTimeUpdate,
+    onPlayStateChange,
     onEnded,
     autoPlay = true,
     className = '',
@@ -103,21 +105,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         };
     }, [src, isHls, autoPlay]);
 
-    // Handle Time Update and Seek
+    // Handle Time Update, Seek, Play/Pause state, and Ended
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
+        // Bug 3 fix: only fire onTimeUpdate when actively playing (not seeking/paused)
         const handleTimeUpdate = () => {
-            if (onTimeUpdate) {
+            if (onTimeUpdate && !video.paused && !video.seeking) {
                 onTimeUpdate(video.currentTime);
             }
         };
 
         const checkAndSeek = () => {
             if (initialTime > 0 && !hasSeeked) {
-                // Ensure we don't seek if we are already close (e.g. due to user interaction)
-                // But generally for initial load, strict seek is fine
                 video.currentTime = initialTime;
                 setHasSeeked(true);
             }
@@ -129,14 +130,36 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         const handleEnded = () => {
             if (onEnded) onEnded();
-        }
+        };
+
+        // Play/pause state change callbacks for real watch time tracking
+        const handlePlay = () => {
+            onPlayStateChange?.(true);
+        };
+
+        const handlePause = () => {
+            onPlayStateChange?.(false);
+        };
+
+        // Waiting = buffering, should count as "not playing"
+        const handleWaiting = () => {
+            onPlayStateChange?.(false);
+        };
+
+        const handlePlaying = () => {
+            onPlayStateChange?.(true);
+        };
 
         video.addEventListener('timeupdate', handleTimeUpdate);
         video.addEventListener('loadedmetadata', handleLoadedMetadata);
         video.addEventListener('ended', handleEnded);
+        video.addEventListener('play', handlePlay);
+        video.addEventListener('pause', handlePause);
+        video.addEventListener('waiting', handleWaiting);
+        video.addEventListener('playing', handlePlaying);
 
-        // Check immediately in case metadata is already loaded (e.g. late initialTime prop)
-        if (video.readyState >= 1) { // HAVE_METADATA
+        // Check immediately in case metadata is already loaded
+        if (video.readyState >= 1) {
             checkAndSeek();
         }
 
@@ -144,8 +167,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             video.removeEventListener('timeupdate', handleTimeUpdate);
             video.removeEventListener('loadedmetadata', handleLoadedMetadata);
             video.removeEventListener('ended', handleEnded);
+            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('pause', handlePause);
+            video.removeEventListener('waiting', handleWaiting);
+            video.removeEventListener('playing', handlePlaying);
         };
-    }, [onTimeUpdate, initialTime, hasSeeked, onEnded]);
+    }, [onTimeUpdate, onPlayStateChange, initialTime, hasSeeked, onEnded]);
 
     return (
         <div className={`relative w-full h-full bg-black ${className}`}>
