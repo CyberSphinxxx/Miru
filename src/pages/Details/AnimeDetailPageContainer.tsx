@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AnimeDetailPage from './AnimeDetailPage';
 import DetailPageSkeleton from '../../components/DetailPageSkeleton';
-import { animeService } from '../../services/api';
+import { animeService, findBestScraperMatch } from '../../services/api';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../../types';
 
 function Detail() {
@@ -113,7 +113,7 @@ function Detail() {
                     // Start loading scraper data so it's ready when user clicks Watch
                     if (!scraperFetchStarted.current) {
                         scraperFetchStarted.current = true;
-                        prefetchWatchData(animeData.title, Number(id));
+                        prefetchWatchData(animeData);
                     }
 
                 } else {
@@ -133,14 +133,17 @@ function Detail() {
     }, [id]);
 
     // Background prefetch function - stores data in sessionStorage for Watch page
-    const prefetchWatchData = async (title: string, animeId: number) => {
+    const prefetchWatchData = async (anime: Anime) => {
         try {
+            const title = anime.title_english || anime.title_romaji || anime.title;
             console.log('[Prefetch] Starting background prefetch for:', title);
 
             // Search for anime on scraper
             const searchRes = await animeService.searchScraper(title);
-            if (searchRes && searchRes.length > 0) {
-                const session = searchRes[0].session;
+            const bestMatch = findBestScraperMatch(anime, searchRes || []);
+
+            if (bestMatch) {
+                const session = bestMatch.session;
 
                 // Get episodes
                 const epsData = await animeService.getEpisodes(session);
@@ -158,8 +161,8 @@ function Detail() {
                     episodes,
                     timestamp: Date.now()
                 };
-                sessionStorage.setItem(`watch_prefetch_${animeId}`, JSON.stringify(cacheData));
-                console.log('[Prefetch] Cached', episodes.length, 'episodes for anime', animeId);
+                sessionStorage.setItem(`watch_prefetch_${anime.id}`, JSON.stringify(cacheData));
+                console.log('[Prefetch] Cached', episodes.length, 'episodes for anime', anime.id);
             }
         } catch (e) {
             // Prefetch failed silently - Watch page will fetch normally
