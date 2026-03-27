@@ -22,6 +22,7 @@ interface WatchPageProps {
     externalUrl?: string | null;
     initialTime?: number;
     onTimeUpdate?: (time: number) => void;
+    onPlayStateChange?: (isPlaying: boolean) => void;
     watchedEpisodes?: Set<string>;
 }
 
@@ -41,6 +42,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
     externalUrl,
     initialTime,
     onTimeUpdate,
+    onPlayStateChange,
     onNextEpisode,
     watchedEpisodes = new Set(),
 }) => {
@@ -220,6 +222,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
                             countdown={countdown}
                             initialTime={initialTime}
                             onTimeUpdate={onTimeUpdate}
+                            onPlayStateChange={onPlayStateChange}
                             handleNextEpisode={handleNextEpisode}
                             cancelAutoNext={cancelAutoNext}
                             toggleAutoNext={toggleAutoNext}
