@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import VideoModal from '../../components/VideoModal';
 import StatusButton from '../../components/StatusButton';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation, Episode } from '../../types';
-import { animeService } from '../../services/api';
+import { animeService, findBestScraperMatch } from '../../services/api';
 
 interface AnimeDetailPageProps {
     anime: Anime;
@@ -122,9 +122,10 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                 // Fetch from scraper
                 const searchTitle = anime.title_english || anime.title_romaji || anime.title;
                 const searchRes = await animeService.searchScraper(searchTitle);
+                const bestMatch = findBestScraperMatch(anime, searchRes || []);
 
-                if (searchRes && searchRes.length > 0) {
-                    const epsData = await animeService.getEpisodes(searchRes[0].session);
+                if (bestMatch) {
+                    const epsData = await animeService.getEpisodes(bestMatch.session);
                     const mappedEpisodes = (epsData.episodes || []).map((ep: any) => ({
                         id: ep.session,
                         session: ep.session,
@@ -136,7 +137,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
 
                     // Cache for later
                     sessionStorage.setItem(prefetchKey, JSON.stringify({
-                        session: searchRes[0].session,
+                        session: bestMatch.session,
                         episodes: mappedEpisodes,
                         timestamp: Date.now()
                     }));
