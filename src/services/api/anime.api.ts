@@ -167,6 +167,75 @@ const clearOldCacheEntries = () => {
 // Track in-flight requests to prevent duplicates
 const inFlightRequests = new Map<string, Promise<any>>();
 
+/**
+ * Intelligent matching function to find the best scraper result for an AniList anime.
+ * Uses year, episode count, and title similarity.
+ */
+export const findBestScraperMatch = (anilistAnime: any, scraperResults: any[]) => {
+    if (!scraperResults || scraperResults.length === 0) return null;
+    if (scraperResults.length === 1) return scraperResults[0];
+
+    // Priority 1: Exact matches (Year + Episode Count + Title similarity)
+    // Priority 2: Year + Title similarity
+    // Priority 3: Title similarity + Episode Count
+    // Priority 4: Title similarity
+
+    const scores = scraperResults.map(res => {
+        let score = 0;
+
+        // 1. Year Match (Very strong signal)
+        if (anilistAnime.year && res.year) {
+            const scraperYear = parseInt(res.year);
+            if (scraperYear === anilistAnime.year) {
+                score += 100;
+            } else if (Math.abs(scraperYear - anilistAnime.year) <= 1) {
+                score += 50; 
+            }
+        }
+
+        // 2. Episode Count Match (Strong signal)
+        if (anilistAnime.episodes && res.episodes) {
+            if (res.episodes === anilistAnime.episodes) {
+                score += 80;
+            } else if (Math.abs(res.episodes - anilistAnime.episodes) <= 2) {
+                score += 40;
+            }
+        }
+
+        // 3. Title Similarity (Base signal)
+        const targetTitles = [
+            anilistAnime.title,
+            anilistAnime.title_english,
+            anilistAnime.title_romaji,
+            ...(anilistAnime.synonyms || [])
+        ].filter(Boolean).map(t => t.toLowerCase());
+
+        const scraperTitle = res.title?.toLowerCase() || '';
+
+        // Check for keyword matches
+        targetTitles.forEach(t => {
+            if (scraperTitle.includes(t) || t.includes(scraperTitle)) {
+                score += 60;
+            }
+            // Exact match is even better
+            if (scraperTitle === t) {
+                score += 100;
+            }
+        });
+
+        return { res, score };
+    });
+
+    // Sort by score descending and return top
+    scores.sort((a, b) => b.score - a.score);
+    
+    // Log for debugging
+    console.log(`[Matching] Best match for "${anilistAnime.title}" (ID: ${anilistAnime.id}):`, scores[0].res.title, `(Score: ${scores[0].score})`);
+    
+    return scores[0].res;
+};
+
+
 export const animeService = {
     // Fetch top anime from AniList
     async getTopAnime(page: number = 1) {
@@ -475,8 +544,10 @@ export const getAnimeInfo = async (id: string | number) => {
     let episodes: any[] = [];
     try {
         const searchRes = await animeService.searchScraper(result.data.title);
-        if (searchRes && searchRes.length > 0) {
-            const epsData = await animeService.getEpisodes(searchRes[0].session);
+        const bestMatch = findBestScraperMatch(result.data, searchRes || []);
+        
+        if (bestMatch) {
+            const epsData = await animeService.getEpisodes(bestMatch.session);
             episodes = (epsData.episodes || []).map((ep: any) => ({
                 id: ep.session,
                 session: ep.session,
