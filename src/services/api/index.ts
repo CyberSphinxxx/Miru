@@ -13,6 +13,7 @@ export {
     getAnimeInfo,
     getEpisodeStreams,
     getCached,
+    findBestScraperMatch,
 } from './anime.api';
 
 export { default } from './anime.api';
