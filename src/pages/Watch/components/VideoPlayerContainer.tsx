@@ -1,6 +1,6 @@
 import React from 'react';
 import { Episode, StreamLink } from '../../../types';
-import LoadingSpinner from '../../../components/LoadingSpinner';
+import AnimatedLoader from '../../../components/AnimatedLoader';
 import VideoPlayer from '../../../components/VideoPlayer';
 
 interface VideoPlayerContainerProps {
@@ -62,7 +62,7 @@ const VideoPlayerContainer: React.FC<VideoPlayerContainerProps> = ({
             <div className="w-full max-w-[1400px] aspect-video relative">
                 {streamLoading ? (
                     <div className="w-full h-full flex items-center justify-center">
-                        <LoadingSpinner size="lg" text="Loading stream..." />
+                        <AnimatedLoader variant="stream" />
                     </div>
                 ) : streams.length > 0 && currentStream ? (
                     <div className="absolute inset-0">
