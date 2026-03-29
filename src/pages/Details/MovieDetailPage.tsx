@@ -224,7 +224,7 @@ function MovieDetail() {
                         {/* Genres */}
                         <div className="flex flex-wrap justify-center md:justify-start gap-2">
                             {movie.genres?.map(genre => (
-                                <span key={genre.id} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
+                                <span key={genre.id || genre.name} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
                                     {genre.name}
                                 </span>
                             ))}
