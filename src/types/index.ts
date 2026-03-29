@@ -127,12 +127,19 @@ export interface Character {
 
 export interface RelatedAnime {
     relation: string;
-    entry: {
-        id: number;
+    entry: (Partial<Anime> & { 
+        id: number; 
+        title: string; 
         type: string;
-        name: string;
-        url: string;
-    }[];
+        score: number;
+        episodes: number | null;
+        images: {
+            jpg: {
+                image_url: string;
+                large_image_url: string;
+            }
+        }
+    })[];
 }
 
 export interface PromoVideo {
