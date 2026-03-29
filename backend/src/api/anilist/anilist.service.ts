@@ -281,6 +281,45 @@ export const anilistService = {
         }
     },
 
+    async getImmediateRelations(id: number) {
+        const query = `
+            query ($id: Int) {
+                Media(id: $id, type: ANIME) {
+                    relations {
+                        edges {
+                            relationType
+                            node {
+                                id
+                                title { romaji english native }
+                                description
+                                coverImage { large }
+                                bannerImage
+                                format
+                                episodes
+                                status
+                                averageScore
+                                genres
+                                season
+                                seasonYear
+                                startDate { year month day }
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+        try {
+            const response = await axios.post(ANILIST_API_URL, {
+                query,
+                variables: { id }
+            });
+            return response.data.data.Media.relations.edges;
+        } catch (error) {
+            console.error(`Error fetching relations for ID ${id}:`, error);
+            return [];
+        }
+    },
+
     async getAnimeById(id: number) {
         const query = `
             query ($id: Int) {
@@ -291,9 +330,18 @@ export const anilistService = {
                             relationType
                             node {
                                 id
-                                title { romaji english }
+                                title { romaji english native }
+                                description
                                 coverImage { large }
+                                bannerImage
                                 format
+                                episodes
+                                status
+                                averageScore
+                                genres
+                                season
+                                seasonYear
+                                startDate { year month day }
                             }
                         }
                     }
@@ -346,7 +394,55 @@ export const anilistService = {
                     }
                 });
 
-                return response.data.data.Media;
+                const media = response.data.data.Media;
+
+                // Recursive relation discovery for seasons/sequels
+                if (media.relations?.edges) {
+                    const visited = new Set<number>();
+                    visited.add(id);
+                    const allRelations = [...media.relations.edges];
+
+                    // Add initial relations to visited
+                    media.relations.edges.forEach((edge: any) => {
+                        visited.add(edge.node.id);
+                    });
+
+                    // Level-based discovery
+                    let currentLevel = media.relations.edges
+                        .filter((edge: any) => edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL')
+                        .map((edge: any) => edge.node.id);
+
+                    const MAX_DEPTH = 3;
+                    const MAX_NODES = 20;
+                    let depth = 1;
+
+                    while (currentLevel.length > 0 && depth < MAX_DEPTH && visited.size < MAX_NODES) {
+                        // Parallel fetch for current level
+                        const results = await Promise.all(
+                            currentLevel.map((nodeId: number) => anilistService.getImmediateRelations(nodeId))
+                        );
+
+                        const nextLevel: number[] = [];
+                        for (const nextRelations of results) {
+                            for (const edge of nextRelations) {
+                                if (!visited.has(edge.node.id)) {
+                                    visited.add(edge.node.id);
+                                    allRelations.push(edge);
+                                    if (edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL') {
+                                        nextLevel.push(edge.node.id);
+                                    }
+                                    if (visited.size >= MAX_NODES) break;
+                                }
+                            }
+                            if (visited.size >= MAX_NODES) break;
+                        }
+                        currentLevel = nextLevel;
+                        depth++;
+                    }
+                    media.relations.edges = allRelations;
+                }
+
+                return media;
             } catch (error: any) {
                 console.error(`Attempt ${attempt} failed for anime ID ${id}:`, error.message);
 
