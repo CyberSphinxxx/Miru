@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AnimeDetailPage from './AnimeDetailPage';
 import DetailPageSkeleton from '../../components/DetailPageSkeleton';
-import { animeService, findBestScraperMatch } from '../../services/api';
+import { animeService, findBestScraperMatch, groupRelations } from '../../services/api';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation } from '../../types';
 
 function Detail() {
@@ -22,6 +22,10 @@ function Detail() {
     const [similar, setSimilar] = useState<Anime[]>([]);
     const [extrasLoading, setExtrasLoading] = useState(true);
 
+    // Episode state (lifted from AnimeDetailPage)
+    const [episodes, setEpisodes] = useState<any[]>([]);
+    const [episodesLoading, setEpisodesLoading] = useState(true);
+
     // Track if we've started scraper fetch
     const scraperFetchStarted = useRef(false);
 
@@ -33,6 +37,8 @@ function Detail() {
             try {
                 setLoading(true);
                 setExtrasLoading(true);
+                setEpisodesLoading(true); // Reset episode loading
+                setEpisodes([]); // Clear old episodes
                 setError(null);
                 scraperFetchStarted.current = false;
 
@@ -104,7 +110,10 @@ function Detail() {
                     }
 
                     setSimilar([]);
-                    setRelations([]);
+                    
+                    // Process and group relations
+                    const groupedRelations = groupRelations(animeData.relations);
+                    setRelations(groupedRelations);
 
                     // IMMEDIATELY show content, mark initial load done
                     setLoading(false);
@@ -135,8 +144,30 @@ function Detail() {
     // Background prefetch function - stores data in sessionStorage for Watch page
     const prefetchWatchData = async (anime: Anime) => {
         try {
+            setEpisodesLoading(true);
             const title = anime.title_english || anime.title_romaji || anime.title;
             console.log('[Prefetch] Starting background prefetch for:', title);
+
+            // Check if we have cached data already (with TTL - 30 minutes)
+            const prefetchKey = `watch_prefetch_${anime.id}`;
+            const PREFETCH_TTL = 30 * 60 * 1000;
+            const cached = sessionStorage.getItem(prefetchKey);
+
+            if (cached) {
+                const data = JSON.parse(cached);
+                const isFresh = Date.now() - (data.timestamp || 0) < PREFETCH_TTL;
+                const hasEpisodes = data.episodes?.length > 0;
+
+                if (isFresh && hasEpisodes) {
+                    setEpisodes(data.episodes);
+                    setEpisodesLoading(false);
+                    console.log('[Prefetch] Loaded from session cache:', data.episodes.length, 'episodes');
+                    return;
+                } else {
+                    // Stale or empty cache — remove it and re-fetch
+                    sessionStorage.removeItem(prefetchKey);
+                }
+            }
 
             // Search for anime on scraper
             const searchRes = await animeService.searchScraper(title);
@@ -147,7 +178,7 @@ function Detail() {
 
                 // Get episodes
                 const epsData = await animeService.getEpisodes(session);
-                const episodes = (epsData.episodes || epsData.ep_details || epsData || []).map((ep: any) => ({
+                const mappedEpisodes = (epsData.episodes || epsData.ep_details || epsData || []).map((ep: any) => ({
                     id: ep.session,
                     session: ep.session,
                     episodeNumber: ep.episodeNumber || ep.episode || ep.number,
@@ -155,18 +186,25 @@ function Detail() {
                     snapshot: ep.snapshot
                 }));
 
+                setEpisodes(mappedEpisodes);
+
                 // Cache data for Watch page
                 const cacheData = {
                     session,
-                    episodes,
+                    episodes: mappedEpisodes,
                     timestamp: Date.now()
                 };
-                sessionStorage.setItem(`watch_prefetch_${anime.id}`, JSON.stringify(cacheData));
-                console.log('[Prefetch] Cached', episodes.length, 'episodes for anime', anime.id);
+                sessionStorage.setItem(prefetchKey, JSON.stringify(cacheData));
+                console.log('[Prefetch] Cached', mappedEpisodes.length, 'episodes for anime', anime.id);
+            } else {
+                setEpisodes([]);
             }
         } catch (e) {
             // Prefetch failed silently - Watch page will fetch normally
             console.warn('[Prefetch] Background prefetch failed:', e);
+            setEpisodes([]);
+        } finally {
+            setEpisodesLoading(false);
         }
     };
 
@@ -212,6 +250,8 @@ function Detail() {
             recommendations={recommendations}
             similar={similar}
             loading={extrasLoading}
+            episodes={episodes}
+            episodesLoading={episodesLoading}
             onBack={handleBack}
             onWatchClick={handleWatchClick}
             onRelatedClick={handleRelatedClick}
