@@ -14,6 +14,7 @@ export {
     getEpisodeStreams,
     getCached,
     findBestScraperMatch,
+    groupRelations,
 } from './anime.api';
 
 export { default } from './anime.api';
