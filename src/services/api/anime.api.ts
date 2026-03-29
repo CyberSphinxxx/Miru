@@ -24,8 +24,8 @@ const mapAnilistToAnime = (item: any) => {
         status: item.status,
         duration: item.duration ? `${item.duration} min` : undefined,
         rating: item.isAdult ? 'R+ - Mild Nudity' : undefined,
-        genres: item.genres?.map((g: string) => ({ name: g, id: 0 })) || [],
-        studios: item.studios?.nodes?.map((s: any) => ({ name: s.name, id: 0 })) || [],
+        genres: item.genres?.map((g: string) => ({ name: g, id: g })) || [],
+        studios: item.studios?.nodes?.map((s: any) => ({ name: s.name, id: s.id || s.name })) || [],
         year: item.seasonYear || item.startDate?.year,
         season: item.season?.toLowerCase(),
         aired: {
@@ -55,9 +55,57 @@ const mapAnilistToAnime = (item: any) => {
             url: e.url,
             site: e.site
         })) || [],
-        relations: item.relations,
+        relations: item.relations?.edges?.map((edge: any) => ({
+            relation: (edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL') 
+                ? edge.relationType 
+                : edge.relationType.replace(/_/g, ' '),
+            entry: [{
+                id: edge.node.id,
+                title: edge.node.title?.english || edge.node.title?.romaji || edge.node.title?.native || 'Unknown',
+                title_japanese: edge.node.title?.native,
+                title_english: edge.node.title?.english,
+                title_romaji: edge.node.title?.romaji,
+                images: {
+                    jpg: {
+                        image_url: edge.node.coverImage?.large || '',
+                        large_image_url: edge.node.coverImage?.large || '',
+                        banner_image: edge.node.bannerImage || ''
+                    }
+                },
+                synopsis: edge.node.description?.replace(/<[^>]*>/g, '') || '',
+                type: edge.node.format,
+                episodes: edge.node.episodes,
+                score: edge.node.averageScore ? edge.node.averageScore / 10 : 0,
+                status: edge.node.status,
+                genres: edge.node.genres?.map((g: string) => ({ name: g, id: g })) || [],
+                year: edge.node.seasonYear || edge.node.startDate?.year,
+                season: edge.node.season?.toLowerCase(),
+                anilist_banner_image: edge.node.bannerImage,
+                anilist_cover_image: edge.node.coverImage?.large,
+                url: ''
+            }]
+        })) || [],
         recommendations: item.recommendations
     };
+};
+
+/**
+ * Groups relations by type to match the RelatedAnime interface
+ */
+export const groupRelations = (rawRelations: any[]): any[] => {
+    if (!rawRelations || !Array.isArray(rawRelations)) return [];
+    
+    const groups = new Map<string, any>();
+    
+    rawRelations.forEach(rel => {
+        const type = rel.relation;
+        if (!groups.has(type)) {
+            groups.set(type, { relation: type, entry: [] });
+        }
+        groups.get(type).entry.push(...rel.entry);
+    });
+    
+    return Array.from(groups.values());
 };
 
 // ============================================================================
@@ -313,14 +361,52 @@ export const animeService = {
 
     // Search anime on scraper (AnimePahe)
     async searchScraper(title: string) {
-        const res = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(title)}`);
-        return res.json();
+        const cacheKey = `scraper-search-${title.toLowerCase().trim()}`;
+        const cached = getCached(cacheKey, 'search');
+        if (cached) return cached;
+
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/scraper/search?q=${encodeURIComponent(title)}`);
+                const data = await res.json();
+                if (data && data.length > 0) setCache(cacheKey, data);
+                return data;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
     },
 
     // Get episodes from scraper
     async getEpisodes(session: string) {
-        const res = await fetch(`${API_BASE}/scraper/episodes?session=${session}`);
-        return res.json();
+        const cacheKey = `scraper-episodes-${session}`;
+        const cached = getCached(cacheKey, 'details');
+        if (cached) return cached;
+
+        if (inFlightRequests.has(cacheKey)) {
+            return inFlightRequests.get(cacheKey);
+        }
+
+        const fetchPromise = (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/scraper/episodes?session=${session}`);
+                const data = await res.json();
+                if (data) setCache(cacheKey, data);
+                return data;
+            } finally {
+                inFlightRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightRequests.set(cacheKey, fetchPromise);
+        return fetchPromise;
     },
 
     // Get stream links from scraper - cached for 4 hours
