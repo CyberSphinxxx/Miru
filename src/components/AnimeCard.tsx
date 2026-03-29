@@ -7,9 +7,10 @@ interface AnimeCardProps {
     onClick: () => void;
     onPlayClick?: () => void;
     onDelete?: () => void;
+    compact?: boolean;
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDelete }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDelete, compact = false }) => {
 
     const [isHovered, setIsHovered] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
@@ -18,10 +19,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
 
     const handleMouseEnter = () => {
         setIsHovered(true);
-        // Delay showing details overlay
-        hoverTimeoutRef.current = setTimeout(() => {
-            setShowDetails(true);
-        }, 300);
+        // Delay showing details overlay, but only if NOT compact
+        if (!compact) {
+            hoverTimeoutRef.current = setTimeout(() => {
+                setShowDetails(true);
+            }, 300);
+        }
     };
 
     const handleMouseLeave = () => {
@@ -60,14 +63,14 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
         >
             {/* Main Card */}
             <div
-                className={`relative rounded-xl overflow-hidden bg-miru-surface cursor-pointer transition-all duration-300 ${isHovered ? 'scale-105 shadow-2xl shadow-miru-primary/20 z-20' : 'shadow-lg shadow-black/20'
+                className={`relative rounded-xl overflow-hidden bg-miru-surface cursor-pointer transition-all duration-300 ${isHovered ? (!compact ? 'scale-105' : 'scale-[1.02]') : 'scale-100'} ${isHovered ? 'shadow-2xl shadow-miru-primary/20 z-20' : 'shadow-lg shadow-black/20'
                     }`}
                 onClick={onClick}
             >
                 {/* Image */}
                 <div className="relative aspect-[2/3] overflow-hidden">
                     <img
-                        src={anime.images.jpg.large_image_url}
+                        src={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || ''}
                         alt={anime.title}
                         className={`w-full h-full object-cover transition-all duration-500 ${showDetails ? 'scale-110 brightness-[0.3]' : isHovered ? 'scale-105 brightness-90' : 'scale-100'
                             }`}
@@ -192,7 +195,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, onClick, onPlayClick, onDe
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {anime.genres.slice(0, 3).map(g => (
                                         <span
-                                            key={g.id}
+                                            key={g.name}
                                             className="px-1.5 py-0.5 rounded-full bg-miru-primary/20 text-miru-primary text-[9px] font-medium"
                                         >
                                             {g.name}
