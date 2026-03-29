@@ -5,11 +5,14 @@ const ANILIST_API_URL = 'https://graphql.anilist.co';
 // Central AniList API Client with required headers
 const anilistClient = axios.create({
     baseURL: ANILIST_API_URL,
-    timeout: 30000, 
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'Miru/2.0.0 (https://github.com/CyberSphinxxx/Miru)'
+        'Accept-Encoding': 'gzip, deflate',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Referer': 'https://anilist.co/',
+        'Origin': 'https://anilist.co'
     }
 });
 
