@@ -2,6 +2,18 @@ import axios from 'axios';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 
+// Central AniList API Client with required headers
+const anilistClient = axios.create({
+    baseURL: ANILIST_API_URL,
+    timeout: 30000, 
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Miru/2.0.0 (https://github.com/CyberSphinxxx/Miru)'
+    }
+});
+
+
 // Common media fields fragment
 const MEDIA_FIELDS = `
     id
@@ -75,7 +87,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { idMal: malIds }
             });
@@ -105,7 +117,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { page, perPage }
             });
@@ -144,7 +156,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { page, perPage, season, seasonYear: year }
             });
@@ -173,7 +185,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { page, perPage }
             });
@@ -202,7 +214,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { page, perPage }
             });
@@ -231,7 +243,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { search, page, perPage }
             });
@@ -269,7 +281,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { search, page, perPage }
             });
@@ -309,7 +321,7 @@ export const anilistService = {
             }
         `;
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { id }
             });
@@ -383,15 +395,9 @@ export const anilistService = {
         const maxRetries = 3;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const response = await axios.post(ANILIST_API_URL, {
+                const response = await anilistClient.post('', {
                     query,
                     variables: { id }
-                }, {
-                    timeout: 15000, // 15 second timeout
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
                 });
 
                 const media = response.data.data.Media;
@@ -469,7 +475,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: { id }
             });
@@ -511,7 +517,7 @@ export const anilistService = {
             const variables: any = { page, perPage };
             variables[variableName] = genre;
 
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables
             });
@@ -557,7 +563,7 @@ export const anilistService = {
         `;
 
         try {
-            const response = await axios.post(ANILIST_API_URL, {
+            const response = await anilistClient.post('', {
                 query,
                 variables: {
                     airingAt_greater: startTime,

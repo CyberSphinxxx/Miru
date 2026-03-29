@@ -582,7 +582,7 @@ export const animeService = {
                 const res = await fetch(`${API_BASE}/anilist/schedule?start=${start}&end=${end}&page=${page}&limit=${limit}`);
                 if (!res.ok) {
                     console.warn(`Failed to fetch schedule: ${res.statusText}`);
-                    return { airingSchedules: [], pageInfo: {} };
+                    return { schedules: [], pageInfo: {} };
                 }
                 const data = await res.json();
 

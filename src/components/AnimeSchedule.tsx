@@ -32,7 +32,33 @@ function AnimeSchedule() {
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [visibleCount, setVisibleCount] = useState(10);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [refreshKey, setRefreshKey] = useState(0);
+    const handleRefresh = () => setRefreshKey(prev => prev + 1);
+    const [showLeftArrow, setShowLeftArrow] = useState(false);
+    const [showRightArrow, setShowRightArrow] = useState(true);
     const tabsRef = useRef<HTMLDivElement>(null);
+
+    const checkScroll = () => {
+        if (tabsRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+            setShowLeftArrow(scrollLeft > 10);
+            setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 10);
+        }
+    };
+
+    useEffect(() => {
+        const tabs = tabsRef.current;
+        if (tabs) {
+            tabs.addEventListener('scroll', checkScroll);
+            // Run once initially and on resize
+            checkScroll();
+            window.addEventListener('resize', checkScroll);
+        }
+        return () => {
+            if (tabs) tabs.removeEventListener('scroll', checkScroll);
+            window.removeEventListener('resize', checkScroll);
+        };
+    }, []);
 
     // Generate 14 day tabs starting from today
     const generateDayTabs = (): DayTab[] => {
@@ -125,7 +151,7 @@ function AnimeSchedule() {
         fetchSchedule();
 
         return () => { isMounted = false; };
-    }, [selectedDayIndex, dayTabs]);
+    }, [selectedDayIndex, dayTabs, refreshKey]);
 
     const formatTime = (timestamp: number): string => {
         const date = new Date(timestamp * 1000);
@@ -162,11 +188,13 @@ function AnimeSchedule() {
 
     const scrollTabs = (direction: 'left' | 'right') => {
         if (tabsRef.current) {
-            const scrollAmount = 200;
+            const scrollAmount = direction === 'left' ? -300 : 300;
             tabsRef.current.scrollBy({
-                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                left: scrollAmount,
                 behavior: 'smooth'
             });
+            // Update arrows after a short delay for smooth scroll to finish
+            setTimeout(checkScroll, 350);
         }
     };
 
@@ -210,9 +238,9 @@ function AnimeSchedule() {
                 {/* Left Arrow */}
                 <button
                     onClick={() => scrollTabs('left')}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-miru-dark-bg/90 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all shadow-lg opacity-0 group-hover:opacity-100 disabled:opacity-0"
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-miru-dark-bg/95 border border-white/20 text-white hover:bg-miru-accent hover:border-miru-accent transition-all shadow-xl ${showLeftArrow ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                     </svg>
                 </button>
@@ -241,9 +269,9 @@ function AnimeSchedule() {
                 {/* Right Arrow */}
                 <button
                     onClick={() => scrollTabs('right')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-miru-dark-bg/90 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                    className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-miru-dark-bg/95 border border-white/20 text-white hover:bg-miru-accent hover:border-miru-accent transition-all shadow-xl ${showRightArrow ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                     </svg>
                 </button>
@@ -266,7 +294,7 @@ function AnimeSchedule() {
                         </div>
                         <p className="text-gray-400 mb-2">Failed to load schedule</p>
                         <button
-                            onClick={() => setSelectedDayIndex(selectedDayIndex)}
+                            onClick={handleRefresh}
                             className="text-miru-accent hover:underline text-sm"
                         >
                             Try again
