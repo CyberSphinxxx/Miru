@@ -419,7 +419,7 @@ export const anilistService = {
                     while (currentLevel.length > 0 && depth < MAX_DEPTH && visited.size < MAX_NODES) {
                         // Parallel fetch for current level
                         const results = await Promise.all(
-                            currentLevel.map((nodeId: number) => anilistService.getImmediateRelations(nodeId))
+                            currentLevel.map((nodeId: number) => this.getImmediateRelations(nodeId))
                         );
 
                         const nextLevel: number[] = [];
