@@ -4,7 +4,7 @@ import WatchPage from './WatchPage';
 import WatchPageSkeleton from '../../components/WatchPageSkeleton';
 import { Anime, Episode, StreamLink } from '../../types';
 import { saveWatchProgress } from '../../services/watchHistoryService';
-import { animeService, findBestScraperMatch } from '../../services/api';
+import { animeService, findBestScraperMatch, groupRelations } from '../../services/api';
 import { useLocalUser } from '../../context/UserContext';
 
 function Watch() {
@@ -16,6 +16,7 @@ function Watch() {
     // State
     const [anime, setAnime] = useState<Anime | null>(location.state?.anime || null);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
+    const [seasons, setSeasons] = useState<any[]>([]);
     const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
     const [streams, setStreams] = useState<StreamLink[]>([]);
     const [scraperSession, setScraperSession] = useState<string | null>(null);
@@ -153,6 +154,13 @@ function Watch() {
                     }
                     currentAnime = animeResult.data;
                     setAnime(currentAnime);
+                }
+
+                // Process relations for seasons
+                if (currentAnime && currentAnime.relations) {
+                    const grouped = groupRelations(currentAnime.relations);
+                    const seasonRels = grouped.filter((r: any) => r.relation === 'PREQUEL' || r.relation === 'SEQUEL');
+                    setSeasons(seasonRels);
                 }
 
                 // Check for prefetched data from Detail page (background prefetch)
@@ -480,6 +488,7 @@ function Watch() {
         <WatchPage
             anime={anime}
             episodes={episodes}
+            seasons={seasons}
             currentEpisode={currentEpisode}
             streams={streams}
             selectedStreamIndex={selectedStreamIndex}
