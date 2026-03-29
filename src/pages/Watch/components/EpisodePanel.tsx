@@ -1,6 +1,6 @@
 import React from 'react';
 import { Episode } from '../../../types';
-import LoadingSpinner from '../../../components/LoadingSpinner';
+import AnimatedLoader from '../../../components/AnimatedLoader';
 
 interface EpisodePanelProps {
     isMobile?: boolean;
@@ -102,8 +102,8 @@ const EpisodePanel: React.FC<EpisodePanelProps> = ({
             {/* Episode List / Grid */}
             <div className="flex-1 min-h-0 overflow-hidden">
                 {epLoading ? (
-                    <div className="flex justify-center py-10">
-                        <LoadingSpinner size="md" />
+                    <div className="flex justify-center">
+                        <AnimatedLoader variant="episodes" size="sm" />
                     </div>
                 ) : filteredEpisodes.length > 0 ? (
                     useGridLayout ? (
