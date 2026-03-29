@@ -1,7 +1,7 @@
-import { Router, Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import * as mangaService from './manga.service';
 
-const router = Router();
+const router = (express as any).Router();
 
 /**
  * Search for manga (Unified)
