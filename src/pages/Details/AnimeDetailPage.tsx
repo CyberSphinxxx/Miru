@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VideoModal from '../../components/VideoModal';
 import StatusButton from '../../components/StatusButton';
+import AnimatedLoader from '../../components/AnimatedLoader';
+import AnimeCard from '../../components/AnimeCard';
 import { Anime, Character, RelatedAnime, PromoVideo, Recommendation, Episode } from '../../types';
-import { animeService, findBestScraperMatch } from '../../services/api';
 
 interface AnimeDetailPageProps {
     anime: Anime;
@@ -13,6 +14,8 @@ interface AnimeDetailPageProps {
     recommendations: Recommendation[];
     similar: Anime[];
     loading?: boolean;
+    episodes: Episode[];
+    episodesLoading: boolean;
     onBack: () => void;
     onWatchClick: () => void;
     onRelatedClick: (anime: Anime) => void;
@@ -32,13 +35,16 @@ const EpisodeList = ({
     const [page, setPage] = useState(1);
     const totalPages = Math.ceil(episodes.length / ITEMS_PER_PAGE);
 
+    // Reset to first page when episodes list changes (e.g., navigating to a different anime)
+    useEffect(() => {
+        setPage(1);
+    }, [episodes]);
+
     const currentEpisodes = episodes.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
     if (loading) {
         return (
-            <div className="py-8 flex justify-center">
-                <div className="w-8 h-8 border-4 border-miru-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <AnimatedLoader variant="episodes" />
         );
     }
 
@@ -94,63 +100,14 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
     onWatchClick,
     onRelatedClick,
     loading,
+    episodes,
+    episodesLoading,
 }) => {
     const [trailerId, setTrailerId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'summary' | 'relations'>('summary');
-    const [episodes, setEpisodes] = useState<Episode[]>([]);
-    const [episodesLoading, setEpisodesLoading] = useState(true);
     const navigate = useNavigate();
 
-    // Fetch episodes when anime changes
-    useEffect(() => {
-        const fetchEpisodes = async () => {
-            if (!anime) return;
-
-            setEpisodesLoading(true);
-            try {
-                // Check if we have prefetched data
-                const prefetchKey = `watch_prefetch_${anime.id}`;
-                const cached = sessionStorage.getItem(prefetchKey);
-
-                if (cached) {
-                    const data = JSON.parse(cached);
-                    setEpisodes(data.episodes || []);
-                    setEpisodesLoading(false);
-                    return;
-                }
-
-                // Fetch from scraper
-                const searchTitle = anime.title_english || anime.title_romaji || anime.title;
-                const searchRes = await animeService.searchScraper(searchTitle);
-                const bestMatch = findBestScraperMatch(anime, searchRes || []);
-
-                if (bestMatch) {
-                    const epsData = await animeService.getEpisodes(bestMatch.session);
-                    const mappedEpisodes = (epsData.episodes || []).map((ep: any) => ({
-                        id: ep.session,
-                        session: ep.session,
-                        episodeNumber: ep.episodeNumber || ep.episode || ep.number,
-                        title: ep.title || `Episode ${ep.episodeNumber || ep.episode || ep.number}`,
-                        snapshot: ep.snapshot
-                    }));
-                    setEpisodes(mappedEpisodes);
-
-                    // Cache for later
-                    sessionStorage.setItem(prefetchKey, JSON.stringify({
-                        session: bestMatch.session,
-                        episodes: mappedEpisodes,
-                        timestamp: Date.now()
-                    }));
-                }
-            } catch (e) {
-                console.error('Failed to fetch episodes:', e);
-            } finally {
-                setEpisodesLoading(false);
-            }
-        };
-
-        fetchEpisodes();
-    }, [anime?.id, anime?.id]);
+    // Fetching logic moved to container
 
     const handleCardClick = (id: number) => {
         const minimalAnime = {
@@ -250,7 +207,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                         {/* Genres */}
                         <div className="flex flex-wrap justify-center md:justify-start gap-2">
                             {anime.genres?.map(genre => (
-                                <span key={genre.id} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
+                                <span key={genre.name} className="px-3 py-1 rounded-lg bg-miru-surface-light border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
                                     {genre.name}
                                 </span>
                             ))}
@@ -296,6 +253,35 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                         <StatusButton anime={anime} />
                                     </div>
                                 </div>
+
+                                {/* More Seasons Section */}
+                                {(() => {
+                                    const seasons = relations.filter(r => r.relation === 'PREQUEL' || r.relation === 'SEQUEL');
+                                    if (seasons.length === 0) return null;
+
+                                    return (
+                                        <div className="py-6 border-t border-white/10 animate-fade-in-up">
+                                            <h3 className="text-xl font-bold text-white mb-4">More Seasons</h3>
+                                            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2 snap-x">
+                                                {seasons.map(rel => (
+                                                    rel.entry.map(entry => (
+                                                        <div key={entry.id} className="flex-shrink-0 w-36 md:w-44 relative snap-start">
+                                                            <AnimeCard
+                                                                anime={entry}
+                                                                onClick={() => handleCardClick(entry.id)}
+                                                                onPlayClick={() => navigate(`/watch/${entry.id}`)}
+                                                                compact={true}
+                                                            />
+                                                            <div className="absolute top-2 left-2 z-30 px-2 py-0.5 bg-miru-primary rounded text-[10px] font-black text-black uppercase tracking-tighter border border-white/20 shadow-lg pointer-events-none">
+                                                                {rel.relation}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Episodes Section */}
                                 <div className="py-6 border-t border-white/10">
@@ -497,7 +483,7 @@ const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({
                                                                 onClick={() => handleCardClick(entry.id)}
                                                                 className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 hover:text-white transition-colors"
                                                             >
-                                                                {entry.name} ({entry.type})
+                                                                {entry.title} ({entry.type})
                                                             </button>
                                                         ))}
                                                     </div>
