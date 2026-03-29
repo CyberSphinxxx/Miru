@@ -1,12 +1,12 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 // @ts-ignore
 import fetch from 'node-fetch';
 
-const router = express.Router();
+const router = (express as any).Router();
 const BASE_URL = 'http://webservice.fanart.tv/v3';
 const API_KEY = process.env.FANART_API_KEY;
 
-router.get('/movies/:tmdbId', async (req, res) => {
+router.get('/movies/:tmdbId', async (req: Request, res: Response) => {
     try {
         const { tmdbId } = req.params;
 
@@ -25,10 +25,10 @@ router.get('/movies/:tmdbId', async (req, res) => {
         }
 
         const data = await response.json();
-        res.json(data);
+        return res.json(data);
     } catch (error: any) {
         console.error('Error fetching Fanart images:', error.message);
-        res.status(500).json({ error: 'Failed to fetch images' });
+        return res.status(500).json({ error: 'Failed to fetch images' });
     }
 });
 
