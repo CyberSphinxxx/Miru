@@ -1,19 +1,20 @@
-import { Router } from 'express';
-import { anilistService } from './anilist.service';
+import express, { Request, Response } from 'express';
+import axios from 'axios';
+import { anilistService } from './anilist.service.js';
 
-const router = Router();
+const router = (express as any).Router();
 
 // Get top/popular anime
-router.get('/top', async (req, res) => {
+router.get('/top', async (req: Request, res: Response) => {
     try {
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 24;
 
         const data = await anilistService.getTopAnime(page, perPage);
         res.json(data);
     } catch (error: any) {
         console.error('Error in top anime route:', error.message);
-        if (error.response) {
+        if (axios.isAxiosError(error) && error.response) {
             res.status(error.response.status).json({ error: error.response.data });
         } else {
             res.status(500).json({ error: 'Internal server error' });
@@ -22,10 +23,10 @@ router.get('/top', async (req, res) => {
 });
 
 // Get top/popular manga
-router.get('/top/manga', async (req, res) => {
+router.get('/top/manga', async (req: Request, res: Response) => {
     try {
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 24;
 
         const data = await anilistService.getTopManga(page, perPage);
         res.json(data);
@@ -36,10 +37,10 @@ router.get('/top/manga', async (req, res) => {
 });
 
 // Get trending anime
-router.get('/trending', async (req, res) => {
+router.get('/trending', async (req: Request, res: Response) => {
     try {
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 50;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 50;
 
         const data = await anilistService.getTrendingAnime(page, perPage);
         res.json(data);
@@ -49,14 +50,14 @@ router.get('/trending', async (req, res) => {
 });
 
 // Get airing schedule
-router.get('/schedule', async (req, res) => {
+router.get('/schedule', async (req: Request, res: Response) => {
     try {
         const now = Math.floor(Date.now() / 1000);
         // Default to current week (7 days from now)
-        const startTime = req.query.start ? parseInt(req.query.start as string) : now;
-        const endTime = req.query.end ? parseInt(req.query.end as string) : now + (7 * 24 * 60 * 60);
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 50;
+        const startTime = Number(req.query.start) || now;
+        const endTime = Number(req.query.end) || now + (7 * 24 * 60 * 60);
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 50;
 
         const data = await anilistService.getAiringSchedule(startTime, endTime, page, perPage);
         res.json(data);
@@ -67,10 +68,10 @@ router.get('/schedule', async (req, res) => {
 });
 
 // Get popular this season
-router.get('/popular-this-season', async (req, res) => {
+router.get('/popular-this-season', async (req: Request, res: Response) => {
     try {
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 50;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 50;
 
         const data = await anilistService.getPopularThisSeason(page, perPage);
         res.json(data);
@@ -80,139 +81,130 @@ router.get('/popular-this-season', async (req, res) => {
 });
 
 // Search anime
-router.get('/search', async (req, res) => {
+router.get('/search', async (req: Request, res: Response) => {
     try {
         const query = req.query.q as string;
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 24;
 
         if (!query) {
-            res.status(400).json({ error: 'Query parameter "q" is required' });
-            return;
+            return res.status(400).json({ error: 'Query parameter "q" is required' });
         }
 
         const data = await anilistService.searchAnime(query, page, perPage);
-        res.json(data);
+        return res.json(data);
     } catch (error) {
         console.error('Error in search route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Search manga
-router.get('/search/manga', async (req, res) => {
+router.get('/search/manga', async (req: Request, res: Response) => {
     try {
         const query = req.query.q as string;
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 24;
 
         if (!query) {
-            res.status(400).json({ error: 'Query parameter "q" is required' });
-            return;
+            return res.status(400).json({ error: 'Query parameter "q" is required' });
         }
 
         const data = await anilistService.searchManga(query, page, perPage);
-        res.json(data);
+        return res.json(data);
     } catch (error) {
         console.error('Error in search manga route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Get anime by ID
-router.get('/anime/:id', async (req, res) => {
+router.get('/anime/:id', async (req: Request, res: Response) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = Number(req.params.id);
         if (isNaN(id)) {
-            res.status(400).json({ error: 'Invalid ID' });
-            return;
+            return res.status(400).json({ error: 'Invalid ID' });
         }
 
         const data = await anilistService.getAnimeById(id);
         if (!data) {
-            res.status(404).json({ error: 'Anime not found' });
-            return;
+            return res.status(404).json({ error: 'Anime not found' });
         }
-        res.json(data);
+        return res.json(data);
     } catch (error) {
         console.error('Error in anime by ID route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Get manga by ID
-router.get('/manga/:id', async (req, res) => {
+router.get('/manga/:id', async (req: Request, res: Response) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = Number(req.params.id);
         if (isNaN(id)) {
-            res.status(400).json({ error: 'Invalid ID' });
-            return;
+            return res.status(400).json({ error: 'Invalid ID' });
         }
 
         const data = await anilistService.getMangaById(id);
         if (!data) {
-            res.status(404).json({ error: 'Manga not found' });
-            return;
+            return res.status(404).json({ error: 'Manga not found' });
         }
-        res.json(data);
+        return res.json(data);
     } catch (error) {
         console.error('Error in manga by ID route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Get anime by genre
-router.get('/genre/:genre', async (req, res) => {
+router.get('/genre/:genre', async (req: Request, res: Response) => {
     try {
         const genre = req.params.genre;
-        const page = req.query.page ? parseInt(req.query.page as string) : 1;
-        const perPage = req.query.limit ? parseInt(req.query.limit as string) : 24;
+        const page = Number(req.query.page) || 1;
+        const perPage = Number(req.query.limit) || 24;
 
         if (!genre) {
-            res.status(400).json({ error: 'Genre is required' });
-            return;
+            return res.status(400).json({ error: 'Genre is required' });
         }
 
         const data = await anilistService.getAnimeByGenre(genre, page, perPage);
-        res.json(data);
+        return res.json(data);
     } catch (error) {
         console.error('Error in genre route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Batch covers (keep for compatibility)
-router.post('/batch-covers', async (req, res) => {
+router.post('/batch-covers', async (req: Request, res: Response) => {
     try {
         const { malIds } = req.body;
 
         if (!malIds || !Array.isArray(malIds)) {
-            res.status(400).json({ error: 'Invalid malIds provided' });
-            return;
+            return res.status(400).json({ error: 'Invalid malIds provided' });
         }
 
         const data = await anilistService.getCoverImages(malIds);
-        res.json(data);
+        return res.json(data);
     } catch (error) {
         console.error('Error in batch-covers route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Legacy POST search (keep for compatibility with spotlight resolution)
-router.post('/search', async (req, res) => {
+router.post('/search', async (req: Request, res: Response) => {
     try {
         const { query } = req.body;
         if (!query) {
-            res.status(400).json({ error: 'Query is required' });
-            return;
+            return res.status(400).json({ error: 'Query is required' });
         }
 
         const data = await anilistService.searchAnime(query, 1, 5);
-        res.json(data.media || []);
+        return res.json(data.media || []);
     } catch (error) {
         console.error('Error in search route:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
