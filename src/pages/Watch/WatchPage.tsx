@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Anime, Episode, StreamLink } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import { Anime, Episode, StreamLink, RelatedAnime } from '../../types';
 import EpisodePanel from './components/EpisodePanel';
 import VideoPlayerContainer from './components/VideoPlayerContainer';
 import StreamSelector from './components/StreamSelector';
+import AnimeCard from '../../components/AnimeCard';
 
 
 interface WatchPageProps {
@@ -24,11 +26,13 @@ interface WatchPageProps {
     onTimeUpdate?: (time: number) => void;
     onPlayStateChange?: (isPlaying: boolean) => void;
     watchedEpisodes?: Set<string>;
+    seasons?: RelatedAnime[];
 }
 
 const WatchPage: React.FC<WatchPageProps> = ({
     anime,
     episodes,
+    seasons = [],
     currentEpisode,
     streams,
     selectedStreamIndex,
@@ -46,6 +50,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
     onNextEpisode,
     watchedEpisodes = new Set(),
 }) => {
+    const navigate = useNavigate();
     const currentStream = streams[selectedStreamIndex];
     const [cinemaMode, setCinemaMode] = useState(false);
     const [episodeSearch, setEpisodeSearch] = useState('');
@@ -249,9 +254,35 @@ const WatchPage: React.FC<WatchPageProps> = ({
                         <div className={`bg-miru-surface/80 backdrop-blur-sm border-t border-white/5 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0 ${cinemaMode ? '' : ''}`}>
                             {/* Title Section */}
                             <div className="mb-3 sm:mb-4">
-                                <h1 className="text-lg sm:text-2xl font-bold text-white mb-1 line-clamp-1">
-                                    {anime.title}
-                                </h1>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                                    <h1 className="text-lg sm:text-2xl font-bold text-white line-clamp-1">
+                                        {anime.title}
+                                    </h1>
+                                    
+                                    {/* Quick Season Switcher */}
+                                    {seasons.length > 0 && (
+                                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar px-1 snap-x max-w-[60%] sm:max-w-none">
+                                            {seasons.map(rel => 
+                                                rel.entry.map(entry => (
+                                                    <div key={entry.id} className="flex-shrink-0 w-24 sm:w-28 relative snap-start">
+                                                        <AnimeCard
+                                                           anime={entry}
+                                                           onClick={() => navigate(`/anime/${entry.id}`)}
+                                                           onPlayClick={() => {
+                                                               if (entry.id === anime.id) return;
+                                                               navigate(`/watch/${entry.id}`);
+                                                           }}
+                                                           compact={true}
+                                                       />
+                                                        <div className="absolute top-1 left-1 z-30 px-1 py-0.5 bg-miru-primary rounded text-[7px] font-black text-black uppercase tracking-tighter border border-white/20 shadow-lg pointer-events-none">
+                                                            {rel.relation}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 {currentEpisode && (
                                     <h2 className="text-xs sm:text-sm text-gray-400">
                                         <span className="text-miru-primary font-medium">Episode {currentEpisode.episodeNumber}</span>
@@ -335,7 +366,7 @@ const WatchPage: React.FC<WatchPageProps> = ({
                                 {/* Genres */}
                                 <div className="flex flex-wrap gap-2">
                                     {anime.genres?.map(genre => (
-                                        <span key={genre.id} className="px-3 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
+                                        <span key={genre.name} className="px-3 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-semibold text-gray-300 hover:text-white transition-colors cursor-default">
                                             {genre.name}
                                         </span>
                                     ))}
@@ -393,5 +424,3 @@ const WatchPage: React.FC<WatchPageProps> = ({
 };
 
 export default WatchPage;
-
-
