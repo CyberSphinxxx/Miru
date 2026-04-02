@@ -2,9 +2,8 @@
 import { Browser, Page } from 'puppeteer-core';
 import { getBrowserInstance } from '../utils/browser';
 
-const BASE_URL = 'https://animepahe.si';
-const API_URL = 'https://animepahe.si/api';
-const DDOS_WAIT = 10000; // 10 seconds for DDoS-Guard
+const BASE_URL = 'https://animepahe.com';
+const API_URL = 'https://animepahe.com/api';
 
 export interface AnimeSearchResult {
     id: string;
@@ -195,27 +194,32 @@ export class AnimePaheScraper {
                 if (kwik) links.push({ kwik, quality: quality || '', audio: audio || '' });
             }
 
-            const streamLinks: StreamLink[] = [];
-
-            for (const link of links) {
-                // Now we need to go to each kwik link and extract the direct video URL
-                // To save time/resources, we'll only resolve the best one? 
-                // No, let's resolve all but sequentially with a shortcut
+            const streamLinksPromises = links.map(async (link) => {
                 try {
-                    const directUrl = await this.resolveKwik(link.kwik);
-                    streamLinks.push({
+                    // Resolve Kwik link with an individual timeout
+                    const resolveWithTimeout = Promise.race([
+                        this.resolveKwik(link.kwik),
+                        new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
+                    ]);
+                    
+                    const directUrl = await resolveWithTimeout as string | null;
+                    
+                    const result: StreamLink = {
                         quality: link.quality,
                         audio: link.audio,
                         url: link.kwik, // Return the stable Kwik embed URL as primary
                         directUrl: directUrl || undefined,
-                        isHls: false // The primary URL is an embed, not direct HLS
-                    });
+                        isHls: false
+                    };
+                    return result;
                 } catch (e) {
                     console.error(`Failed to resolve kwik link ${link.kwik}:`, e);
+                    return null;
                 }
-            }
+            });
 
-            return streamLinks;
+            const results = await Promise.all(streamLinksPromises);
+            return results.filter((rl): rl is StreamLink => rl !== null);
 
         } catch (error) {
             console.error('Error getting links:', error);
@@ -229,6 +233,18 @@ export class AnimePaheScraper {
         const browser = await this.getBrowser();
         const page = await browser.newPage();
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        
+        // Speed Optimization: Block heavy resources as we only need to extract a script
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            const resourceType = req.resourceType();
+            if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
+
         // Kwik needs referer
         await page.setExtraHTTPHeaders({
             'referer': 'https://kwik.cx/',
