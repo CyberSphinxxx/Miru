@@ -226,9 +226,23 @@ function Watch() {
         initWatch();
     }, [id]);
 
-    // Auto-select episode based on history
+    // Auto-select episode based on query param or history
     useEffect(() => {
         if (episodes.length > 0 && !currentEpisode && !streamLoading && !userLoading && anime) {
+            // Priority 1: Query Parameter (from Detail Page or external link)
+            const queryParams = new URLSearchParams(location.search);
+            const epParam = queryParams.get('ep');
+            
+            if (epParam) {
+                const ep = episodes.find(e => e.episodeNumber.toString() === epParam);
+                if (ep) {
+                    console.log('[Watch] Selecting episode from query param:', ep.episodeNumber);
+                    loadStream(ep);
+                    return;
+                }
+            }
+
+            // Priority 2: Watch History
             const historyItem = userData.history.find(h => h.animeId === anime.id);
             if (historyItem) {
                 const ep = episodes.find(e => e.session === historyItem.episodeId);
@@ -238,11 +252,11 @@ function Watch() {
                     return;
                 }
             }
-            // Fallback to first episode
-            console.log('[Watch] No history, playing first episode');
+            // Fallback: First episode
+            console.log('[Watch] No specific episode requested or found in history, playing first episode');
             loadStream(episodes[0]);
         }
-    }, [episodes, currentEpisode, streamLoading, userLoading, userData.history, anime]);
+    }, [episodes, currentEpisode, streamLoading, userLoading, userData.history, anime, location.search]);
 
     // Bug 2 fix: 5-minute auto-add to "Watching" — only counts REAL play time
     useEffect(() => {
