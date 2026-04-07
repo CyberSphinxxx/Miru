@@ -92,7 +92,8 @@ export const mergeUserData = (local: UserData, cloud: UserData): UserData => {
 
     // Process cloud library first (priority)
     (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
-        cloud.library[status].forEach(entry => {
+        const cloudList = cloud.library?.[status] || [];
+        cloudList.forEach(entry => {
             if (!seenIds.has(entry.anime.id)) {
                 mergedLibrary[status].push(entry);
                 seenIds.add(entry.anime.id);

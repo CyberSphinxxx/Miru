@@ -102,7 +102,7 @@ export function useProfileData() {
     const animeStatsData = useMemo(() => {
         // Hide 'completed' from 'All' tab view, but keep 'grandTotal' for stats
         const grandTotalAnime = Object.values(userData.library).reduce((acc, list) => acc + list.length, 0);
-        const activeTotalAnime = grandTotalAnime - userData.library.completed.length;
+        const activeTotalAnime = grandTotalAnime; // Include everything in 'All'
         
         const watchingCount = userData.library.watching.length;
         const completedCount = userData.library.completed.length;
@@ -191,8 +191,7 @@ export function useProfileData() {
 
         if (animeTab === 'All') {
             const allAnime: Anime[] = [];
-            Object.entries(userData.library).forEach(([status, list]) => {
-                if (status === 'completed') return; // Hide completed from 'All'
+            Object.entries(userData.library).forEach(([, list]) => {
                 (list as LibraryEntry[]).forEach((entry) => allAnime.push(entry.anime));
             });
             return allAnime;
