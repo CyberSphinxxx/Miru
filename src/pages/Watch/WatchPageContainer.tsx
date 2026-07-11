@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import WatchPage from './WatchPage';
 import WatchPageSkeleton from '../../components/WatchPageSkeleton';
 import { Anime, Episode, StreamLink } from '../../types';
-import { saveWatchProgress } from '../../services/watchHistoryService';
 import { animeService, findBestScraperMatch, groupRelations } from '../../services/api';
 import { useLocalUser } from '../../context/UserContext';
 
@@ -313,10 +312,7 @@ function Watch() {
 
         // Save to watch history
         if (activeAnime) {
-            const epNum = typeof episode.episodeNumber === 'string'
-                ? parseInt(episode.episodeNumber)
-                : episode.episodeNumber;
-            saveWatchProgress(activeAnime, epNum, 0);
+            updateHistory(activeAnime.id, episode.session, 0);
         }
 
         try {

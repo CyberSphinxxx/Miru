@@ -1,4 +1,4 @@
-import { UserData, Library, LibraryStatus, MangaLibrary, MangaLibraryStatus, MovieLibrary, MovieLibraryStatus, HistoryItem } from '../types/user';
+import { UserData, Library, LibraryStatus, MangaLibrary, MangaLibraryStatus, MovieLibrary, MovieLibraryStatus, HistoryItem, LibraryEntry, MangaLibraryEntry, MovieLibraryEntry } from '../types/user';
 
 export const LOCAL_STORAGE_KEY = 'miru_local_user';
 
@@ -79,106 +79,163 @@ export const mergeUserData = (local: UserData, cloud: UserData): UserData => {
         }
     });
 
-    // Merge library (keep unique by id, prefer cloud)
-    const mergedLibrary: Library = {
-        watching: [],
-        completed: [],
-        plan_to_watch: [],
-        on_hold: [],
-        dropped: [],
+
+    // Helper to get status priority (higher is "better")
+    const getStatusPriority = (s: LibraryStatus): number => {
+        const priorities: Record<LibraryStatus, number> = {
+            completed: 100,
+            watching: 80,
+            on_hold: 60,
+            plan_to_watch: 40,
+            dropped: 20
+        };
+        return priorities[s] || 0;
     };
 
-    const seenIds = new Set<number>();
+    // Build map of best entries across all statuses
+    // Prioritize by status first, then by addedAt date
+    const resolveLibraryEntries = (libA: Library, libB: Library): Library => {
+        const bestEntries = new Map<number, { entry: LibraryEntry, status: LibraryStatus }>();
 
-    // Process cloud library first (priority)
-    (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
-        const cloudList = cloud.library?.[status] || [];
-        cloudList.forEach(entry => {
-            if (!seenIds.has(entry.anime.id)) {
-                mergedLibrary[status].push(entry);
-                seenIds.add(entry.anime.id);
-            }
+        const processLibrary = (lib: Library) => {
+            (Object.keys(lib) as LibraryStatus[]).forEach(status => {
+                const list = lib[status] || [];
+                list.forEach(entry => {
+                    const id = entry.anime.id;
+                    const existing = bestEntries.get(id);
+
+                    if (!existing ||
+                        getStatusPriority(status) > getStatusPriority(existing.status) ||
+                        (status === existing.status && new Date(entry.addedAt) > new Date(existing.entry.addedAt))) {
+                        bestEntries.set(id, { entry, status });
+                    }
+                });
+            });
+        };
+
+        processLibrary(libA);
+        processLibrary(libB);
+
+        const result: Library = {
+            watching: [],
+            completed: [],
+            plan_to_watch: [],
+            on_hold: [],
+            dropped: [],
+        };
+
+        bestEntries.forEach(({ entry, status }) => {
+            result[status].push(entry);
         });
-    });
 
-    // Add local items not in cloud
-    (Object.keys(mergedLibrary) as LibraryStatus[]).forEach(status => {
-        local.library[status].forEach(entry => {
-            if (!seenIds.has(entry.anime.id)) {
-                mergedLibrary[status].push(entry);
-                seenIds.add(entry.anime.id);
-            }
-        });
-    });
-
-    // Also merge manga library in same pattern
-    const mergedMangaLibrary: MangaLibrary = {
-        reading: [],
-        completed: [],
-        plan_to_read: [],
-        on_hold: [],
-        dropped: [],
+        return result;
     };
 
-    const seenMangaIds = new Set<number>();
+    const mergedLibrary = resolveLibraryEntries(cloud.library || INITIAL_DATA.library, local.library || INITIAL_DATA.library);
 
-    // Process cloud manga library first
-    if (cloud.mangaLibrary) {
-        (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-            (cloud.mangaLibrary[status] || []).forEach(entry => {
-                if (!seenMangaIds.has(entry.manga.id)) {
-                    mergedMangaLibrary[status].push(entry);
-                    seenMangaIds.add(entry.manga.id);
-                }
+    // Resolve manga library
+    const resolveMangaLibraryEntries = (libA: MangaLibrary, libB: MangaLibrary): MangaLibrary => {
+        const getMangaStatusPriority = (s: MangaLibraryStatus): number => {
+            const priorities: Record<MangaLibraryStatus, number> = {
+                completed: 100,
+                reading: 80,
+                on_hold: 60,
+                plan_to_read: 40,
+                dropped: 20
+            };
+            return priorities[s] || 0;
+        };
+
+        const bestEntries = new Map<number, { entry: MangaLibraryEntry, status: MangaLibraryStatus }>();
+
+        const processLibrary = (lib: MangaLibrary) => {
+            if (!lib) return;
+            (Object.keys(lib) as MangaLibraryStatus[]).forEach(status => {
+                const list = lib[status] || [];
+                list.forEach(entry => {
+                    if (!entry?.manga?.id) return;
+                    const id = entry.manga.id;
+                    const existing = bestEntries.get(id);
+
+                    if (!existing ||
+                        getMangaStatusPriority(status) > getMangaStatusPriority(existing.status) ||
+                        (status === existing.status && new Date(entry.addedAt) > new Date(existing.entry.addedAt))) {
+                        bestEntries.set(id, { entry, status });
+                    }
+                });
             });
-        });
-    }
+        };
 
-    // Add local manga items not in cloud
-    if (local.mangaLibrary) {
-        (Object.keys(mergedMangaLibrary) as MangaLibraryStatus[]).forEach(status => {
-            (local.mangaLibrary[status] || []).forEach(entry => {
-                if (!seenMangaIds.has(entry.manga.id)) {
-                    mergedMangaLibrary[status].push(entry);
-                    seenMangaIds.add(entry.manga.id);
-                }
-            });
-        });
-    }
+        processLibrary(libA);
+        processLibrary(libB);
 
-    // Also merge movie library
-    const mergedMovieLibrary: MovieLibrary = {
-        watched: [],
-        plan_to_watch: [],
-        on_hold: [],
-        dropped: [],
+        const result: MangaLibrary = {
+            reading: [],
+            completed: [],
+            plan_to_read: [],
+            on_hold: [],
+            dropped: [],
+        };
+
+        bestEntries.forEach(({ entry, status }) => {
+            result[status].push(entry);
+        });
+
+        return result;
     };
 
-    const seenMovieIds = new Set<number>();
+    const mergedMangaLibrary = resolveMangaLibraryEntries(cloud.mangaLibrary!, local.mangaLibrary!);
 
-    // Process cloud movie library first
-    if (cloud.movieLibrary) {
-        (Object.keys(mergedMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
-            (cloud.movieLibrary[status] || []).forEach(entry => {
-                if (!seenMovieIds.has(entry.movie.id)) {
-                    mergedMovieLibrary[status].push(entry);
-                    seenMovieIds.add(entry.movie.id);
-                }
-            });
-        });
-    }
+    // Resolve movie library
+    const resolveMovieLibraryEntries = (libA: MovieLibrary, libB: MovieLibrary): MovieLibrary => {
+        const getMovieStatusPriority = (s: MovieLibraryStatus): number => {
+            const priorities: Record<MovieLibraryStatus, number> = {
+                watched: 100,
+                on_hold: 60,
+                plan_to_watch: 40,
+                dropped: 20
+            };
+            return priorities[s] || 0;
+        };
 
-    // Add local movie items not in cloud
-    if (local.movieLibrary) {
-        (Object.keys(mergedMovieLibrary) as MovieLibraryStatus[]).forEach(status => {
-            (local.movieLibrary[status] || []).forEach(entry => {
-                if (!seenMovieIds.has(entry.movie.id)) {
-                    mergedMovieLibrary[status].push(entry);
-                    seenMovieIds.add(entry.movie.id);
-                }
+        const bestEntries = new Map<number, { entry: MovieLibraryEntry, status: MovieLibraryStatus }>();
+
+        const processLibrary = (lib: MovieLibrary) => {
+            if (!lib) return;
+            (Object.keys(lib) as MovieLibraryStatus[]).forEach(status => {
+                const list = lib[status] || [];
+                list.forEach(entry => {
+                    if (!entry?.movie?.id) return;
+                    const id = entry.movie.id;
+                    const existing = bestEntries.get(id);
+
+                    if (!existing ||
+                        getMovieStatusPriority(status) > getMovieStatusPriority(existing.status) ||
+                        (status === existing.status && new Date(entry.addedAt) > new Date(existing.entry.addedAt))) {
+                        bestEntries.set(id, { entry, status });
+                    }
+                });
             });
+        };
+
+        processLibrary(libA);
+        processLibrary(libB);
+
+        const result: MovieLibrary = {
+            watched: [],
+            plan_to_watch: [],
+            on_hold: [],
+            dropped: [],
+        };
+
+        bestEntries.forEach(({ entry, status }) => {
+            result[status].push(entry);
         });
-    }
+
+        return result;
+    };
+
+    const mergedMovieLibrary = resolveMovieLibraryEntries(cloud.movieLibrary!, local.movieLibrary!);
 
     return {
         history: Array.from(historyMap.values()),
